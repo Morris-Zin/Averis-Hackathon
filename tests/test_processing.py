@@ -333,3 +333,90 @@ def test_checkpoint_progress_preserves_reviewer_edits(postgres_db):
         assert row.state["workflow"] == "waiting"
         assert row.state["stage"] == "document_read"
         assert row.input_revision == 1
+
+
+@pytest.mark.parametrize("category,elapsed", [("BL_COMPARISON", 436), ("GENERAL", 481)])
+def test_application_deadline_never_publishes_a_late_success(postgres_db, monkeypatch, category, elapsed):
+    from types import SimpleNamespace
+
+    from averis import processing
+
+    db, settings, storage = postgres_db
+    case_id, run_id = add_case_and_run(db, attempts=2)
+    clock = [0.0]
+    monkeypatch.setattr(processing, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+
+    class LateClassification:
+        def classify(self, _subject, _body):
+            clock[0] = elapsed
+            return Classification(suggested=category, accepted=category, confidence=1,
+                                  probabilities={category: 1}, source="fixture", model="test")
+
+        def extract(self, _document):
+            raise AssertionError("No extraction may start beyond the application deadline")
+
+    processor = Processor(db, settings, storage, factory=lambda *_: LateClassification())
+    assert processor.execute(run_id) == "completed"  # Terminal task acknowledgement, not a match.
+    with db.session() as session:
+        run = session.get(Run, run_id)
+        row = session.get(Case, case_id)
+        assert run.status == "failed"
+        assert run.error == "TimeoutError"
+        view = CaseView.model_validate(row.state)
+        assert view.processing == "failed"
+        assert view.report is None
+        assert view.processing_error
+
+
+def test_parser_and_provider_callbacks_release_database_connections(postgres_db, monkeypatch):
+    from averis import processing
+    from averis.persistence import Document
+
+    db, settings, storage = postgres_db
+    case_id, run_id = add_case_and_run(db)
+    original_evidence = {}
+    with db.session() as session, session.begin():
+        row = session.get(Case, case_id)
+        view = CaseView.model_validate(row.state)
+        for attachment in view.attachments:
+            original_evidence[attachment.id] = attachment.evidence
+            attachment.evidence = None
+            content = b"Synthetic parser boundary fixture"
+            key, digest = storage.put(content)
+            session.add(Document(id=attachment.id, workspace_id="workspace-1", case_id=case_id,
+                                 filename=attachment.filename, object_key=key, sha256=digest, size=len(content)))
+        row.state = view.model_dump(mode="json")
+
+    callbacks = []
+
+    def observe(name):
+        # Exclude the independent lease heartbeat; inspect the processing thread's boundaries.
+        assert db.engine.pool.checkedout() == 0
+        callbacks.append(name)
+
+    def read(document_id, _filename, _content, *, timeout_seconds):
+        observe("parser")
+        assert 0 < timeout_seconds <= 120
+        return original_evidence[document_id]
+
+    class ObservedIntelligence:
+        def classify(self, _subject, _body):
+            observe("classification")
+            return Classification(suggested="BL_COMPARISON", accepted="BL_COMPARISON", confidence=1,
+                                  probabilities={"BL_COMPARISON": 1}, source="fixture", model="test")
+
+        def extract(self, document):
+            observe("extraction")
+            return ExtractionResult(role="SI" if document.document_id == "si-1" else "BL",
+                                    role_confidence=1, fields={
+                                        field: reading_from_evidence(field, document, [], confidence=0)
+                                        for field in ("shipper", "consignee", "notify_party", "port_of_loading",
+                                                      "port_of_discharge", "container_count", "gross_weight_kg")})
+
+    monkeypatch.setattr(processing, "read_document_bounded", read)
+    processor = Processor(db, settings, storage, factory=lambda *_: ObservedIntelligence())
+    monkeypatch.setattr(processor, "_heartbeat", lambda *_: None)
+    assert processor.execute(run_id) == "completed"
+    assert callbacks == ["classification", "parser", "extraction", "parser", "extraction"]
+    with db.session() as session:
+        assert session.get(Run, run_id).status == "completed"
