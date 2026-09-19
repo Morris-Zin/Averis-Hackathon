@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from scripts.report_evaluation import DEFAULT_SCORER, FIELDS, build_evaluation_report
+from scripts.report_evaluation import FIELDS, build_evaluation_report
 
 
 def _row(
@@ -60,6 +60,27 @@ def _comparison_report(mismatches: set[str]) -> dict[str, object]:
 
 def _write(path: Path, value: object) -> Path:
     path.write_text(json.dumps(value), encoding="utf-8")
+    return path
+
+
+@pytest.fixture
+def scorer_stub(tmp_path: Path) -> Path:
+    """Exercise the external CLI boundary without an ignored organizer download."""
+    path = tmp_path / "scorer_stub.py"
+    path.write_text(
+        "import argparse, json\n"
+        "from pathlib import Path\n"
+        "p = argparse.ArgumentParser()\n"
+        "p.add_argument('predictions')\n"
+        "p.add_argument('--ground-truth', required=True)\n"
+        "p.add_argument('--json', action='store_true', required=True)\n"
+        "a = p.parse_args()\n"
+        "truth = json.loads(Path(a.ground_truth).read_text())\n"
+        "predictions = json.loads(Path(a.predictions).read_text())\n"
+        "assert set(predictions) <= set(truth)\n"
+        "print(json.dumps({'n_emails': len(truth), 'test_double': True}))\n",
+        encoding="utf-8",
+    )
     return path
 
 
@@ -146,7 +167,7 @@ def evaluation_files(tmp_path: Path) -> tuple[Path, Path, Path]:
 
 
 def test_report_separates_automatic_assisted_blocked_and_failed(
-    evaluation_files: tuple[Path, Path, Path], tmp_path: Path
+    evaluation_files: tuple[Path, Path, Path], tmp_path: Path, scorer_stub: Path
 ) -> None:
     snapshot, manifest, truth = evaluation_files
     artifacts = tmp_path / "report"
@@ -157,7 +178,7 @@ def test_report_separates_automatic_assisted_blocked_and_failed(
         truth,
         artifacts,
         split="development",
-        scorer_path=DEFAULT_SCORER,
+        scorer_path=scorer_stub,
     )
 
     assert report["selection"]["selected_total"] == 4
@@ -209,7 +230,7 @@ def test_report_separates_automatic_assisted_blocked_and_failed(
 
 
 def test_holdout_selection_applies_explicit_exclusions_and_keeps_incomplete(
-    evaluation_files: tuple[Path, Path, Path], tmp_path: Path
+    evaluation_files: tuple[Path, Path, Path], tmp_path: Path, scorer_stub: Path
 ) -> None:
     snapshot, manifest, truth = evaluation_files
 
@@ -220,7 +241,7 @@ def test_holdout_selection_applies_explicit_exclusions_and_keeps_incomplete(
         tmp_path / "holdout-report",
         split="holdout",
         excluded_ids=("email_001", "email_002", "email_025"),
-        scorer_path=DEFAULT_SCORER,
+        scorer_path=scorer_stub,
     )
 
     assert report["selection"]["selected_ids"] == ["email_030"]
@@ -241,7 +262,7 @@ def test_holdout_selection_applies_explicit_exclusions_and_keeps_incomplete(
 
 
 def test_blocked_row_with_prediction_is_rejected_instead_of_scored(
-    evaluation_files: tuple[Path, Path, Path], tmp_path: Path
+    evaluation_files: tuple[Path, Path, Path], tmp_path: Path, scorer_stub: Path
 ) -> None:
     snapshot_path, manifest, truth = evaluation_files
     snapshot = json.loads(snapshot_path.read_text())
@@ -255,5 +276,5 @@ def test_blocked_row_with_prediction_is_rejected_instead_of_scored(
             truth,
             tmp_path / "invalid-report",
             split="development",
-            scorer_path=DEFAULT_SCORER,
+            scorer_path=scorer_stub,
         )
