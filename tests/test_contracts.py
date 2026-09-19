@@ -2,7 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from averis.api import app
+from averis.api import create_app
+from averis.config import Settings
 from averis.contracts import Prediction
 
 
@@ -30,8 +31,11 @@ def test_accepts_review_and_mismatch():
                                      defect_fields=["container_count"]))
 
 
-def test_health_does_not_claim_pipeline_ready():
-    response = TestClient(app).get("/health")
+@pytest.mark.parametrize("enabled", [False, True])
+def test_health_reports_configuration_not_dependency_readiness(enabled):
+    settings = Settings(_env_file=None, live_enabled=enabled, budget_verified=enabled)
+    response = TestClient(create_app(settings)).get("/health")
     assert response.status_code == 200
-    assert response.json()["pipeline_ready"] is False
+    assert response.json() == {"status": "ok", "live_processing_enabled": enabled,
+                               "budget_verification_enabled": enabled}
 

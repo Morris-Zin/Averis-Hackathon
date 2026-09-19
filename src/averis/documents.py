@@ -41,7 +41,8 @@ MAX_XLSX_COLUMNS = 256
 MAX_XLSX_CELLS = 200_000
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
-_SUPPORTED_SUFFIXES = {".txt", ".pdf", ".png", ".docx", ".xlsx"}
+_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
+_SUPPORTED_SUFFIXES = {".txt", ".pdf", ".docx", ".xlsx"} | _IMAGE_SUFFIXES
 _TEXT_LABEL = re.compile(r"^[^\s:\r\n][^:\r\n]{0,80}:\s*\S")
 
 
@@ -274,8 +275,8 @@ def read_document(document_id: str, filename: str, content: bytes) -> DocumentEv
             return _read_text(document_id, content)
         if suffix == ".pdf":
             return _read_pdf(document_id, content)
-        if suffix == ".png":
-            return _read_image(document_id, content)
+        if suffix in _IMAGE_SUFFIXES:
+            return _read_image(document_id, content, suffix)
         archive_issue = _check_office_archive(content)
         if archive_issue:
             result.issues.append(archive_issue)
@@ -340,7 +341,7 @@ def render_preview_bounded(
     page: int = 1,
     timeout_seconds: float = 20.0,
 ) -> bytes:
-    """Render a 1-based PDF page to PNG in a time- and pixel-bounded process.
+    """Render a PDF page or image document to a bounded PNG in a child process.
 
     Unsupported formats, invalid pages, corrupt documents, and timeouts raise
     :class:`DocumentPreviewError` with a stable failure code suitable for an API
@@ -354,11 +355,13 @@ def render_preview_bounded(
             f"preview_document_size_limit_exceeded:{len(content)}>{MAX_DOCUMENT_BYTES}"
         )
     suffix = PurePath(filename).suffix.lower()
-    if suffix != ".pdf":
+    if suffix != ".pdf" and suffix not in _IMAGE_SUFFIXES:
         raise DocumentPreviewError(
             f"preview_unsupported_document_type:{suffix or 'none'}"
         )
     if page < 1 or page > MAX_PDF_PAGES:
+        raise DocumentPreviewError(f"preview_page_out_of_range:{page}")
+    if suffix in _IMAGE_SUFFIXES and page != 1:
         raise DocumentPreviewError(f"preview_page_out_of_range:{page}")
     if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
         raise DocumentPreviewError("preview_invalid_timeout")
@@ -367,7 +370,7 @@ def render_preview_bounded(
     receive, send = context.Pipe(duplex=False)
     process = context.Process(
         target=_preview_worker,
-        args=(send, content, page),
+        args=(send, content, page, suffix),
         daemon=True,
     )
     process.start()
@@ -400,7 +403,12 @@ def _apply_child_resource_limits(cpu_seconds: int) -> None:
     resources.setrlimit(resources.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
 
 
-def _preview_worker(connection: Connection, content: bytes, page: int) -> None:
+def _preview_worker(
+    connection: Connection,
+    content: bytes,
+    page: int,
+    suffix: str,
+) -> None:
     try:
         _acquire_child_process_tree()
     except OSError:
@@ -410,7 +418,11 @@ def _preview_worker(connection: Connection, content: bytes, page: int) -> None:
     _apply_child_resource_limits(20)
     try:
         try:
-            preview = _render_pdf_preview(content, page)
+            preview = (
+                _render_pdf_preview(content, page)
+                if suffix == ".pdf"
+                else _render_image_preview(content, suffix)
+            )
             connection.send_bytes(b"\x00" + preview)
         except Exception as exc:  # noqa: BLE001 - isolated parser failures become safe codes.
             if isinstance(exc, DocumentPreviewError):
@@ -456,6 +468,33 @@ def _render_pdf_preview(content: bytes, page_number: int) -> bytes:
             page.close()
     finally:
         document.close()
+
+
+def _render_image_preview(content: bytes, suffix: str) -> bytes:
+    expected_format = "PNG" if suffix == ".png" else "JPEG"
+    with Pillow.open(BytesIO(content)) as source:
+        if source.format != expected_format:
+            raise DocumentPreviewError(f"preview_unreadable:invalid_{suffix[1:]}")
+        width, height = source.size
+        if (
+            width <= 0
+            or height <= 0
+            or width > MAX_RENDER_DIMENSION
+            or height > MAX_RENDER_DIMENSION
+            or width * height > MAX_RENDER_PIXELS
+        ):
+            raise DocumentPreviewError(
+                f"preview_image_pixel_limit_exceeded:{width}x{height}>"
+                f"{MAX_RENDER_PIXELS}"
+            )
+        source.load()
+        image = source.convert("RGB")
+    try:
+        output = BytesIO()
+        image.save(output, format="PNG")
+        return output.getvalue()
+    finally:
+        image.close()
 
 
 def _bounded_worker(
@@ -767,11 +806,16 @@ def _ocr_int(value: object) -> int:
     return int(value)
 
 
-def _read_image(document_id: str, content: bytes) -> DocumentEvidence:
+def _read_image(
+    document_id: str,
+    content: bytes,
+    suffix: str,
+) -> DocumentEvidence:
     result = DocumentEvidence(document_id=document_id)
+    expected_format = "PNG" if suffix == ".png" else "JPEG"
     with Pillow.open(BytesIO(content)) as source:
-        if source.format != "PNG":
-            result.issues.append("document_unreadable:invalid_png")
+        if source.format != expected_format:
+            result.issues.append(f"document_unreadable:invalid_{suffix[1:]}")
             return result
         width, height = source.size
         if (

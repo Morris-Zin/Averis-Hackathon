@@ -4,7 +4,7 @@ This records local and deployed evidence, not an enterprise-capacity claim.
 
 ## Verified locally
 
-- Full application verification passed 166 tests with real PostgreSQL enabled. Two tests were skipped: Linux-only process cleanup on Windows, and the opt-in natural-lease test, which separately passed in 92.75 seconds. Coverage includes concurrent budget reservation/settlement, stale-run rejection, shared demo cleanup, portable delivery and evaluation preparation.
+- Full application verification passed 177 tests with real PostgreSQL enabled. Two tests were skipped: Linux-only process cleanup on Windows, and the opt-in natural-lease test, which separately passed in 92.75 seconds. Coverage includes concurrent budget reservation/settlement, stale-run rejection, shared demo cleanup, portable delivery and evaluation preparation.
 - Checks passed: Ruff, strict Pyright, module boundaries, tests, OpenAPI/generated TypeScript drift, frontend types/lint and production Next.js static export. PostgreSQL migration head is a83d6f9e2741.
 - Built image `averis:test` runs as UID 10001, includes Tesseract 5.5.0 and the static frontend/migrations.
 - The image processed all supplied PDFs with networking disabled and limits of one CPU/1 GiB. After the multiline OCR fix, all six scanned SI/BL documents (512–514) returned 5–8 evidence blocks each, retaining image coordinates with no reader issues. Malformed BL PDFs 511 and 515 returned explicit unreadable errors. This proves reading/location support, not field-selection accuracy.
@@ -59,6 +59,8 @@ The workload included six documents with OCR evidence. Two PDFs (`email_511_BL.p
 The review layout was browser-checked at 950 pixels after moving Details below the comparison at narrow desktop widths; the temporary viewport was reset afterward.
 
 ## Actual process-crash recovery
+
+Final audit follow-up: accepted PNG/JPG/JPEG inputs now share bounded OCR and single-page preview support, with format signatures and image-size checks. HTTP acceptance covers chunked multipart transport rejection, the exact 10 MB attachment boundary, concurrent preview rejection and semaphore release after render errors. `/health` now reports liveness and configuration flags only, without implying dependency or worker readiness. The complete 177-test verification, generated contracts and production frontend build passed after these changes.
 
 A local PostgreSQL acceptance test killed the worker OS process after its classification checkpoint was committed, then started a fresh process after the real lease expired. The natural-expiry run passed in 92.75 seconds, including 89.969 seconds waiting for the persisted lease. Attempt two completed with exactly one classification call across both processes, and the stale report stayed cleared. This used deterministic offline intelligence and no paid calls; it is an actual local process interruption, not a Railway outage simulation.
 

@@ -165,7 +165,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @application.get("/health")
     def health() -> dict[str, object]:
-        return {"status": "ok", "stage": "implementation", "pipeline_ready": config.live_enabled and config.budget_verified}
+        return {"status": "ok", "live_processing_enabled": config.live_enabled,
+                "budget_verification_enabled": config.budget_verified}
 
     @application.post("/api/demo/session", response_model=SessionView)
     def start(request: Request, response: Response) -> SessionView:

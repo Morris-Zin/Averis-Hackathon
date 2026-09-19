@@ -19,6 +19,7 @@ from averis.documents import (
     MAX_DOCUMENT_BYTES,
     MAX_RENDER_DIMENSION,
     MAX_RENDER_PIXELS,
+    DocumentPreviewError,
     _acquire_child_process_tree,
     _stop_process_tree,
     read_document,
@@ -133,6 +134,31 @@ def test_bounded_pdf_preview_is_a_pixel_bounded_png() -> None:
     with Image.open(BytesIO(preview)) as image:
         assert image.width * image.height <= MAX_RENDER_PIXELS
         assert max(image.width, image.height) <= MAX_RENDER_DIMENSION
+
+
+@pytest.mark.parametrize(
+    ("suffix", "image_format"),
+    [(".png", "PNG"), (".jpg", "JPEG"), (".jpeg", "JPEG")],
+)
+def test_bounded_image_preview_is_a_single_page_png(
+    suffix: str,
+    image_format: str,
+) -> None:
+    source = Image.new("RGB", (320, 180), color=(240, 245, 250))
+    payload = BytesIO()
+    source.save(payload, format=image_format)
+    source.close()
+
+    preview = render_preview_bounded(
+        f"source{suffix}", payload.getvalue(), page=1, timeout_seconds=10
+    )
+
+    assert preview.startswith(b"\x89PNG\r\n\x1a\n")
+    with Image.open(BytesIO(preview)) as rendered:
+        assert rendered.format == "PNG"
+        assert rendered.size == (320, 180)
+    with pytest.raises(DocumentPreviewError, match="preview_page_out_of_range:2"):
+        render_preview_bounded(f"source{suffix}", payload.getvalue(), page=2)
 
 
 def test_docx_keeps_paragraph_and_table_order_without_inventing_pages() -> None:
@@ -292,12 +318,18 @@ def test_pdf_native_text_splits_adjacent_fields_and_retains_address_regions() ->
     )
 
 
-def test_standalone_png_uses_bounded_ocr_with_image_location(
+@pytest.mark.parametrize(
+    ("suffix", "image_format"),
+    [(".png", "PNG"), (".jpg", "JPEG"), (".jpeg", "JPEG")],
+)
+def test_standalone_image_uses_bounded_ocr_with_image_location(
     monkeypatch: MonkeyPatch,
+    suffix: str,
+    image_format: str,
 ) -> None:
     image = Image.new("RGB", (300, 150), color="white")
     payload = BytesIO()
-    image.save(payload, format="PNG")
+    image.save(payload, format=image_format)
     image.close()
 
     def fake_image_to_data(*_: object, **__: object) -> dict[str, list[object]]:
@@ -323,7 +355,7 @@ def test_standalone_png_uses_bounded_ocr_with_image_location(
         }
 
     monkeypatch.setattr(pytesseract, "image_to_data", fake_image_to_data)
-    evidence = read_document("png-1", "scan.png", payload.getvalue())
+    evidence = read_document("image-1", f"scan{suffix}", payload.getvalue())
 
     assert evidence.issues == []
     assert [block.text for block in evidence.blocks] == [

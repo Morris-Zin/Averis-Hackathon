@@ -202,6 +202,47 @@ def test_preview_rejects_bad_pages_timeouts_and_corrupt_pdf() -> None:
         documents.render_preview_bounded("shipment.pdf", b"not a PDF")
 
 
+def test_image_reader_and_preview_reject_format_mismatch_and_pixel_excess() -> None:
+    png = Image.new("RGB", (20, 20), "white")
+    png_payload = BytesIO()
+    png.save(png_payload, format="PNG")
+    png.close()
+
+    mislabeled = documents.read_document(
+        "mislabeled", "scan.jpg", png_payload.getvalue()
+    )
+    assert mislabeled.blocks == []
+    assert mislabeled.issues == ["document_unreadable:invalid_jpg"]
+    with pytest.raises(
+        documents.DocumentPreviewError,
+        match="preview_unreadable:invalid_jpg",
+    ):
+        documents.render_preview_bounded("scan.jpg", png_payload.getvalue())
+
+    oversized = Image.new("RGB", (documents.MAX_RENDER_DIMENSION + 1, 1), "white")
+    oversized_payload = BytesIO()
+    oversized.save(oversized_payload, format="PNG")
+    oversized.close()
+    evidence = documents.read_document(
+        "oversized-image", "scan.png", oversized_payload.getvalue()
+    )
+    expected = (
+        f"image_pixel_limit_exceeded:{documents.MAX_RENDER_DIMENSION + 1}x1>"
+        f"{documents.MAX_RENDER_PIXELS}"
+    )
+    assert evidence.blocks == []
+    assert evidence.issues == [expected]
+    with pytest.raises(
+        documents.DocumentPreviewError,
+        match=(
+            f"preview_image_pixel_limit_exceeded:"
+            f"{documents.MAX_RENDER_DIMENSION + 1}x1>"
+            f"{documents.MAX_RENDER_PIXELS}"
+        ),
+    ):
+        documents.render_preview_bounded("scan.png", oversized_payload.getvalue())
+
+
 class _ComparisonWithoutExtraction:
     def __init__(self) -> None:
         self.extract_calls = 0

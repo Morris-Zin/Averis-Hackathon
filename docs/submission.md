@@ -3,6 +3,8 @@
 Deadline: **22 September 2026, 12:00 noon** (plan in Malaysia time).
 [Official submission form](https://forms.gle/nnam5eXrf5cjXdf3).
 
+Checked 20 September: this short link returns **Dynamic Link Not Found**. The current organizer rules still list the same link; obtain a replacement from the organizers before final submission.
+
 - [x] Team name and members: **GoodLord** - Aung Phone Khant, Ella, Pei En, Congye.
 - [ ] Representative name/email/contact.
 - [x] Project name and summary: [Averis submission brief](submission-brief.md).

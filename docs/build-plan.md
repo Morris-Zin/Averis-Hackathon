@@ -85,7 +85,7 @@ Controlled sample retries use the same budget authority: three per session and f
 
 Local acceptance checks include real PostgreSQL concurrency/recovery tests, evidence/correction tests, session isolation, offline provider doubles, strict Python/TypeScript checks, generated contract drift and production static export. Browser testing uses actual UI controls against the running application.
 
-Railway deployment, migrations, the shared budget ledger and fresh-browser checks are verified. The Railway dashboard holds the applied service configuration; legacy JSON configuration files are reference-only. Before public judging, finish deployed recovery and resource measurements and dataset evaluation. Google Cloud IAM/task delivery remains unverified because that alternative was not deployed.
+Railway deployment, migrations, the shared budget ledger and fresh-browser checks are verified. The Railway dashboard holds the applied service configuration; legacy JSON configuration files are reference-only. Deployed seeded-lease recovery, local OS-process crash recovery, bounded reader resources, and development/reused-validation evaluation are recorded in [validation](validation.md) and [evaluation results](evaluation-results.md). These do not establish sustained production capacity or independent holdout accuracy. Google Cloud IAM/task delivery remains unverified because that alternative was not deployed.
 
 Use the unchanged official scorer plus requirement-aligned diagnostics. Do not ship ground truth in runtime images or send it to AI. Export blockers must remain explicit for states the official format cannot represent. Separate automatic coverage/abstention from reviewer-assisted outcomes.
 
