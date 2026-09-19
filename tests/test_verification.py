@@ -151,10 +151,36 @@ def test_invalid_pair_never_emits_partial_findings() -> None:
 
 
 def test_human_selection_cannot_override_conflicting_shipment_references() -> None:
-    si = evidence("si", "Booking No.: SIN-1000")
+    si = evidence("si", "Shipment Reference: SIN-1000")
     bl = evidence("bl", "Shipment Reference: SIN-2000")
 
     assert validate_pair(si, bl, human_selected=True) is False
+
+
+def test_booking_ref_and_oc_number_labels_preserve_identifier_values() -> None:
+    si = evidence("si", "Booking Ref: BK-12345\nOC No.: ORDER-6789")
+    bl = evidence("bl", "Booking Reference: BK-12345")
+    assert shipment_references(si) == {"BK-12345", "ORDER-6789"}
+    assert validate_pair(si, bl) is True
+
+
+def test_shared_booking_cannot_hide_conflicting_shipment_ids() -> None:
+    si = evidence("si", "Booking Ref: BK-12345\nShipment ID: SHIP-1111")
+    bl = evidence("bl", "Booking Ref: BK-12345\nShipment ID: SHIP-2222")
+    assert validate_pair(si, bl) is False
+    assert validate_pair(si, bl, human_selected=True) is False
+
+
+def test_different_identifier_kinds_do_not_prove_pairing() -> None:
+    si = evidence("si", "Booking Ref: SAME-1234")
+    bl = evidence("bl", "OC No.: SAME-1234")
+    assert validate_pair(si, bl) is False
+
+
+def test_structured_table_booking_label_can_match_native_text() -> None:
+    si = evidence("si", "Booking No. | BK-12345")
+    bl = evidence("bl", "Booking Ref: BK-12345")
+    assert validate_pair(si, bl) is True
 
 
 def test_human_selection_can_pair_distinct_documents_without_references() -> None:

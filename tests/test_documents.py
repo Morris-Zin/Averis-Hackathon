@@ -44,6 +44,43 @@ def test_txt_preserves_multiline_blocks_and_line_locations() -> None:
     assert evidence.blocks[0].id == "txt-1:b0001"
 
 
+def test_txt_splits_adjacent_labels_and_retains_address_continuations() -> None:
+    evidence = read_document(
+        "txt-fields",
+        "shipment.txt",
+        (
+            b"SHIPPING INSTRUCTION\n"
+            b"========================================\n"
+            b"Shipper: Averis Trading\n"
+            b"  77 Robinson Road\n"
+            b"  P.O. BOX: 123\n"
+            b"Consignee (Non-Negotiable): Meridian LLC\n"
+            b"  Industrial Zone\n"
+            b"Notify Party: Same as consignee\n"
+            b"New Operational Field: preserve this too\n"
+            b"  continued value\n"
+        ),
+    )
+
+    assert evidence.issues == []
+    assert [block.text for block in evidence.blocks] == [
+        "SHIPPING INSTRUCTION\n========================================",
+        "Shipper: Averis Trading\n  77 Robinson Road\n  P.O. BOX: 123",
+        "Consignee (Non-Negotiable): Meridian LLC\n  Industrial Zone",
+        "Notify Party: Same as consignee",
+        "New Operational Field: preserve this too\n  continued value",
+    ]
+    assert [location.line_start for location in evidence.blocks[1].locations] == [
+        3,
+        4,
+        5,
+    ]
+    assert [location.line_start for location in evidence.blocks[4].locations] == [
+        9,
+        10,
+    ]
+
+
 def test_size_and_unsupported_formats_are_explicit_failures() -> None:
     too_large = read_document("large", "large.txt", b"x" * (MAX_DOCUMENT_BYTES + 1))
     unsupported = read_document("rtf", "shipment.rtf", b"not really rich text")
@@ -66,7 +103,10 @@ def test_bounded_reader_returns_the_same_typed_evidence() -> None:
 
     assert evidence.issues == []
     assert evidence.document_id == "bounded-1"
-    assert evidence.blocks[0].text == "Shipper: Averis Trading\nAddress: Port Klang"
+    assert [block.text for block in evidence.blocks] == [
+        "Shipper: Averis Trading",
+        "Address: Port Klang",
+    ]
 
 
 def test_bounded_pdf_preview_is_a_pixel_bounded_png() -> None:

@@ -42,6 +42,7 @@ MAX_XLSX_CELLS = 200_000
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
 _SUPPORTED_SUFFIXES = {".txt", ".pdf", ".png", ".docx", ".xlsx"}
+_TEXT_LABEL = re.compile(r"^[^\s:\r\n][^:\r\n]{0,80}:\s*\S")
 
 
 class _PdfBitmap(Protocol):
@@ -511,6 +512,8 @@ def _read_text(document_id: str, content: bytes) -> DocumentEvidence:
 
     for number, line in enumerate(lines, start=1):
         if line.strip():
+            if current and _starts_text_field(line):
+                flush()
             current.append((number, line))
         else:
             flush()
@@ -518,6 +521,17 @@ def _read_text(document_id: str, content: bytes) -> DocumentEvidence:
     if not result.blocks:
         result.issues.append("document_has_no_readable_text")
     return result
+
+
+def _starts_text_field(line: str) -> bool:
+    """Start a source block at a labelled field, including unfamiliar fields.
+
+    Known shipment labels may omit punctuation, while an unfamiliar label must
+    start at the left margin and use a colon. Indented address continuations
+    such as ``P.O. BOX: 123`` therefore stay with their owning field.
+    """
+
+    return _starts_evidence_field(line) or _TEXT_LABEL.match(line) is not None
 
 
 def _read_pdf(document_id: str, content: bytes) -> DocumentEvidence:

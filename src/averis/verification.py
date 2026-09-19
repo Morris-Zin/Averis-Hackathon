@@ -205,15 +205,24 @@ def compare(
 
 
 def shipment_references(document: DocumentEvidence) -> set[str]:
+    return {value for values in _references_by_kind(document).values() for value in values}
+
+
+def _references_by_kind(document: DocumentEvidence) -> dict[str, set[str]]:
+    """Keep identifier namespaces separate; a shared booking cannot mask a conflict."""
     text = "\n".join(block.text for block in document.blocks)
+    labels = {
+        "shipment": r"shipment\s*(?:id|ref(?:erence)?\.?)",
+        "booking": r"booking\s*(?:no\.?|number|ref(?:erence)?\.?)",
+        "oc": r"OC\b(?:\s*(?:no\.?|number|ref(?:erence)?\.?))?",
+    }
     return {
-        match.upper()
-        for match in re.findall(
-            r"(?:\bshipment\s*(?:id|reference)|\bbooking\s*(?:no\.?|number|reference)|\bOC\b)"
-            r"\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9/-]{3,})",
-            text,
-            re.IGNORECASE,
-        )
+        kind: {match.upper() for match in re.findall(
+            r"(?:^|\n)\s*" + label
+            + r"\s*[:#|=]?\s*([A-Za-z0-9][A-Za-z0-9/-]{3,})(?=\s|$)",
+            text, re.IGNORECASE,
+        )}
+        for kind, label in labels.items()
     }
 
 
@@ -226,8 +235,13 @@ def validate_pair(
 
     if si.document_id == bl.document_id:
         return False
-    si_references = shipment_references(si)
-    bl_references = shipment_references(bl)
-    if si_references and bl_references and si_references.isdisjoint(bl_references):
-        return False
-    return human_selected or bool(si_references & bl_references)
+    si_references = _references_by_kind(si)
+    bl_references = _references_by_kind(bl)
+    shared = False
+    for kind, values in si_references.items():
+        other = bl_references[kind]
+        if values and other:
+            if values != other:
+                return False
+            shared = True
+    return human_selected or shared

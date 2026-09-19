@@ -2,7 +2,7 @@
 
 ## Deployment decision update — 20 September 2026
 
-The user delegated hosting selection after Google Cloud billing blocked deployment. Railway is selected for the public container and a private background process, while Neon and R2 remain unchanged. Its account setup and PostgreSQL-backed delivery adapter are in progress; no public deployment is claimed. The worker will reuse the existing Processor leases, checkpoints, budget authority and revision fencing. The Cloud Run/Tasks configuration below remains a validated local alternative, not deployed infrastructure.
+The user delegated hosting selection after Google Cloud billing blocked deployment. Railway is selected for the public container and a private background process, while Neon and R2 remain unchanged. Both services are deployed at https://averis-hackathon-production.up.railway.app/ with a private polling worker and server-side credentials. The worker reuses the existing Processor leases, checkpoints, budget authority and revision fencing. Two live comparisons passed, including automatic browser progress updates. Railway runs one replica per service and one processing slot; its trial credit is finite. The Cloud Run/Tasks configuration below remains a validated local alternative, not deployed infrastructure.
 
 ## Original accepted architecture
 
@@ -70,7 +70,7 @@ Controlled sample retries use the same budget authority: three per session and f
 
 Local acceptance checks include real PostgreSQL concurrency/recovery tests, evidence/correction tests, session isolation, offline provider doubles, strict Python/TypeScript checks, generated contract drift and production static export. Browser testing uses actual UI controls against the running application.
 
-Cloud configuration is infrastructure-as-code, not evidence of deployment. Before public judging: configure Neon/R2/GCP, apply migrations, initialize the verified Jev ledger, deploy and test authenticated task delivery/recovery, measure runtime resources and latency, and verify a fresh-browser session.
+Railway deployment, migrations, the shared budget ledger and fresh-browser checks are verified. The Railway dashboard holds the applied service configuration; legacy JSON configuration files are reference-only. Before public judging, finish deployed recovery and resource measurements and dataset evaluation. Google Cloud IAM/task delivery remains unverified because that alternative was not deployed.
 
 Use the unchanged official scorer plus requirement-aligned diagnostics. Do not ship ground truth in runtime images or send it to AI. Export blockers must remain explicit for states the official format cannot represent. Separate automatic coverage/abstention from reviewer-assisted outcomes.
 

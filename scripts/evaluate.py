@@ -105,7 +105,9 @@ def _hold_run(db: Database, run_id: str) -> None:
 
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
 
 
 def _case_snapshot(
@@ -317,22 +319,27 @@ def run_evaluation(
         factory = intelligence_factory
     processor = Processor(db, settings, storage, factory=factory)
     outcomes: dict[str, str] = {}
+
+    def save_progress() -> dict[str, object]:
+        snapshot = _case_snapshot(db, all_records, outcomes)
+        snapshot["manifest"] = manifest
+        snapshot["run_selection"] = split
+        _write_json(output_dir / "snapshot.json", snapshot)
+        _write_json(output_dir / "run-results.json", {
+            "policy_version": cast(dict[str, object], manifest["policy"])["version"],
+            "split": split,
+            "outcomes": outcomes,
+        })
+        return snapshot
+
     for record in records:
         run_id = record.get("run_id")
         if not run_id:
             outcomes[str(record["source_id"])] = "missing_run"
             continue
         outcomes[str(record["source_id"])] = processor.execute(str(run_id))
-    snapshot = _case_snapshot(db, all_records, outcomes)
-    snapshot["manifest"] = manifest
-    snapshot["run_selection"] = split
-    _write_json(output_dir / "snapshot.json", snapshot)
-    _write_json(output_dir / "run-results.json", {
-        "policy_version": cast(dict[str, object], manifest["policy"])["version"],
-        "split": split,
-        "outcomes": outcomes,
-    })
-    return snapshot
+        save_progress()
+    return save_progress()
 
 
 def main(argv: Iterable[str] | None = None) -> None:

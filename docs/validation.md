@@ -16,11 +16,11 @@ This records local and deployed evidence, not an enterprise-capacity claim.
 - Two independent browser sessions deliberately shared a local synthetic workspace. A stale workflow edit was rejected, the first edit remained intact, and both mismatches remained visible. Fixed and browser-retested the conflict explanation so it survives the automatic refresh and explicitly says the second change was not saved.
 - The portable PostgreSQL worker passed 17 focused processing/runner tests, including eligible work behind 256 delayed rows and recovery from transient claim failures without logging sensitive error bodies.
 
-Latest backend verification after the worker safeguards passed 130 tests with one platform skip, plus Ruff, strict Pyright and module boundaries. Operator cases retain their development budget purpose across retries; disabled processing leaves queued work untouched.
+Latest backend verification after the worker, TXT evidence and identifier fixes passed 135 tests with one platform skip, plus Ruff, strict Pyright and module boundaries. Operator cases retain their development budget purpose across retries; disabled processing leaves queued work untouched.
 
 ## Still required
 
-- Browser retest of active processing polling.
+- Full dataset evaluation remains incomplete. A corrected 20-email development batch is recorded in [evaluation results](evaluation-results.md).
 - Deployed interruption/recovery and resource measurements; Cloud Run remains an undeployed alternative.
 - Actual bounded pipeline evaluation, threshold freeze, independent holdout reporting and resource measurements. Existing tiny Jev experiments are not full-pipeline accuracy evidence.
 - Submission materials and five-minute video.
@@ -31,7 +31,7 @@ Public URL: https://averis-hackathon-production.up.railway.app/
 
 Railway web and private polling worker are online, one replica each, using Neon PostgreSQL and private R2. Fresh-browser entry created eight cases covering all five categories. Workflow changes persisted after refresh. An authenticated document request returned 200; another workspace received 404 and an anonymous request received 401. Session cookies use Secure, HttpOnly and SameSite protections.
 
-A real Jev run completed in one attempt and published the expected port and container-count mismatches with source evidence. This is a smoke test, not a dataset accuracy result. GitHub CI passed for b3b5f24.
+A real Jev run completed in one attempt and published the expected port and container-count mismatches with source evidence. This is a smoke test, not a dataset accuracy result. A second live case completed with all seven matching fields; the browser updated from running to completed without refresh. GitHub CI and both Railway deployments passed for 2ca90ee.
 
 ## Spending evidence
 
