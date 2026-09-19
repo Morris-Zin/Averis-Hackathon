@@ -46,3 +46,15 @@ On 20 September, the live Railway polling worker recovered an isolated synthetic
 Full local verification after evidence-v2 and extraction-v2: 149 tests passed, one Linux-only test skipped on Windows; PostgreSQL tests, Ruff, strict Pyright, module boundaries, OpenAPI/TypeScript drift, frontend types/lint and production build passed. Native PDF evidence now separates field headings while preserving multiline locations. OCR word quality is retained separately from model confidence; missing or low quality requires review. Mixed or wrong-field evidence cannot become a trustworthy reading.
 
 A Linux component check on development scan email_512 produced six unresolved fields and one match, replacing prior false port mismatches. This bypassed email classification and is a component result, not automatic end-to-end accuracy. The earlier native-PDF component email_059 produced seven matches. Holdout evaluation follows this frozen policy.
+
+## Completion-audit checks
+
+The expanded full verification passed **165 tests**, with one Linux-only process-limit test skipped on Windows, plus Python/frontend strict checks, lint, API contract drift and production build. Added real-PostgreSQL checks prove exactly three concurrent live admissions per session, fifty globally per day, quota rollback without a new run, and no partial workspace after session-creation rejection. Fake-clock checks reject late processing publication; parser/provider callback checks observe no checked-out database connection on the processing thread (the independent lease heartbeat is excluded).
+
+Document boundary tests cover PDF/OCR page caps, expanded archives, XLSX limits, reader/preview deadlines and visible unsupported-format processing outcomes. See [supplied-format evidence](format-validation.md).
+
+A full-duration offline Linux reader workload processed all 58 supplied PDF/DOCX/XLSX files sequentially with one CPU and a 1 GiB container limit in 24.074 seconds. Kernel process high-water measurements were 32,056 KiB for the parent and 89,952 KiB for the largest child; they are reported separately, not as a measured concurrent aggregate peak. Parent CPU time was 0.409 seconds and cumulative child CPU time 22.548 seconds. Evidence: `outputs/reader-profile.json`. No AI or ground truth was used. This closes the bounded local reader-profile measurement, not deployed load/capacity testing or a real process-crash exercise.
+
+The workload included six documents with OCR evidence. Two PDFs (`email_511_BL.pdf` and `email_515_BL.pdf`) returned explicit `document_unreadable:PdfminerException` issues; processing the workload does not mean every input was readable. All nonempty evidence blocks had locations.
+
+The review layout was browser-checked at 950 pixels after moving Details below the comparison at narrow desktop widths; the temporary viewport was reset afterward.

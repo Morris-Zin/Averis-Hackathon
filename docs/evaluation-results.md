@@ -64,3 +64,20 @@ All 97 selected runs completed without failed or incomplete processing. This use
 The 22 blockers comprise nine unresolved categories, eight mixed mismatch/unknown reports, two unresolved pairings and three unrepresentable review reasons. The unchanged organizer scorer ran offline alongside these diagnostics. Its missing-category defaults mean the partial-output score is not a full-submission accuracy score. Artifacts: `outputs/holdout-linux-v1/full-97` and `prior-exposure-excluded-94`.
 
 This run exposed an extraction prompt regression: requiring a party's name **and full address** incorrectly rejected name-only notify-party entries. There were 23 unresolved notify-party findings. This is an application defect, not an organizer-label disagreement. Extraction-v3 now asks for the party name and any address actually supplied. A targeted development component check on email_004 recovered the expected consignee and notify-party mismatches with the other five fields matching. It bypassed classification and does not establish end-to-end accuracy. Any rerun of these 97 examples after the fix is reused validation data, not a fresh holdout.
+
+## Corrected rerun (extraction-v3; reused validation data)
+
+The same 97 records were rerun after the name-only party fix. All completed; one interrupted provider request recovered through its existing run and checkpoints. This is a regression-validation rerun, **not an independent holdout**. No reviewer corrections were applied.
+
+| Measure | All 97 | Excluding three previously exposed examples (94) |
+|---|---:|---:|
+| Suggested categories correct | 91/97 (93.81%) | 88/94 (93.62%) |
+| Accepted categories correct | 85/88 (96.59%) | 82/85 (96.47%) |
+| Automatic export coverage | 84/97 (86.60%) | 81/94 (86.17%) |
+| Abstentions/export blockers | 13 | 13 |
+| Exact organizer row agreement among exports | 64/84 (76.19%) | 61/81 (75.31%) |
+| Fully comparable exportable pairs with all seven fields correct | 22/22 | 20/20 |
+
+The last row excludes unresolved and unexportable comparisons; it is not accuracy across every document request. The 13 blockers comprise nine unresolved categories, two ambiguous pairings and two mixed mismatch/unknown reports. The 20 exported disagreements comprise 17 missing-attachment review outcomes and three incorrect GENERAL classifications. The missing-attachment cases retain the same source-versus-label disagreement described above; no ID-specific override was added. Artifacts: `outputs/validation-linux-v2/full-97` and `prior-exposure-excluded-94`. The unchanged official scorer was run separately on partial exports, with its missing-category behavior explicitly disclosed.
+
+After these runs, the shared ledger accounted for $0.161933 including prior experiments, development reservations and demo usage. This includes retained uncertain-charge reservations; it is not a provider invoice. The combined $7 ceiling remains in force.
