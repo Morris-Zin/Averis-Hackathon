@@ -42,7 +42,9 @@ class _RequestLimit:
             await self.app(scope, receive, send)
             return
         path = scope.get("path", "")
-        upload = path == "/api/imports" or path.endswith("/revisions")
+        upload = path in {"/api/imports", "/api/manual-imports"} or path.endswith(
+            "/revisions"
+        )
         limit = 21 * 1024 * 1024 if upload else 256 * 1024
         received = 0
 
@@ -67,9 +69,17 @@ async def security_headers(
     request: Request, call_next: RequestResponseEndpoint
 ) -> Response:
     config = get_services(request).config
-    if request.url.path == "/api/imports" or request.url.path.endswith("/revisions"):
-        if not config.operator_token or not secrets.compare_digest(
-            request.headers.get("x-operator-token", ""), config.operator_token
+    public_import = request.url.path == "/api/manual-imports"
+    if (
+        public_import
+        or request.url.path == "/api/imports"
+        or request.url.path.endswith("/revisions")
+    ):
+        if not public_import and (
+            not config.operator_token
+            or not secrets.compare_digest(
+                request.headers.get("x-operator-token", ""), config.operator_token
+            )
         ):
             return JSONResponse(
                 status_code=403,
@@ -81,6 +91,13 @@ async def security_headers(
         except HTTPException as exc:
             return JSONResponse(
                 status_code=exc.status_code, content={"detail": exc.detail}
+            )
+        if public_import and not (config.live_enabled and config.budget_verified):
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": "Live processing is currently unavailable. Please try again later."
+                },
             )
         length = request.headers.get("content-length")
         if length and (not length.isdigit() or int(length) > 21 * 1024 * 1024):

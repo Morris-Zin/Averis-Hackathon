@@ -383,6 +383,44 @@
         }
       }
     },
+    "/api/manual-imports": {
+      "post": {
+        "summary": "Import Email",
+        "operationId": "import_email_api_manual_imports_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_email_api_manual_imports_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/imports": {
       "post": {
         "summary": "Import Email",
@@ -738,20 +776,54 @@
             "title": "Email"
           },
           "files": {
-            "items": {
-              "type": "string",
-              "contentMediaType": "application/octet-stream"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Files"
           }
         },
         "type": "object",
         "required": [
-          "email",
-          "files"
+          "email"
         ],
         "title": "Body_import_email_api_imports_post"
+      },
+      "Body_import_email_api_manual_imports_post": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "Body_import_email_api_manual_imports_post"
       },
       "Body_revision_upload_api_cases__case_id__revisions_post": {
         "properties": {

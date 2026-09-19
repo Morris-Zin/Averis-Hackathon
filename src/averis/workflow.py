@@ -66,6 +66,12 @@ def enqueue(session: Session, case: Case, purpose: str | None = None) -> str:
     return run.id
 
 
+def reserve_public_run(session: Session, session_key: str) -> None:
+    """Imports and retries share one atomic session/day allowance."""
+    take_quota(session, f"live:session:{session_key}", 3)
+    take_quota(session, f"live:day:{utcnow().date()}", 50)
+
+
 def view_of(case: Case) -> CaseView:
     return CaseView.model_validate(case.state)
 
@@ -260,5 +266,4 @@ class Workflow:
             raise ValueError(
                 "Live processing is disabled until the AI budget is verified"
             )
-        take_quota(session, f"live:session:{session_key}", 3)
-        take_quota(session, f"live:day:{utcnow().date()}", 50)
+        reserve_public_run(session, session_key)

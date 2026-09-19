@@ -16,6 +16,7 @@ import { useActivePolling } from "@/lib/use-active-polling";
 import { AppShell, queueLabels } from "./app-shell";
 import { useSession } from "./session-provider";
 import { Button, Input, Select, SelectItem, Spinner } from "./ui";
+import { ImportEmailDialog } from "./import-email-dialog";
 
 const QUEUES: QueueView[] = [
   "all",
@@ -54,6 +55,7 @@ function relativeDate(value: string) {
 }
 
 export function InboxView() {
+  const [importOpen, setImportOpen] = useState(false);
   const { api, session } = useSession();
   const searchParams = useSearchParams();
   const requestedView = searchParams.get("view");
@@ -178,12 +180,20 @@ export function InboxView() {
                 : "Review incoming shipping documents"}
             </p>
           </div>
-          <Button variant="primary" onClick={() => void load()}>
-            <RefreshCw size={15} />
-            Refresh
-          </Button>
+          <div className="queue-actions">
+            <Button variant="primary" onClick={() => setImportOpen(true)}>
+              Add email
+            </Button>
+            <Button onClick={() => void load()}>
+              <RefreshCw size={15} />
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
+      {importOpen ? (
+        <ImportEmailDialog onClose={() => setImportOpen(false)} />
+      ) : null}
       {!session?.live_enabled ? (
         <div className="demo-banner">
           <strong>Controlled server demo</strong>

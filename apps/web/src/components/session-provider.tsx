@@ -54,6 +54,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<AppApi>(
     () => ({
+      importEmail: (...args: Parameters<AppApi["importEmail"]>) =>
+        guard(liveApi.importEmail(...args)),
       session: () => guard(liveApi.session()),
       enterDemo: () => guard(liveApi.enterDemo()),
       cases: (...args: Parameters<AppApi["cases"]>) =>

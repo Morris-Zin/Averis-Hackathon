@@ -22,6 +22,8 @@ uv run uvicorn averis.api:app --host 127.0.0.1 --port 8000
 
 Open **http://localhost:8000** and choose **Enter demo workspace**. The browser and API share one origin. Every session gets an isolated 24-hour workspace; reviewer names are simulated identities. No mailbox connection is required.
 
+Choose **Add email** in the queue to paste a subject, sender and message and attach documents. Manual intake requires enabled live processing. Visitors share the existing three-runs-per-session and 50-runs-per-day limits with retries; imports use the demonstration budget. Identical submissions in the same workspace reuse the existing case. Attachments support TXT, PDF, DOCX, XLSX, PNG and JPEG, up to eight files, 10 MB each and 20 MB combined. Arbitrary revised-document uploads remain operator-only.
+
 The backend also has a SQLite convenience default for quick UI development. PostgreSQL is required for concurrency tests and deployment. Settings load environment variables and an optional ignored `.env`; see [.env.example](.env.example).
 
 See [deployment instructions](docs/deployment.md) for the selected Railway deployment, local Compose, and the retained Cloud Run alternative. Railway runs `python -m averis.runner` as a private background process using the same Python package and PostgreSQL. Cloud Run uses the IAM-protected `averis.worker:app` HTTP entry point. Processing stays outside import requests.

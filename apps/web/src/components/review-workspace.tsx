@@ -246,6 +246,7 @@ export function ReviewWorkspace() {
                       }
                       disabled={
                         pending ||
+                        !item.classification ||
                         categoryDraft === item.classification?.accepted
                       }
                     >

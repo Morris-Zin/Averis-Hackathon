@@ -75,7 +75,7 @@ All paid inference uses one PostgreSQL budget authority, including operator proc
 
 A welcome action creates an opaque 24-hour server session and isolated mutable workspace. Reviewer names simulate actors, not privileges. Every API and file request enforces workspace access. Mutation requests require exact allowed Origin and session CSRF token. Synthetic scenarios clearly identify illustrative classification.
 
-Public visitors cannot submit arbitrary files. Operator import requires an additional server-side secret. Limits include 10 MB per attachment, 20 MB combined attachments per email, 21 MB transport body, 20 PDF pages, 3 OCR pages, bounded Office archives/cells and rendered pixels. Preview generation is serialized per application process. All unsupported limits produce visible issues.
+As approved on 20 September, public visitors can manually enter emails and attachments through the demo workspace while live processing is enabled. Manual imports share the three-run session allowance and 50-run daily allowance with retries, and use the demonstration spending allocation. Identical imports in a workspace reuse the existing case without another run. Operator import and arbitrary revised-document upload retain their additional server-side secret. Limits include eight attachments, 10 MB per attachment, 20 MB combined attachments per email, 21 MB transport body, 20 PDF pages, 3 OCR pages, bounded Office archives/cells and rendered pixels. Preview generation is serialized per application process. All unsupported limits produce visible issues.
 
 Review actions are capped at 1,000 per workspace; document versions at 24 per case. Ordinary JSON requests are limited to 256 KiB, with bounded correction text and evidence selections.
 

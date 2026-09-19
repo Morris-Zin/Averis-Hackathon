@@ -20,7 +20,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      ...(init?.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
+      ...init?.headers,
+    },
   });
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
@@ -48,6 +53,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const liveApi = {
+  importEmail: (
+    email: { subject: string; sender: string; body: string },
+    files: File[],
+    csrfToken: string,
+  ) => {
+    const form = new FormData();
+    form.set("email", JSON.stringify(email));
+    for (const file of files) form.append("files", file);
+    return request<CaseView>("/api/manual-imports", {
+      method: "POST",
+      body: form,
+      headers: { "X-CSRF-Token": csrfToken },
+    });
+  },
   session: () => request<SessionView>("/api/session"),
   enterDemo: () =>
     request<SessionView>("/api/demo/session", { method: "POST", body: "{}" }),

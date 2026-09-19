@@ -267,18 +267,24 @@ def preview(
 
 
 @router.post("/api/imports", response_model=CaseResponse)
+@router.post("/api/manual-imports", response_model=CaseResponse)
 async def import_email(
     services: Services,
     request: Request,
     actor: Annotated[BrowserSession, Depends(mutation)],
     email: Annotated[str, Form()],
-    files: Annotated[list[UploadFile], File()],
+    files: Annotated[list[UploadFile] | None, File()] = None,
 ) -> CaseView:
-    if not services.config.operator_token or not secrets.compare_digest(
-        request.headers.get("x-operator-token", ""), services.config.operator_token
+    public_import = request.url.path == "/api/manual-imports"
+    if not public_import and (
+        not services.config.operator_token
+        or not secrets.compare_digest(
+            request.headers.get("x-operator-token", ""), services.config.operator_token
+        )
     ):
         raise HTTPException(403, "Arbitrary uploads require operator authorization")
     payload = ImportEmail.model_validate_json(email)
+    files = files or []
     if len(files) > 8:
         raise HTTPException(422, "At most eight attachments per email")
     attachments: list[tuple[str, bytes]] = []
@@ -317,6 +323,7 @@ async def import_email(
         payload.sender,
         payload.body,
         attachments,
+        public_session_key=actor.token_hash if public_import else None,
     )
     if result.run_id:
         services.processor.dispatch(result.run_id)

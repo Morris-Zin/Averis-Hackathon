@@ -10,7 +10,7 @@ from sqlalchemy import select
 from averis.domain import AttachmentView, AuditEntry, CaseView
 from averis.persistence import Case, Database, Document, Workspace, uid, utcnow
 from averis.storage import Storage
-from averis.workflow import enqueue, take_quota, view_of
+from averis.workflow import enqueue, reserve_public_run, take_quota, view_of
 
 
 @dataclass(frozen=True)
@@ -46,6 +46,8 @@ def import_email(
     sender: str,
     body: str,
     attachments: Sequence[tuple[str, bytes]],
+    *,
+    public_session_key: str | None = None,
 ) -> ImportResult:
     """Persist one authorized import with deduplication and a durable run.
 
@@ -96,6 +98,8 @@ def import_email(
             if existing:
                 return ImportResult(view=view_of(existing), run_id=None)
             take_quota(session, f"imports:{workspace_id}", 100)
+            if public_session_key is not None:
+                reserve_public_run(session, public_session_key)
             for filename, content in attachments:
                 document_id = uid()
                 object_key, content_digest = storage.put(content)
@@ -123,7 +127,9 @@ def import_email(
                 state=view.model_dump(mode="json"),
             )
             session.add(row)
-            run_id = enqueue(session, row, "development")
+            run_id = enqueue(
+                session, row, "demo" if public_session_key else "development"
+            )
             view.processing_run_id = run_id
     except Exception:
         for object_key in stored:

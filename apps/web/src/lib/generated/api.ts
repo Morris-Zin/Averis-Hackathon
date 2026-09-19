@@ -174,6 +174,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/manual-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Email */
+        post: operations["import_email_api_manual_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/imports": {
         parameters: {
             query?: never;
@@ -292,7 +309,14 @@ export interface components {
             /** Email */
             email: string;
             /** Files */
-            files: string[];
+            files?: string[] | null;
+        };
+        /** Body_import_email_api_manual_imports_post */
+        Body_import_email_api_manual_imports_post: {
+            /** Email */
+            email: string;
+            /** Files */
+            files?: string[] | null;
         };
         /** Body_revision_upload_api_cases__case_id__revisions_post */
         Body_revision_upload_api_cases__case_id__revisions_post: {
@@ -847,6 +871,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_email_api_manual_imports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_email_api_manual_imports_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseResponse"];
                 };
             };
             /** @description Validation Error */
