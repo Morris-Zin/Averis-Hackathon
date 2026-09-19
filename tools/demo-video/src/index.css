@@ -1,0 +1,363 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap");
+
+:root {
+  font-family: "Manrope", Arial, sans-serif;
+  color: #f5f7fb;
+  background: #0b1020;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+.video-root {
+  background: #0b1020;
+  overflow: hidden;
+}
+.scene {
+  background: radial-gradient(
+    circle at 84% 18%,
+    #182647 0%,
+    #0b1020 43%,
+    #080b16 100%
+  );
+  overflow: hidden;
+}
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 140 140' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(1px);
+  opacity: 0.12;
+}
+.orb-one {
+  width: 440px;
+  height: 440px;
+  right: -160px;
+  top: -150px;
+}
+.orb-two {
+  width: 260px;
+  height: 260px;
+  left: -170px;
+  bottom: -130px;
+  border: 1px solid;
+  opacity: 0.2;
+}
+.topline {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  color: #9ba8c7;
+  font:
+    500 16px "DM Mono",
+    monospace;
+  letter-spacing: 0.08em;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #70e1c1;
+  color: #70e1c1;
+  font:
+    700 18px "Manrope",
+    sans-serif;
+}
+.topline-right {
+  margin-left: auto;
+}
+.main-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 1040px;
+  margin-top: 80px;
+}
+.eyebrow {
+  font:
+    500 15px "DM Mono",
+    monospace;
+  letter-spacing: 0.18em;
+}
+h1 {
+  margin: 20px 0 16px;
+  max-width: 950px;
+  color: #f5f7fb;
+  font-size: 76px;
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+}
+.body-copy {
+  max-width: 760px;
+  margin: 0;
+  color: #b6c0d8;
+  font-size: 25px;
+  line-height: 1.42;
+}
+.caption-bar {
+  position: absolute;
+  z-index: 2;
+  right: 6.6%;
+  bottom: 7.5%;
+  left: 6.6%;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid #293452;
+  color: #c9d1e4;
+  font-size: 17px;
+}
+.caption-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.title-chip {
+  display: flex;
+  gap: 12px;
+  margin-top: 70px;
+  font:
+    500 17px "DM Mono",
+    monospace;
+}
+.title-chip span {
+  padding: 12px 16px;
+  border: 1px solid #2f4167;
+  color: #d4dcf0;
+}
+.title-chip span:first-child {
+  border-color: #70e1c1;
+  color: #70e1c1;
+}
+.inbox-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  max-width: 950px;
+  margin-top: 56px;
+}
+.inbox-card {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-height: 120px;
+  padding: 18px;
+  background: #11192c;
+  border-top: 4px solid;
+}
+.inbox-card span,
+.field span,
+.control-grid strong,
+.revision-card,
+.placeholder-label {
+  color: #8190b3;
+  font:
+    500 13px "DM Mono",
+    monospace;
+  letter-spacing: 0.12em;
+}
+.inbox-card strong {
+  font-size: 19px;
+}
+.architecture-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  max-width: 1020px;
+  margin-top: 52px;
+}
+.arch-node {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 85px;
+  justify-content: center;
+  padding: 15px 18px;
+  border: 1px solid;
+  background: #10182b;
+}
+.arch-node strong {
+  font-size: 18px;
+}
+.arch-node span {
+  color: #8794b5;
+  font:
+    13px "DM Mono",
+    monospace;
+}
+.arch-arrow {
+  color: #56688f;
+  font-size: 24px;
+}
+.ui-placeholder {
+  margin-top: 38px;
+  padding: 18px;
+  border: 1px dashed #ff8f9e;
+  background: #171425;
+}
+.placeholder-label {
+  margin-bottom: 13px;
+  color: #ff8f9e;
+}
+.placeholder-window {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 22px;
+  min-height: 155px;
+  padding: 16px;
+  background: #0b1020;
+  border: 1px solid #3e3350;
+}
+.window-bar {
+  display: flex;
+  gap: 6px;
+  grid-column: 1 / -1;
+}
+.window-bar i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff8f9e;
+}
+.placeholder-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 8px;
+}
+.placeholder-lines span {
+  display: block;
+  height: 12px;
+  background: #263454;
+}
+.placeholder-lines span:nth-child(2) {
+  width: 70%;
+}
+.placeholder-lines span:nth-child(3) {
+  width: 85%;
+}
+.placeholder-lines span:nth-child(4) {
+  width: 55%;
+}
+.placeholder-side {
+  display: grid;
+  place-items: center;
+  color: #a99ab8;
+  font:
+    16px "DM Mono",
+    monospace;
+  text-align: center;
+}
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  max-width: 1080px;
+  margin-top: 58px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 14px 10px;
+  background: #11192c;
+  border-bottom: 3px solid #70e1c1;
+}
+.field-4,
+.field-5 {
+  border-color: #ff8f9e;
+}
+.field b {
+  font:
+    700 12px "DM Mono",
+    monospace;
+  color: #70e1c1;
+}
+.field-4 b,
+.field-5 b {
+  color: #ff8f9e;
+}
+.revision-flow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 58px;
+}
+.revision-card {
+  min-width: 172px;
+  padding: 20px;
+  background: #11192c;
+  line-height: 1.8;
+}
+.revision-card strong {
+  display: block;
+  color: #edf2ff;
+  font:
+    700 18px "Manrope",
+    sans-serif;
+  line-height: 1.2;
+}
+.revision-card small {
+  color: #8190b3;
+  font:
+    12px "DM Mono",
+    monospace;
+}
+.revision-card.active {
+  border: 1px solid #c6a8ff;
+}
+.revision-arrow {
+  color: #c6a8ff;
+  font-size: 28px;
+}
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 13px;
+  margin-top: 58px;
+}
+.control-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  background: #11192c;
+}
+.control-grid span {
+  color: #e6eaf5;
+  font-size: 16px;
+}
+.status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 800px;
+  margin-top: 58px;
+}
+.status-badge {
+  padding: 15px 18px;
+  border: 1px solid #3b4a6e;
+  color: #d6def0;
+  font:
+    500 15px "DM Mono",
+    monospace;
+}
+.status-badge.live {
+  border-color: #70e1c1;
+  color: #70e1c1;
+}
+.status-badge.pending {
+  border-color: #f6c177;
+  color: #f6c177;
+}
