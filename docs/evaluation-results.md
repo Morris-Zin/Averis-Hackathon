@@ -48,3 +48,19 @@ The last row covers only those 58 exportable comparisons, not all document reque
 Among exported disagreements, 74 source emails have no attachments but the organizer expects OK. Fifteen are document-role review outcomes requiring further reader/extraction work; four are accepted-category errors. The unchanged scorer and abstention-aware diagnostics are saved separately in `outputs/evaluation-linux-v4/development-report`. The baseline precedes the isolated native-PDF/OCR corrections; do not label it final-version accuracy.
 
 Observed evaluation-container samples reached 246.7 MiB and 76.89% CPU within its one-CPU/1GiB limit. Sampling began after initial cases and is not a guaranteed peak measurement or a production capacity result.
+
+## Post-development evaluation v1 (frozen extraction-v2)
+
+All 97 selected runs completed without failed or incomplete processing. This uses classification-v2, extraction-v2 and evidence-v2, with unchanged category/Spam/field thresholds. No reviewer actions were included. See the prior-exposure disclosure above; these are not formally blinded results.
+
+| Measure | All 97 | Excluding known prior examples (94) |
+|---|---:|---:|
+| Suggested categories correct | 91/97 (93.81%) | 88/94 (93.62%) |
+| Accepted categories correct | 85/88 (96.59%) | 82/85 (96.47%) |
+| Automatic export coverage | 75/97 (77.32%) | 73/94 (77.66%) |
+| Abstentions/export blockers | 22 | 21 |
+| Exact row agreement among exports | 43/75 (57.33%) | 42/73 (57.53%) |
+
+The 22 blockers comprise nine unresolved categories, eight mixed mismatch/unknown reports, two unresolved pairings and three unrepresentable review reasons. The unchanged organizer scorer ran offline alongside these diagnostics. Its missing-category defaults mean the partial-output score is not a full-submission accuracy score. Artifacts: `outputs/holdout-linux-v1/full-97` and `prior-exposure-excluded-94`.
+
+This run exposed an extraction prompt regression: requiring a party's name **and full address** incorrectly rejected name-only notify-party entries. There were 23 unresolved notify-party findings. This is an application defect, not an organizer-label disagreement. Extraction-v3 now asks for the party name and any address actually supplied. A targeted development component check on email_004 recovered the expected consignee and notify-party mismatches with the other five fields matching. It bypassed classification and does not establish end-to-end accuracy. Any rerun of these 97 examples after the fix is reused validation data, not a fresh holdout.

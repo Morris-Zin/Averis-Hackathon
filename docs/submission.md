@@ -5,11 +5,11 @@ Deadline: **22 September 2026, 12:00 noon** (plan in Malaysia time).
 
 - [x] Team name and members: **GoodLord** - Aung Phone Khant, Ella, Pei En, Congye.
 - [ ] Representative name/email/contact.
-- [ ] Project name and summary describing purpose and problem.
+- [x] Project name and summary: [Averis submission brief](submission-brief.md).
 - [x] Public GitHub repository with reproducible README/setup.
 - [x] Public functional cloud demo, reachable during judging.
 - [x] Meaningful AI integration and meaningful cloud usage demonstrated.
-- [ ] Public slides/documentation: architecture, implementation, challenges, roadmap.
+- [x] Public documentation: [submission brief](submission-brief.md), architecture, implementation, challenges and roadmap.
 - [ ] Video <=5 minutes; public/unlisted YouTube or Drive anyone-with-link viewer. Private videos are not accepted; one mark deducted per 30 seconds over.
 - [ ] Video includes team/project introduction, problem, stack, live demo, impact/evidence.
 - [ ] Verify every URL from a signed-out browser.
@@ -21,6 +21,7 @@ Suggested 4:45 video: 0:00–0:25 introduction/problem; 0:25–0:55 architecture
 
 - Repository: https://github.com/Morris-Zin/Averis-Hackathon
 - Demo: https://averis-hackathon-production.up.railway.app/
+- Submission narrative: [brief](submission-brief.md)
 - Architecture: [build plan](build-plan.md)
 - Measured evidence and limitations: [validation](validation.md), [development evaluation](evaluation-results.md)
 
