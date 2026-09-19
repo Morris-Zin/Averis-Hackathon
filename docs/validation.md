@@ -16,7 +16,7 @@ This records local and deployed evidence, not an enterprise-capacity claim.
 - Two independent browser sessions deliberately shared a local synthetic workspace. A stale workflow edit was rejected, the first edit remained intact, and both mismatches remained visible. Fixed and browser-retested the conflict explanation so it survives the automatic refresh and explicitly says the second change was not saved.
 - The portable PostgreSQL worker passed 17 focused processing/runner tests, including eligible work behind 256 delayed rows and recovery from transient claim failures without logging sensitive error bodies.
 
-Latest backend verification after the worker, TXT evidence and identifier fixes passed 135 tests with one platform skip, plus Ruff, strict Pyright and module boundaries. Operator cases retain their development budget purpose across retries; disabled processing leaves queued work untouched.
+Latest backend verification after the worker, TXT evidence and identifier fixes passed 139 tests with one platform skip, plus Ruff, strict Pyright and module boundaries. Operator cases retain their development budget purpose across retries; disabled processing leaves queued work untouched.
 
 ## Still required
 
@@ -36,3 +36,7 @@ A real Jev run completed in one attempt and published the expected port and cont
 ## Spending evidence
 
 Before enabling production inference, the TypeSafe dashboard showed 13 requests and 74,941 total tokens, with displayed estimated cost $0.0025. The ledger conservatively accounts $0.003148 for prior use by treating all those tokens as paid input at $0.042 per million, rounded upward. The first deployed comparison settled $0.000214 in the demo bucket. Shared accounted total at that checkpoint: $0.003362 of the $7 ceiling. These are usage estimates and ledger reservations, not an invoice.
+
+## Deployed recovery acceptance
+
+On 20 September, the live Railway polling worker recovered an isolated synthetic run with an expired lease, one abandoned attempt and a persisted GENERAL classification checkpoint. It completed on substantive attempt two in 6.25 seconds, with zero AI reservations for that run. Its workspace expires after 24 hours. This deliberately seeded state verifies deployed lease recovery and checkpoint reuse; it is not an actual platform crash or a capacity test. Full interruption/resource profiling remains outstanding. CI and worker deployment succeeded for 451afc9.

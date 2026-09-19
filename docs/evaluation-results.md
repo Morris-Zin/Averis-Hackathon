@@ -24,3 +24,7 @@ Development emails 006, 016 and 018 explicitly request that a draft BL be sent f
 ## Classification policy v2 development check
 
 A fresh run of the same 20 development members used clearer intent definitions, prioritizing the current body over stale subjects and distinguishing supplied SI details from a draft BL check. Thresholds were unchanged. All 20 suggested categories matched the labels; all 14 accepted categories were correct; six cases abstained (70% automatic export coverage). This reused development sample informed the prompt and is not independent evidence. XLSX worksheet titles are now included as evidence, but email 005 abstained at classification in this run, so the role fix is not yet verified through live extraction. Artifacts: `outputs/evaluation-linux-v3`.
+
+## Holdout provenance
+
+The 97-member deterministic holdout overlaps earlier exploratory Jev calls for three source IDs: email_001, email_002 and email_025. Email_002 also has its organizer category persisted in the earlier experiment report. The earlier scorer loaded the full truth file after inference; that does not show the model received it, but rules out a claim of formally blinded experimentation. Report the complete 97-member holdout and a separate 94-member subset excluding these three known exposed examples. Describe both as post-development evaluation with disclosed prior exposure, not an independently controlled benchmark. The Malay/Mandarin experiment used authored synthetic examples and adds no organizer-ID overlap.
