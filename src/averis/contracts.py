@@ -3,13 +3,23 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, model_validator
 
 FIELDS = (
-    "shipper", "consignee", "notify_party", "port_of_loading",
-    "port_of_discharge", "container_count", "gross_weight_kg",
+    "shipper",
+    "consignee",
+    "notify_party",
+    "port_of_loading",
+    "port_of_discharge",
+    "container_count",
+    "gross_weight_kg",
 )
 Category = Literal["BL_COMPARISON", "SI_REQUEST", "INVOICE_QUERY", "GENERAL", "SPAM"]
 Field = Literal[
-    "shipper", "consignee", "notify_party", "port_of_loading",
-    "port_of_discharge", "container_count", "gross_weight_kg",
+    "shipper",
+    "consignee",
+    "notify_party",
+    "port_of_loading",
+    "port_of_discharge",
+    "container_count",
+    "gross_weight_kg",
 ]
 
 
@@ -17,9 +27,10 @@ class Prediction(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     category: Category
     status: Literal["OK", "MISMATCH", "NEEDS_REVIEW"]
-    review_reason: Literal[
-        "wrong_doc_type", "missing_attachment", "unreadable", "missing_value"
-    ] | None
+    review_reason: (
+        Literal["wrong_doc_type", "missing_attachment", "unreadable", "missing_value"]
+        | None
+    )
     has_defect: bool
     defect_fields: list[Field]
 

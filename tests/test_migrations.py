@@ -1,4 +1,5 @@
 """Verify the committed migrations, not only ORM-created test tables."""
+
 import os
 from uuid import uuid4
 
@@ -19,12 +20,19 @@ def test_fresh_postgres_migrations_match_application_metadata(monkeypatch):
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
     try:
         scoped = make_url(url).update_query_dict({"options": f"-csearch_path={schema}"})
-        monkeypatch.setenv("AVERIS_DATABASE_URL", scoped.render_as_string(hide_password=False))
+        monkeypatch.setenv(
+            "AVERIS_DATABASE_URL", scoped.render_as_string(hide_password=False)
+        )
         config = Config("alembic.ini")
         command.upgrade(config, "head")
         command.check(config)
         with admin.connect() as connection:
-            assert connection.scalar(text(f'SELECT count(*) FROM "{schema}".alembic_version')) == 1
+            assert (
+                connection.scalar(
+                    text(f'SELECT count(*) FROM "{schema}".alembic_version')
+                )
+                == 1
+            )
     finally:
         with admin.begin() as connection:
             connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))

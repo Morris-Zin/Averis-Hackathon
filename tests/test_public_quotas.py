@@ -1,4 +1,5 @@
 """Public session and live-processing quota acceptance tests on PostgreSQL."""
+
 from __future__ import annotations
 
 import os
@@ -95,12 +96,14 @@ def _case(case_id: str, workspace_id: str = "workspace-1") -> Case:
         assignee="Unassigned",
         review_reasons=[],
         attachments=[],
-        history=[AuditEntry(
-            at=datetime.now(UTC).isoformat(),
-            actor="fixture",
-            action="created",
-            detail="quota fixture",
-        )],
+        history=[
+            AuditEntry(
+                at=datetime.now(UTC).isoformat(),
+                actor="fixture",
+                action="created",
+                detail="quota fixture",
+            )
+        ],
     )
     return Case(
         id=case_id,
@@ -118,8 +121,13 @@ def _add_cases(db: Database, count: int) -> list[str]:
     return case_ids
 
 
-def _accept_comparison(db: Database, storage: Storage, case_id: str, session_key: str,
-                       barrier: Barrier | None = None):
+def _accept_comparison(
+    db: Database,
+    storage: Storage,
+    case_id: str,
+    session_key: str,
+    barrier: Barrier | None = None,
+):
     if barrier is not None:
         barrier.wait(timeout=15)
     try:
@@ -146,15 +154,22 @@ def test_demo_session_hourly_boundary_has_no_partial_workspace(postgres_quota_db
     db, settings, _storage, _schema = postgres_quota_db
     application = create_app(settings, db)
     with TestClient(application, base_url=settings.origin) as client:
-        responses = [client.post("/api/demo/session", headers={"origin": settings.origin})
-                     for _ in range(11)]
+        responses = [
+            client.post("/api/demo/session", headers={"origin": settings.origin})
+            for _ in range(11)
+        ]
 
     assert [response.status_code for response in responses[:10]] == [200] * 10
     assert responses[10].status_code == 422
-    assert responses[10].json()["detail"] == "Demo limit reached. Saved results remain available."
+    assert (
+        responses[10].json()["detail"]
+        == "Demo limit reached. Saved results remain available."
+    )
     # TestClient uses a stable host, so locate the one generated hour counter.
     with db.session() as session:
-        counters = session.scalars(select(Counter).where(Counter.key.like("sessions:hour:%"))).all()
+        counters = session.scalars(
+            select(Counter).where(Counter.key.like("sessions:hour:%"))
+        ).all()
         assert len(counters) == 1
         assert counters[0].value == 10
         assert session.scalar(select(func.count()).select_from(Workspace)) == 10
@@ -166,17 +181,30 @@ def test_live_session_quota_has_exactly_three_concurrent_winners(postgres_quota_
     case_ids = _add_cases(db, 4)
     barrier = Barrier(4)
     with ThreadPoolExecutor(max_workers=4) as pool:
-        results = list(pool.map(
-            lambda case_id: _accept_comparison(db, storage, case_id, "same-session", barrier),
-            case_ids,
-        ))
+        results = list(
+            pool.map(
+                lambda case_id: _accept_comparison(
+                    db, storage, case_id, "same-session", barrier
+                ),
+                case_ids,
+            )
+        )
 
     assert sum(isinstance(result, tuple) for result in results) == 3
     assert sum(isinstance(result, ValueError) for result in results) == 1
     with db.session() as session:
         assert session.scalar(select(func.count()).select_from(Run)) == 3
-        assert session.scalar(select(Counter.value).where(Counter.key == "live:session:same-session")) == 3
-        rejected = [case for case in session.scalars(select(Case)).all() if case.active_run_id is None]
+        assert (
+            session.scalar(
+                select(Counter.value).where(Counter.key == "live:session:same-session")
+            )
+            == 3
+        )
+        rejected = [
+            case
+            for case in session.scalars(select(Case)).all()
+            if case.active_run_id is None
+        ]
         assert len(rejected) == 1
         assert rejected[0].revision == 1
 
@@ -185,17 +213,31 @@ def test_global_daily_quota_has_exactly_fifty_concurrent_winners(postgres_quota_
     db, _settings, storage, _schema = postgres_quota_db
     case_ids = _add_cases(db, 55)
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(
-            lambda case_id: _accept_comparison(db, storage, case_id, f"session-{case_id}"),
-            case_ids,
-        ))
+        results = list(
+            pool.map(
+                lambda case_id: _accept_comparison(
+                    db, storage, case_id, f"session-{case_id}"
+                ),
+                case_ids,
+            )
+        )
 
     assert sum(isinstance(result, tuple) for result in results) == 50
     assert sum(isinstance(result, ValueError) for result in results) == 5
     with db.session() as session:
         assert session.scalar(select(func.count()).select_from(Run)) == 50
-        assert session.scalar(select(Counter.value).where(Counter.key.like("live:day:%"))) == 50
-        assert session.scalar(select(func.count()).select_from(Case).where(Case.active_run_id.is_(None))) == 5
+        assert (
+            session.scalar(select(Counter.value).where(Counter.key.like("live:day:%")))
+            == 50
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Case)
+                .where(Case.active_run_id.is_(None))
+            )
+            == 5
+        )
 
 
 def test_global_rejection_rolls_back_session_quota_and_run_creation(postgres_quota_db):
@@ -212,7 +254,14 @@ def test_global_rejection_rolls_back_session_quota_and_run_creation(postgres_quo
 
     with db.session() as session:
         assert session.scalar(select(Counter.value).where(Counter.key == day_key)) == 50
-        assert session.scalar(select(Counter.value).where(Counter.key == "live:session:rollback-session")) == 1
+        assert (
+            session.scalar(
+                select(Counter.value).where(
+                    Counter.key == "live:session:rollback-session"
+                )
+            )
+            == 1
+        )
         assert session.scalar(select(func.count()).select_from(Run)) == 1
         rejected_case = session.get(Case, second)
         assert rejected_case is not None

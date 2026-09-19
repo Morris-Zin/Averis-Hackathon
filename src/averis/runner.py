@@ -14,7 +14,7 @@ from sqlalchemy import and_, or_, select
 
 from averis.config import Settings
 from averis.persistence import Database, Outbox, Run, utcnow
-from averis.processing import Processor
+from averis.processing import DeliveryOutcome, Processor
 from averis.storage import Storage
 
 log = logging.getLogger(__name__)
@@ -33,12 +33,15 @@ class RunnerOptions:
     def __post_init__(self) -> None:
         if not 1 <= self.concurrency <= 2:
             raise ValueError("Runner concurrency must be between one and two")
-        if min(
-            self.poll_seconds,
-            self.reconcile_seconds,
-            self.retry_base_seconds,
-            self.retry_max_seconds,
-        ) <= 0:
+        if (
+            min(
+                self.poll_seconds,
+                self.reconcile_seconds,
+                self.retry_base_seconds,
+                self.retry_max_seconds,
+            )
+            <= 0
+        ):
             raise ValueError("Runner timing values must be positive")
         if self.retry_max_seconds < self.retry_base_seconds:
             raise ValueError("Maximum retry delay cannot be shorter than its base")
@@ -97,12 +100,8 @@ class DurableRunner:
             return []
         claimed: list[str] = []
         now = utcnow()
-        first_retry_cutoff = now - timedelta(
-            seconds=self._retry_delay(1)
-        )
-        second_retry_cutoff = now - timedelta(
-            seconds=self._retry_delay(2)
-        )
+        first_retry_cutoff = now - timedelta(seconds=self._retry_delay(1))
+        second_retry_cutoff = now - timedelta(seconds=self._retry_delay(2))
         with self.db.session() as session, session.begin():
             rows = session.execute(
                 select(Run, Outbox)
@@ -177,7 +176,7 @@ class DurableRunner:
 
     def run_forever(self, stop: Event) -> None:
         """Poll until stopped, then let already-started deliveries finish."""
-        active: dict[Future[str], str] = {}
+        active: dict[Future[DeliveryOutcome], str] = {}
         with ThreadPoolExecutor(
             max_workers=self.options.concurrency,
             thread_name_prefix="averis-runner",
@@ -187,7 +186,11 @@ class DurableRunner:
                     run_id = active.pop(future)
                     try:
                         outcome = future.result()
-                        log.info("runner_delivery_finished run_id=%s outcome=%s", run_id, outcome)
+                        log.info(
+                            "runner_delivery_finished run_id=%s outcome=%s",
+                            run_id,
+                            outcome,
+                        )
                     except Exception as exc:  # noqa: BLE001 - run state remains durable
                         log.warning(
                             "runner_delivery_failed run_id=%s error_type=%s",
@@ -197,7 +200,11 @@ class DurableRunner:
 
                 if stop.is_set():
                     if active:
-                        wait(active, timeout=self.options.poll_seconds, return_when=FIRST_COMPLETED)
+                        wait(
+                            active,
+                            timeout=self.options.poll_seconds,
+                            return_when=FIRST_COMPLETED,
+                        )
                     continue
 
                 if not self._processing_enabled():
@@ -211,7 +218,11 @@ class DurableRunner:
                     active[executor.submit(self.processor.execute, run_id)] = run_id
 
                 if active:
-                    wait(active, timeout=self.options.poll_seconds, return_when=FIRST_COMPLETED)
+                    wait(
+                        active,
+                        timeout=self.options.poll_seconds,
+                        return_when=FIRST_COMPLETED,
+                    )
                 else:
                     stop.wait(self.options.poll_seconds)
 

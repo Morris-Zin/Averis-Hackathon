@@ -1,0 +1,7 @@
+src/lib/generated/
+openapi.json
+pnpm-lock.yaml
+next-env.d.ts
+.next/
+out/
+node_modules/

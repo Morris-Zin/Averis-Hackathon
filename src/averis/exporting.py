@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydanticField
 
 from averis.contracts import FIELDS, Field, Prediction
-from averis.domain import CaseView, Finding
+from averis.domain import CaseView, Finding, Report
 
 ExportBlocker = Literal[
     "processing_incomplete",
@@ -114,7 +114,9 @@ def adapt_case(case: CaseView) -> ExportDecision:
     if classification is None or classification.accepted is None:
         return _blocked(reviewer_assisted, reviewer_actions, "category_unresolved")
 
-    if classification.source == "fixture" or any(entry.actor == "Demo setup" for entry in case.history):
+    if classification.source == "fixture" or any(
+        entry.actor == "Demo setup" for entry in case.history
+    ):
         return _blocked(reviewer_assisted, reviewer_actions, "illustrative_demo")
 
     category = classification.accepted
@@ -141,6 +143,12 @@ def adapt_case(case: CaseView) -> ExportDecision:
         assert reason is not None
         return _review_decision(case, reviewer_assisted, reviewer_actions, reason)
 
+    return _adapt_comparison(case, report, reviewer_assisted, reviewer_actions)
+
+
+def _adapt_comparison(
+    case: CaseView, report: Report, reviewer_assisted: bool, reviewer_actions: list[str]
+) -> ExportDecision:
     if not report.pair_valid:
         return _blocked(reviewer_assisted, reviewer_actions, "pairing_unresolved")
     if report.input_revision != case.input_revision:

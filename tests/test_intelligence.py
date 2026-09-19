@@ -239,7 +239,9 @@ def test_dotenv_provider_key_is_private_and_reaches_sdk(tmp_path, monkeypatch):
     monkeypatch.setattr("averis.intelligence.TypeSafeClient", client_factory)
     budget = RecordingBudget()
     with pytest.raises(TimeoutError):
-        Jev(settings, cast(BudgetAuthority, budget), "run-1", "development").classify("Test", "Test")
+        Jev(settings, cast(BudgetAuthority, budget), "run-1", "development").classify(
+            "Test", "Test"
+        )
     assert captured["api_key"] == "offline-fake-key"
 
 
@@ -251,5 +253,10 @@ def test_client_configuration_failure_does_not_reserve_budget(monkeypatch):
 
     monkeypatch.setattr("averis.intelligence.TypeSafeClient", invalid_client)
     with pytest.raises(ValueError, match="Missing local credentials"):
-        Jev(Settings(_env_file=None), cast(BudgetAuthority, budget), "run-1", "development").classify("Test", "Test")
+        Jev(
+            Settings(_env_file=None),
+            cast(BudgetAuthority, budget),
+            "run-1",
+            "development",
+        ).classify("Test", "Test")
     assert budget.reserved == []

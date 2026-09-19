@@ -44,5 +44,14 @@ averis = "averis.cli:main"
 [tool.ruff]
 target-version = "py312"
 
+[tool.ruff.lint]
+extend-select = ["C901", "I"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["C901"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

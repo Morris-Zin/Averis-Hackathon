@@ -3,7 +3,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AVERIS_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="AVERIS_", env_file=".env", extra="ignore"
+    )
     env: str = "development"
     database_url: str = "sqlite:///.local/averis.db"
     origin: str = "http://localhost:8000"
@@ -22,7 +24,9 @@ class Settings(BaseSettings):
     prior_spend_usd: str = "0"
     input_usd_per_million: str = "0"
     output_usd_per_million: str = "0"
-    typesafe_api_key: SecretStr = Field(default=SecretStr(""), validation_alias="TYPESAFE_API_KEY")
+    typesafe_api_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="TYPESAFE_API_KEY"
+    )
     jev_model: str = "jev-1.13.0"
     category_threshold: float = Field(default=0.80, ge=0, le=1)
     spam_threshold: float = Field(default=0.95, ge=0, le=1)

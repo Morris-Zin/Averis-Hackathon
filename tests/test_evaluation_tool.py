@@ -1,4 +1,5 @@
 """Offline checks for bounded evaluation preparation and gated execution."""
+
 from __future__ import annotations
 
 import json
@@ -32,13 +33,18 @@ def make_bundle(root: Path, count: int = 3) -> Path:
     inbox.mkdir(parents=True)
     for index in range(count):
         source_id = f"email_{index + 1:03d}"
-        (inbox / f"{source_id}.json").write_text(json.dumps({
-            "email_id": source_id,
-            "from": f"sender-{index}@example.test",
-            "subject": f"General request {index}",
-            "body": "Please confirm the delivery appointment.",
-            "attachments": [],
-        }), encoding="utf-8")
+        (inbox / f"{source_id}.json").write_text(
+            json.dumps(
+                {
+                    "email_id": source_id,
+                    "from": f"sender-{index}@example.test",
+                    "subject": f"General request {index}",
+                    "body": "Please confirm the delivery appointment.",
+                    "attachments": [],
+                }
+            ),
+            encoding="utf-8",
+        )
     return root
 
 
@@ -61,7 +67,9 @@ def test_prepare_is_source_keyed_and_does_not_execute(evaluation):
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
 
     assert [record["source_id"] for record in manifest["records"]] == [
-        "email_001", "email_002", "email_003",
+        "email_001",
+        "email_002",
+        "email_003",
     ]
     assert {record["case_id"] for record in manifest["records"]}
     assert set(snapshot["cases"]) == {"email_001", "email_002", "email_003"}
@@ -118,7 +126,9 @@ def test_gated_run_uses_offline_double_and_writes_predictions(evaluation):
         "email_003": "completed",
     }
     assert set(snapshot["official_adapter"]["predictions"]) == {
-        "email_001", "email_002", "email_003",
+        "email_001",
+        "email_002",
+        "email_003",
     }
     assert snapshot["official_adapter"]["coverage"]["completed"] == 3
 
@@ -158,8 +168,13 @@ def test_interruption_preserves_completed_evaluation_progress(evaluation, monkey
 
     monkeypatch.setattr(Processor, "execute", interrupt_second)
     with pytest.raises(KeyboardInterrupt):
-        run_evaluation(settings, output, split="all", budget_database_url=budget_url,
-                       intelligence_factory=lambda *_: DeterministicIntelligence())
+        run_evaluation(
+            settings,
+            output,
+            split="all",
+            budget_database_url=budget_url,
+            intelligence_factory=lambda *_: DeterministicIntelligence(),
+        )
     snapshot = json.loads((output / "snapshot.json").read_text(encoding="utf-8"))
     assert snapshot["official_adapter"]["coverage"]["completed"] == 1
     assert snapshot["run_outcomes"] == {"email_001": "completed"}

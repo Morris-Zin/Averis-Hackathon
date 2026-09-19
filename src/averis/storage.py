@@ -1,4 +1,5 @@
 """Immutable original storage; object keys are never supplied by a browser."""
+
 import re
 from hashlib import sha256
 from pathlib import Path
@@ -12,7 +13,9 @@ from averis.config import Settings
 MAX_CONTENT_BYTES = 10 * 1024 * 1024
 SEED_PREFIX = "seeds/"
 _SEED_DIGEST = re.compile(r"[0-9a-f]{64}")
-_SEED_REFERENCE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+_SEED_REFERENCE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+)
 
 
 class Storage:
@@ -21,13 +24,17 @@ class Storage:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.root = Path(settings.storage_dir).resolve()
-        self.client = boto3.client(  # pyright: ignore[reportUnknownMemberType] -- unrelated service overloads lack stubs; S3 methods are typed
-            "s3",
-            endpoint_url=settings.r2_endpoint,
-            aws_access_key_id=settings.r2_access_key_id,
-            aws_secret_access_key=settings.r2_secret_access_key,
-            region_name="auto",
-        ) if settings.storage_backend == "r2" else None
+        self.client = (
+            boto3.client(  # pyright: ignore[reportUnknownMemberType] -- unrelated service overloads lack stubs; S3 methods are typed
+                "s3",
+                endpoint_url=settings.r2_endpoint,
+                aws_access_key_id=settings.r2_access_key_id,
+                aws_secret_access_key=settings.r2_secret_access_key,
+                region_name="auto",
+            )
+            if settings.storage_backend == "r2"
+            else None
+        )
 
     @staticmethod
     def _validate_content(content: bytes) -> str:
@@ -110,7 +117,9 @@ class Storage:
     def read(self, key: str) -> bytes:
         resolved_key = self._canonical_seed_key(key)
         if self.client:
-            response = self.client.get_object(Bucket=self.settings.r2_bucket, Key=resolved_key)
+            response = self.client.get_object(
+                Bucket=self.settings.r2_bucket, Key=resolved_key
+            )
             return response["Body"].read(MAX_CONTENT_BYTES + 1)
         return self._local_target(resolved_key).read_bytes()
 

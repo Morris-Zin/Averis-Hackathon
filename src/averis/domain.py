@@ -1,10 +1,13 @@
 """Framework-independent contracts shared by the application modules."""
+
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydanticField
 
 from averis.contracts import Category, Field
+
+REVIEWERS = ("John Tan", "Aisha Rahman", "Mei Lin")
 
 
 class Model(BaseModel):
@@ -32,7 +35,9 @@ class EvidenceBlock(Model):
 
 class DocumentEvidence(Model):
     document_id: str
-    blocks: list[EvidenceBlock] = PydanticField(default_factory=lambda: list[EvidenceBlock]())
+    blocks: list[EvidenceBlock] = PydanticField(
+        default_factory=lambda: list[EvidenceBlock]()
+    )
     issues: list[str] = PydanticField(default_factory=list)
     parser_version: str = "evidence-v2"
     language: str = "eng"
@@ -51,7 +56,9 @@ class Classification(Model):
 class Reading(Model):
     field: Field
     document_id: str
-    evidence_ids: list[Annotated[str, PydanticField(max_length=256)]] = PydanticField(default_factory=list, max_length=100)
+    evidence_ids: list[Annotated[str, PydanticField(max_length=256)]] = PydanticField(
+        default_factory=list, max_length=100
+    )
     text: str | None = None
     normalized: str | None = None
     confidence: float = 0
@@ -124,18 +131,22 @@ class SessionView(Model):
     csrf_token: str
     expires_at: str
     live_enabled: bool
-    reviewers: list[str] = ["John Tan", "Aisha Rahman", "Mei Lin"]
+    reviewers: list[str] = list(REVIEWERS)
 
 
 class Action(Model):
     expected_revision: int = PydanticField(ge=1)
-    kind: Literal["category", "pair", "correct", "assign", "workflow", "retry", "revision"]
+    kind: Literal[
+        "category", "pair", "correct", "assign", "workflow", "retry", "revision"
+    ]
     category: Category | None = None
     si_id: str | None = None
     bl_id: str | None = None
     field: Field | None = None
     document_id: str | None = None
-    evidence_ids: list[Annotated[str, PydanticField(max_length=256)]] = PydanticField(default_factory=list, max_length=100)
+    evidence_ids: list[Annotated[str, PydanticField(max_length=256)]] = PydanticField(
+        default_factory=list, max_length=100
+    )
     transcription: str | None = PydanticField(default=None, max_length=16_000)
     verified: bool = False
     reason: str = PydanticField(default="", max_length=4_000)

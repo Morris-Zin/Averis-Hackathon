@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
+    "format": "prettier --write src app *.ts *.mjs *.json",
+    "format:check": "prettier --check src app *.ts *.mjs *.json",
     "generate:api": "openapi-typescript openapi.json -o src/lib/generated/api.ts"
   },
   "dependencies": {
@@ -32,6 +34,7 @@
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.3",
     "openapi-typescript": "^7.9.1",
+    "prettier": "3.8.1",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.2"
   },

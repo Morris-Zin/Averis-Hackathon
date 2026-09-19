@@ -1,4 +1,5 @@
 """Bounded evaluation preparation and execution; never imports ground truth."""
+
 from __future__ import annotations
 
 import argparse
@@ -49,12 +50,13 @@ def _workspace_id(selection: str, chunk: int) -> str:
 
 def _require_evaluation_mode(settings: Settings, *, running: bool) -> None:
     if settings.env not in {"evaluation", "test"}:
-        raise RuntimeError("Evaluation requires AVERIS_ENV=evaluation and a dedicated database")
+        raise RuntimeError(
+            "Evaluation requires AVERIS_ENV=evaluation and a dedicated database"
+        )
     if settings.tasks_queue:
         raise RuntimeError("Evaluation requires an empty AVERIS_TASKS_QUEUE")
     if not running and settings.live_enabled:
         raise RuntimeError("Preparation refuses live inference")
-
 
 
 def _policy(settings: Settings, selection: str, limit: int) -> dict[str, object]:
@@ -94,10 +96,12 @@ def _safe_attachment(root: Path, attachment: str) -> Path:
 def _ensure_workspace(db: Database, workspace_id: str) -> None:
     with db.session() as session, session.begin():
         if session.get(Workspace, workspace_id) is None:
-            session.add(Workspace(
-                id=workspace_id,
-                expires_at=utcnow() + timedelta(days=3650),
-            ))
+            session.add(
+                Workspace(
+                    id=workspace_id,
+                    expires_at=utcnow() + timedelta(days=3650),
+                )
+            )
 
 
 def _hold_run(db: Database, run_id: str) -> None:
@@ -112,7 +116,9 @@ def _hold_run(db: Database, run_id: str) -> None:
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     temporary.replace(path)
 
 
@@ -134,10 +140,18 @@ def _case_snapshot(
             source_id = str(record["source_id"])
             case_id = str(record["case_id"])
             row = session.get(Case, case_id)
-            run = session.get(Run, str(record["run_id"])) if record.get("run_id") else None
+            run = (
+                session.get(Run, str(record["run_id"]))
+                if record.get("run_id")
+                else None
+            )
             if row is None or row.workspace_id != record["workspace_id"]:
                 blocker_counts["case_missing"] += 1
-                diagnostics[source_id] = {"reviewer_assisted": False, "reviewer_actions": [], "blockers": []}
+                diagnostics[source_id] = {
+                    "reviewer_assisted": False,
+                    "reviewer_actions": [],
+                    "blockers": [],
+                }
                 continue
             view = CaseView.model_validate(row.state)
             cases[source_id] = view.model_dump(mode="json")
@@ -208,7 +222,11 @@ def prepare_evaluation(
     if split not in {"all", "development", "holdout"}:
         raise ValueError("split must be all, development, or holdout")
     records = load_emails(source_root)
-    selected = [record for record in records if split == "all" or _split(record["email_id"]) == split][:limit]
+    selected = [
+        record
+        for record in records
+        if split == "all" or _split(record["email_id"]) == split
+    ][:limit]
     if not selected:
         raise ValueError("No source emails match the selected split and limit")
     db = Database(settings.database_url)
@@ -219,7 +237,7 @@ def prepare_evaluation(
     for offset in range(0, len(selected), MAX_IMPORTS_PER_WORKSPACE):
         workspace_id = _workspace_id(split, offset // MAX_IMPORTS_PER_WORKSPACE)
         _ensure_workspace(db, workspace_id)
-        for source in selected[offset:offset + MAX_IMPORTS_PER_WORKSPACE]:
+        for source in selected[offset : offset + MAX_IMPORTS_PER_WORKSPACE]:
             attachments = [
                 (Path(path).name, _safe_attachment(source_root, path).read_bytes())
                 for path in source["attachments"]
@@ -236,14 +254,16 @@ def prepare_evaluation(
             )
             if result.run_id:
                 _hold_run(db, result.run_id)
-            manifest_records.append({
-                "source_id": source["email_id"],
-                "split": _split(source["email_id"]),
-                "workspace_id": workspace_id,
-                "case_id": result.view.id,
-                "run_id": result.run_id or result.view.processing_run_id,
-                "attachments": list(source["attachments"]),
-            })
+            manifest_records.append(
+                {
+                    "source_id": source["email_id"],
+                    "split": _split(source["email_id"]),
+                    "workspace_id": workspace_id,
+                    "case_id": result.view.id,
+                    "run_id": result.run_id or result.view.processing_run_id,
+                    "attachments": list(source["attachments"]),
+                }
+            )
     manifest = {
         "schema_version": 1,
         "policy": _policy(settings, split, limit),
@@ -263,7 +283,10 @@ def _validate_manifest_policy(settings: Settings, manifest: dict[str, object]) -
     policy = cast(dict[str, object], policy_value)
     if policy.get("version") != POLICY_VERSION or policy.get("frozen") is not True:
         raise ValueError("Evaluation manifest policy is not frozen")
-    if policy.get("database_fingerprint") != sha256(settings.database_url.encode()).hexdigest():
+    if (
+        policy.get("database_fingerprint")
+        != sha256(settings.database_url.encode()).hexdigest()
+    ):
         raise ValueError("Evaluation database does not match the frozen manifest")
     if policy.get("model") != settings.jev_model:
         raise ValueError("Jev model differs from the frozen manifest")
@@ -272,7 +295,11 @@ def _validate_manifest_policy(settings: Settings, manifest: dict[str, object]) -
     if policy.get("extraction_policy") != EXTRACTION_POLICY_VERSION:
         raise ValueError("Extraction policy differs from the frozen manifest")
     thresholds_value = policy.get("thresholds")
-    expected = {"category": settings.category_threshold, "spam": settings.spam_threshold, "field": settings.field_threshold}
+    expected = {
+        "category": settings.category_threshold,
+        "spam": settings.spam_threshold,
+        "field": settings.field_threshold,
+    }
     if not isinstance(thresholds_value, dict):
         raise TypeError("Inference thresholds are missing from the frozen manifest")
     thresholds = cast(dict[str, object], thresholds_value)
@@ -282,9 +309,13 @@ def _validate_manifest_policy(settings: Settings, manifest: dict[str, object]) -
 
 def _load_manifest(path: Path) -> dict[str, object]:
     if not path.is_file():
-        raise FileNotFoundError(f"Evaluation manifest not found: {path}; run prepare first")
+        raise FileNotFoundError(
+            f"Evaluation manifest not found: {path}; run prepare first"
+        )
     manifest = json.loads(path.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") != 1 or not isinstance(manifest.get("records"), list):
+    if manifest.get("schema_version") != 1 or not isinstance(
+        manifest.get("records"), list
+    ):
         raise ValueError("Unsupported evaluation manifest")
     return manifest
 
@@ -303,7 +334,11 @@ def run_evaluation(
         raise RuntimeError("--run requires live_enabled and budget_verified")
     if settings.env == "evaluation" and not budget_database_url:
         raise RuntimeError("--run requires the authoritative budget database URL")
-    if settings.env == "evaluation" and budget_database_url and not budget_database_url.startswith("postgresql"):
+    if (
+        settings.env == "evaluation"
+        and budget_database_url
+        and not budget_database_url.startswith("postgresql")
+    ):
         raise RuntimeError("The authoritative budget database must be PostgreSQL")
     if split not in {"all", "development", "holdout"}:
         raise ValueError("split must be all, development, or holdout")
@@ -315,7 +350,9 @@ def run_evaluation(
     manifest = _load_manifest(output_dir / "manifest.json")
     _validate_manifest_policy(settings, manifest)
     all_records = _manifest_records(manifest)
-    records = [record for record in all_records if split == "all" or record["split"] == split]
+    records = [
+        record for record in all_records if split == "all" or record["split"] == split
+    ]
     storage = Storage(settings)
     budget = BudgetAuthority(budget_db, settings)
     if intelligence_factory is None:
@@ -335,11 +372,16 @@ def run_evaluation(
         snapshot["manifest"] = manifest
         snapshot["run_selection"] = split
         _write_json(output_dir / "snapshot.json", snapshot)
-        _write_json(output_dir / "run-results.json", {
-            "policy_version": cast(dict[str, object], manifest["policy"])["version"],
-            "split": split,
-            "outcomes": outcomes,
-        })
+        _write_json(
+            output_dir / "run-results.json",
+            {
+                "policy_version": cast(dict[str, object], manifest["policy"])[
+                    "version"
+                ],
+                "split": split,
+                "outcomes": outcomes,
+            },
+        )
         return snapshot
 
     for record in records:
@@ -349,7 +391,11 @@ def run_evaluation(
             continue
         with db.session() as session:
             existing = session.get(Run, str(run_id))
-            if existing is not None and existing.status in {"completed", "failed", "superseded"}:
+            if existing is not None and existing.status in {
+                "completed",
+                "failed",
+                "superseded",
+            }:
                 outcomes[str(record["source_id"])] = existing.status
                 continue
         outcomes[str(record["source_id"])] = processor.execute(str(run_id))
@@ -358,32 +404,61 @@ def run_evaluation(
 
 
 def main(argv: Iterable[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Prepare or explicitly run bounded Averis evaluation")
+    parser = argparse.ArgumentParser(
+        description="Prepare or explicitly run bounded Averis evaluation"
+    )
     parser.add_argument("--data", type=Path, default=data_root())
     parser.add_argument("--output", type=Path, default=Path("outputs/evaluation"))
-    parser.add_argument("--database-url", help="Dedicated evaluation database URL (defaults to output/evaluation.db)")
-    parser.add_argument("--budget-database-url", help="Authoritative application budget database URL (required by --run)")
+    parser.add_argument(
+        "--database-url",
+        help="Dedicated evaluation database URL (defaults to output/evaluation.db)",
+    )
+    parser.add_argument(
+        "--budget-database-url",
+        help="Authoritative application budget database URL (required by --run)",
+    )
     parser.add_argument("--limit", type=int, default=100)
-    parser.add_argument("--split", choices=("all", "development", "holdout"), default="all")
-    parser.add_argument("--run-split", choices=("all", "development", "holdout"), default="development")
-    parser.add_argument("--run", action="store_true", help="Execute existing manifest runs; requires verified live budget")
-    parser.add_argument("--dry-run", action="store_true", help="Prepare only; this is the default")
-    parser.add_argument("--overwrite", action="store_true", help="Replace an existing prepared manifest")
+    parser.add_argument(
+        "--split", choices=("all", "development", "holdout"), default="all"
+    )
+    parser.add_argument(
+        "--run-split", choices=("all", "development", "holdout"), default="development"
+    )
+    parser.add_argument(
+        "--run",
+        action="store_true",
+        help="Execute existing manifest runs; requires verified live budget",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Prepare only; this is the default"
+    )
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Replace an existing prepared manifest"
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
     if args.run and args.dry_run:
         parser.error("--run and --dry-run cannot be combined")
     if args.run and not args.database_url:
-        parser.error("--run requires --database-url for the isolated evaluation case database")
+        parser.error(
+            "--run requires --database-url for the isolated evaluation case database"
+        )
     if args.run and not args.budget_database_url:
-        parser.error("--run requires --budget-database-url for the authoritative application ledger")
+        parser.error(
+            "--run requires --budget-database-url for the authoritative application ledger"
+        )
     base_settings = Settings()
-    database_url = args.database_url or f"sqlite:///{(args.output / 'evaluation.db').resolve().as_posix()}"
-    settings = base_settings.model_copy(update={
-        "env": "evaluation",
-        "database_url": database_url,
-        "tasks_queue": "",
-        "live_enabled": base_settings.live_enabled if args.run else False,
-    })
+    database_url = (
+        args.database_url
+        or f"sqlite:///{(args.output / 'evaluation.db').resolve().as_posix()}"
+    )
+    settings = base_settings.model_copy(
+        update={
+            "env": "evaluation",
+            "database_url": database_url,
+            "tasks_queue": "",
+            "live_enabled": base_settings.live_enabled if args.run else False,
+        }
+    )
     if args.run:
         result = run_evaluation(
             settings,
@@ -404,7 +479,11 @@ def main(argv: Iterable[str] | None = None) -> None:
         mode = "prepare"
     adapter = cast(dict[str, object], result["official_adapter"])
     coverage = adapter["coverage"]
-    print(json.dumps({"mode": mode, "output": str(args.output), "coverage": coverage}, indent=2))
+    print(
+        json.dumps(
+            {"mode": mode, "output": str(args.output), "coverage": coverage}, indent=2
+        )
+    )
 
 
 if __name__ == "__main__":

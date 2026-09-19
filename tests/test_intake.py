@@ -1,4 +1,5 @@
 """Transactional tests for the framework-independent intake boundary."""
+
 from datetime import timedelta
 from pathlib import Path
 
@@ -21,7 +22,9 @@ def intake_fixture(tmp_path):
     db = Database(settings.database_url)
     Base.metadata.create_all(db.engine)
     with db.session() as session, session.begin():
-        session.add(Workspace(id="workspace-1", expires_at=utcnow() + timedelta(days=1)))
+        session.add(
+            Workspace(id="workspace-1", expires_at=utcnow() + timedelta(days=1))
+        )
     return db, Storage(settings), Path(settings.storage_dir)
 
 

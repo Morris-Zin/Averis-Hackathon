@@ -1,4 +1,5 @@
 """One offline verification entry point; never invokes a paid provider."""
+
 from __future__ import annotations
 
 import argparse
@@ -21,25 +22,76 @@ def run(*args: str, cwd: Path = ROOT) -> None:
 
 def check_boundaries() -> None:
     prohibited = {
-        "contracts": {"fastapi", "sqlalchemy", "averis.api", "averis.persistence", "averis.intelligence"},
-        "domain": {"fastapi", "sqlalchemy", "averis.api", "averis.persistence", "averis.intelligence"},
-        "verification": {"fastapi", "sqlalchemy", "averis.api", "averis.persistence", "averis.intelligence"},
-        "documents": {"fastapi", "averis.intelligence", "averis.processing", "averis.workflow"},
+        "contracts": {
+            "fastapi",
+            "sqlalchemy",
+            "averis.api",
+            "averis.persistence",
+            "averis.intelligence",
+        },
+        "domain": {
+            "fastapi",
+            "sqlalchemy",
+            "averis.api",
+            "averis.persistence",
+            "averis.intelligence",
+        },
+        "verification": {
+            "fastapi",
+            "sqlalchemy",
+            "averis.api",
+            "averis.persistence",
+            "averis.intelligence",
+        },
+        "documents": {
+            "fastapi",
+            "averis.intelligence",
+            "averis.processing",
+            "averis.workflow",
+        },
         "intake": {"fastapi", "averis.api", "averis.worker"},
         "workflow": {"fastapi", "averis.api", "averis.worker"},
         "processing": {"fastapi", "averis.api", "averis.worker"},
         "runner": {"fastapi", "averis.api", "averis.worker", "averis.intelligence"},
     }
+    for module in ("review", "case_status", "responses", "pipeline"):
+        prohibited[module] = {
+            "fastapi",
+            "sqlalchemy",
+            "averis.api",
+            "averis.persistence",
+            "averis.processing",
+            "averis.workflow",
+            "averis.routes",
+            "averis.http_context",
+        }
     for path in (ROOT / "src/averis").glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
         for node in ast.walk(tree):
-            imports = [node.module or ""] if isinstance(node, ast.ImportFrom) else (
-                [name.name for name in node.names] if isinstance(node, ast.Import) else [])
+            imports = (
+                [node.module or ""]
+                if isinstance(node, ast.ImportFrom)
+                else (
+                    [name.name for name in node.names]
+                    if isinstance(node, ast.Import)
+                    else []
+                )
+            )
             for name in imports:
-                if any(name == p or name.startswith(p + ".") for p in prohibited.get(path.stem, set())):
-                    raise SystemExit(f"Module boundary violation: {path.name} imports {name}")
-                if path.stem not in {"cli", "dataset"} and name in {"averis.dataset", "averis.cli"}:
-                    raise SystemExit(f"Runtime cannot import evaluation data: {path.name}")
+                if any(
+                    name == p or name.startswith(p + ".")
+                    for p in prohibited.get(path.stem, set())
+                ):
+                    raise SystemExit(
+                        f"Module boundary violation: {path.name} imports {name}"
+                    )
+                if path.stem not in {"cli", "dataset"} and name in {
+                    "averis.dataset",
+                    "averis.cli",
+                }:
+                    raise SystemExit(
+                        f"Runtime cannot import evaluation data: {path.name}"
+                    )
     print("Module boundaries passed", flush=True)
 
 
@@ -48,13 +100,27 @@ def check_contracts(pnpm: str) -> None:
     from averis.config import Settings
 
     schema = create_app(Settings()).openapi()
-    expected = json.loads((ROOT / "apps/web/openapi.json").read_text(encoding="utf-8-sig"))
+    expected = json.loads(
+        (ROOT / "apps/web/openapi.json").read_text(encoding="utf-8-sig")
+    )
     if schema != expected:
-        raise SystemExit("OpenAPI drift. Export app.openapi() and run pnpm generate:api.")
+        raise SystemExit(
+            "OpenAPI drift. Export app.openapi() and run pnpm generate:api."
+        )
     with tempfile.TemporaryDirectory(prefix="averis-contract-") as directory:
         output = Path(directory) / "api.ts"
-        run(pnpm, "exec", "openapi-typescript", "openapi.json", "-o", str(output), cwd=ROOT / "apps/web")
-        current = (ROOT / "apps/web/src/lib/generated/api.ts").read_text(encoding="utf-8")
+        run(
+            pnpm,
+            "exec",
+            "openapi-typescript",
+            "openapi.json",
+            "-o",
+            str(output),
+            cwd=ROOT / "apps/web",
+        )
+        current = (ROOT / "apps/web/src/lib/generated/api.ts").read_text(
+            encoding="utf-8"
+        )
         if output.read_text(encoding="utf-8") != current:
             raise SystemExit("Generated frontend types drift. Run pnpm generate:api.")
 
@@ -88,6 +154,17 @@ def main() -> None:
     parser.add_argument("--backend-only", action="store_true")
     options = parser.parse_args()
     check_boundaries()
+    run(
+        sys.executable,
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "src",
+        "tests",
+        "scripts",
+        "migrations",
+    )
     run(sys.executable, "-m", "ruff", "check", "src", "tests", "scripts", "migrations")
     run(sys.executable, "-m", "pyright")
     check_test_database()
@@ -97,7 +174,7 @@ def main() -> None:
         if pnpm is None:
             raise SystemExit("Install pnpm 10.26.2 to check the frontend")
         check_contracts(pnpm)
-        for command in ("typecheck", "lint", "build"):
+        for command in ("format:check", "typecheck", "lint", "build"):
             run(pnpm, command, cwd=ROOT / "apps/web")
     print("Verification passed; paid inference was not enabled.", flush=True)
 

@@ -1,4 +1,5 @@
 """Private HTTP worker; Cloud Run IAM is mandatory in production."""
+
 import logging
 
 from fastapi import FastAPI, HTTPException

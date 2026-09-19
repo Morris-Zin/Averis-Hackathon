@@ -84,30 +84,36 @@ def add_run(
         assignee="Unassigned",
         review_reasons=[],
         attachments=[],
-        history=[AuditEntry(
-            at="2026-09-20T00:00:00+00:00",
-            actor="fixture",
-            action="created",
-            detail="durable runner fixture",
-        )],
+        history=[
+            AuditEntry(
+                at="2026-09-20T00:00:00+00:00",
+                actor="fixture",
+                action="created",
+                detail="durable runner fixture",
+            )
+        ],
     )
     with db.session() as session, session.begin():
-        session.add(Case(
-            id=case_id,
-            workspace_id="workspace-1",
-            revision=1,
-            input_revision=revision,
-            active_run_id=run_id,
-            state=view.model_dump(mode="json"),
-        ))
-        session.add(Run(
-            id=run_id,
-            case_id=case_id,
-            input_revision=input_revision,
-            purpose="development",
-            status="queued",
-            attempts=attempts,
-        ))
+        session.add(
+            Case(
+                id=case_id,
+                workspace_id="workspace-1",
+                revision=1,
+                input_revision=revision,
+                active_run_id=run_id,
+                state=view.model_dump(mode="json"),
+            )
+        )
+        session.add(
+            Run(
+                id=run_id,
+                case_id=case_id,
+                input_revision=input_revision,
+                purpose="development",
+                status="queued",
+                attempts=attempts,
+            )
+        )
         if create_outbox:
             session.add(Outbox(run_id=run_id))
     return case_id, run_id
@@ -148,13 +154,16 @@ def runner(
     retry_base_seconds: float = 60,
 ) -> DurableRunner:
     processor = Processor(db, settings, storage, factory=lambda *_: intelligence)
-    return DurableRunner(processor, RunnerOptions(
-        concurrency=concurrency,
-        poll_seconds=0.01,
-        reconcile_seconds=60,
-        retry_base_seconds=retry_base_seconds,
-        retry_max_seconds=max(retry_base_seconds, 120),
-    ))
+    return DurableRunner(
+        processor,
+        RunnerOptions(
+            concurrency=concurrency,
+            poll_seconds=0.01,
+            reconcile_seconds=60,
+            retry_base_seconds=retry_base_seconds,
+            retry_max_seconds=max(retry_base_seconds, 120),
+        ),
+    )
 
 
 def test_runner_processes_durable_outbox_without_cloud_tasks(postgres_db):
@@ -311,7 +320,9 @@ def test_runner_honors_two_delivery_concurrency_bound(postgres_db):
 
 def test_runner_rejects_cloud_tasks_and_more_than_two_workers(postgres_db):
     db, settings, storage = postgres_db
-    processor = Processor(db, settings, storage, factory=lambda *_: GeneralIntelligence())
+    processor = Processor(
+        db, settings, storage, factory=lambda *_: GeneralIntelligence()
+    )
 
     with pytest.raises(ValueError, match="between one and two"):
         DurableRunner(processor, RunnerOptions(concurrency=3))

@@ -22,6 +22,8 @@ from pathlib import PurePath
 from typing import Any, Protocol, TypedDict, cast
 from zipfile import BadZipFile, ZipFile
 
+from openpyxl.cell.cell import Cell, MergedCell
+from openpyxl.cell.read_only import EmptyCell, ReadOnlyCell
 from PIL import Image as Pillow
 from PIL.Image import Image as PillowImage
 
@@ -1045,6 +1047,32 @@ def _read_docx(document_id: str, content: bytes) -> DocumentEvidence:
     return result
 
 
+def _spreadsheet_row(
+    sheet: str,
+    row: Sequence[Cell | ReadOnlyCell | EmptyCell | MergedCell],
+    cached_row: Sequence[Cell | ReadOnlyCell | EmptyCell | MergedCell],
+    cache_is_current: bool,
+) -> tuple[list[str], list[Location], list[str]]:
+    """Read a row without treating formula expressions or stale caches as data."""
+    entries: list[str] = []
+    locations: list[Location] = []
+    uncertain: list[str] = []
+    for cell, cached_cell in zip(row, cached_row, strict=True):
+        if isinstance(cell, (EmptyCell, MergedCell)) or cell.value is None:
+            continue
+        value = str(cell.value)
+        if cell.data_type == "f" or value.startswith("="):
+            if not cache_is_current or not _usable_cached_formula(
+                cached_cell.value, cached_cell.data_type
+            ):
+                uncertain.append(f"{sheet}!{cell.coordinate}")
+                continue
+            value = str(cached_cell.value)
+        entries.append(value)
+        locations.append(Location(kind="xlsx", sheet=sheet, cell=cell.coordinate))
+    return entries, locations, uncertain
+
+
 def _read_xlsx(document_id: str, content: bytes) -> DocumentEvidence:
     from openpyxl import load_workbook
 
@@ -1129,33 +1157,11 @@ def _read_xlsx(document_id: str, content: bytes) -> DocumentEvidence:
                 max_col=max_column,
             )
             for row, cached_row in zip(formula_rows, cached_rows, strict=True):
-                entries: list[str] = []
-                locations: list[Location] = []
-                row_has_uncertain_formula = False
-                for cell, cached_cell in zip(row, cached_row, strict=True):
-                    if cell.value is None:
-                        continue
-
-                    value = str(cell.value)
-                    if cell.data_type == "f" or value.startswith("="):
-                        cached_value = cached_cell.value
-                        if not cache_is_current or not _usable_cached_formula(
-                            cached_value, cached_cell.data_type
-                        ):
-                            uncertain_formula_cells.append(
-                                f"{worksheet.title}!{cell.coordinate}"
-                            )
-                            row_has_uncertain_formula = True
-                            continue
-                        value = str(cached_value)
-                    entries.append(value)
-                    locations.append(
-                        Location(
-                            kind="xlsx",
-                            sheet=worksheet.title,
-                            cell=cell.coordinate,
-                        )
-                    )
+                entries, locations, uncertain = _spreadsheet_row(
+                    worksheet.title, row, cached_row, cache_is_current
+                )
+                uncertain_formula_cells.extend(uncertain)
+                row_has_uncertain_formula = bool(uncertain)
                 # A formula expression is code, not shipment evidence. Withhold the
                 # whole row when any result is stale or absent so it cannot match.
                 if entries and not row_has_uncertain_formula:

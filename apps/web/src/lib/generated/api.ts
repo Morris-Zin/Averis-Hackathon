@@ -305,10 +305,10 @@ export interface components {
             /** File */
             file: string;
         };
-        /** CasePage */
-        CasePage: {
+        /** CasePageResponse */
+        CasePageResponse: {
             /** Items */
-            items: components["schemas"]["CaseView"][];
+            items: components["schemas"]["CaseResponse"][];
             /** Total */
             total: number;
             /** Page */
@@ -316,8 +316,8 @@ export interface components {
             /** Page Size */
             page_size: number;
         };
-        /** CaseView */
-        CaseView: {
+        /** CaseResponse */
+        CaseResponse: {
             /** Id */
             id: string;
             /** Subject */
@@ -363,6 +363,20 @@ export interface components {
             report?: components["schemas"]["Report"] | null;
             /** History */
             history: components["schemas"]["AuditEntry"][];
+            readonly summary: components["schemas"]["CaseSummary"];
+        };
+        /** CaseSummary */
+        CaseSummary: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "queued" | "running" | "failed" | "unclassified" | "categorized" | "needs_review" | "mismatch" | "mismatch_review" | "match";
+            /**
+             * Mismatches
+             * @default 0
+             */
+            mismatches: number;
         };
         /** Classification */
         Classification: {
@@ -702,7 +716,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CasePage"];
+                    "application/json": components["schemas"]["CasePageResponse"];
                 };
             };
             /** @description Validation Error */
@@ -733,7 +747,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["CaseResponse"];
                 };
             };
             /** @description Validation Error */
@@ -768,7 +782,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["CaseResponse"];
                 };
             };
             /** @description Validation Error */
@@ -865,7 +879,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["CaseResponse"];
                 };
             };
             /** @description Validation Error */
@@ -900,7 +914,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CaseView"];
+                    "application/json": components["schemas"]["CaseResponse"];
                 };
             };
             /** @description Validation Error */

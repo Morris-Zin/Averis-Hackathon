@@ -21,10 +21,12 @@ def setup_database(tmp_path):
     db = Database(settings.database_url)
     Base.metadata.create_all(db.engine)
     with db.session() as session, session.begin():
-        session.add(Workspace(
-            id="workspace-1",
-            expires_at=utcnow() + timedelta(days=1),
-        ))
+        session.add(
+            Workspace(
+                id="workspace-1",
+                expires_at=utcnow() + timedelta(days=1),
+            )
+        )
     return db, Storage(settings)
 
 
@@ -74,21 +76,25 @@ def test_demo_case_without_prior_run_uses_demo_budget_purpose(tmp_path):
         assignee="John Tan",
         review_reasons=[],
         attachments=[],
-        history=[AuditEntry(
-            at=utcnow().isoformat(),
-            actor="Demo setup",
-            action="created",
-            detail="Controlled fixture",
-        )],
+        history=[
+            AuditEntry(
+                at=utcnow().isoformat(),
+                actor="Demo setup",
+                action="created",
+                detail="Controlled fixture",
+            )
+        ],
     )
     with db.session() as session, session.begin():
-        session.add(Case(
-            id=view.id,
-            workspace_id="workspace-1",
-            revision=1,
-            input_revision=1,
-            state=view.model_dump(mode="json"),
-        ))
+        session.add(
+            Case(
+                id=view.id,
+                workspace_id="workspace-1",
+                revision=1,
+                input_revision=1,
+                state=view.model_dump(mode="json"),
+            )
+        )
 
     _updated, run_id = Workflow(db, _storage).apply(
         "workspace-1",

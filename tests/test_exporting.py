@@ -303,14 +303,27 @@ def test_export_command_writes_blockers_without_fake_submission(tmp_path):
     inbox = tmp_path / "inbox"
     inbox.mkdir()
     for identifier in ("email_001", "email_002"):
-        (inbox / f"{identifier}.json").write_text(json.dumps({
-            "email_id": identifier, "from": "test@example.test",
-            "subject": "Test", "body": "", "attachments": [],
-        }))
+        (inbox / f"{identifier}.json").write_text(
+            json.dumps(
+                {
+                    "email_id": identifier,
+                    "from": "test@example.test",
+                    "subject": "Test",
+                    "body": "",
+                    "attachments": [],
+                }
+            )
+        )
     snapshot = tmp_path / "snapshot.json"
-    snapshot.write_text(json.dumps({
-        "email_001": case_view(case_id="application-uuid", category="GENERAL").model_dump(mode="json")
-    }))
+    snapshot.write_text(
+        json.dumps(
+            {
+                "email_001": case_view(
+                    case_id="application-uuid", category="GENERAL"
+                ).model_dump(mode="json")
+            }
+        )
+    )
     submission = tmp_path / "submission.json"
     diagnostic = tmp_path / "diagnostic.json"
     assert not export_cases(snapshot, submission, diagnostic, tmp_path)
@@ -328,14 +341,27 @@ def test_export_command_keeps_official_payload_separate(tmp_path):
 
     inbox = tmp_path / "inbox"
     inbox.mkdir()
-    (inbox / "email_001.json").write_text(json.dumps({
-        "email_id": "email_001", "from": "test@example.test",
-        "subject": "Test", "body": "", "attachments": [],
-    }))
+    (inbox / "email_001.json").write_text(
+        json.dumps(
+            {
+                "email_id": "email_001",
+                "from": "test@example.test",
+                "subject": "Test",
+                "body": "",
+                "attachments": [],
+            }
+        )
+    )
     snapshot = tmp_path / "snapshot.json"
-    snapshot.write_text(json.dumps({
-        "email_001": case_view(case_id="application-uuid", category="GENERAL").model_dump(mode="json")
-    }))
+    snapshot.write_text(
+        json.dumps(
+            {
+                "email_001": case_view(
+                    case_id="application-uuid", category="GENERAL"
+                ).model_dump(mode="json")
+            }
+        )
+    )
     submission = tmp_path / "submission.json"
     diagnostic = tmp_path / "diagnostic.json"
     assert export_cases(snapshot, submission, diagnostic, tmp_path)

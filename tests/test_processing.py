@@ -1,4 +1,5 @@
 """Durable processing regression checks with deterministic intelligence doubles."""
+
 from __future__ import annotations
 
 import os
@@ -60,14 +61,40 @@ def postgres_db(tmp_path):
 
 def processing_case(case_id: str = "case-1", input_revision: int = 1) -> CaseView:
     si_id, bl_id = "si-1", "bl-1"
-    si = evidence(si_id, "SI", "SHIP-001", {field: field for field in (
-        "shipper", "consignee", "notify_party", "port_of_loading",
-        "port_of_discharge", "container_count", "gross_weight_kg",
-    )})
-    bl = evidence(bl_id, "BL", "SHIP-001", {field: field for field in (
-        "shipper", "consignee", "notify_party", "port_of_loading",
-        "port_of_discharge", "container_count", "gross_weight_kg",
-    )})
+    si = evidence(
+        si_id,
+        "SI",
+        "SHIP-001",
+        {
+            field: field
+            for field in (
+                "shipper",
+                "consignee",
+                "notify_party",
+                "port_of_loading",
+                "port_of_discharge",
+                "container_count",
+                "gross_weight_kg",
+            )
+        },
+    )
+    bl = evidence(
+        bl_id,
+        "BL",
+        "SHIP-001",
+        {
+            field: field
+            for field in (
+                "shipper",
+                "consignee",
+                "notify_party",
+                "port_of_loading",
+                "port_of_discharge",
+                "container_count",
+                "gross_weight_kg",
+            )
+        },
+    )
     return CaseView(
         id=case_id,
         subject="Processing fixture",
@@ -86,35 +113,47 @@ def processing_case(case_id: str = "case-1", input_revision: int = 1) -> CaseVie
             AttachmentView(id=si_id, filename="si.txt", role="SI", evidence=si),
             AttachmentView(id=bl_id, filename="bl.txt", role="BL", evidence=bl),
         ],
-        history=[AuditEntry(
-            at="2026-09-19T00:00:00+00:00",
-            actor="fixture",
-            action="created",
-            detail="deterministic processing fixture",
-        )],
+        history=[
+            AuditEntry(
+                at="2026-09-19T00:00:00+00:00",
+                actor="fixture",
+                action="created",
+                detail="deterministic processing fixture",
+            )
+        ],
     )
 
 
-def add_case_and_run(db: Database, *, input_revision: int = 1, run_status: str = "queued", attempts: int = 0):
+def add_case_and_run(
+    db: Database,
+    *,
+    input_revision: int = 1,
+    run_status: str = "queued",
+    attempts: int = 0,
+):
     view = processing_case(input_revision=input_revision)
     run_id = str(uuid4())
     with db.session() as session, session.begin():
-        session.add(Case(
-            id=view.id,
-            workspace_id="workspace-1",
-            revision=view.revision,
-            input_revision=view.input_revision,
-            active_run_id=run_id,
-            state=view.model_dump(mode="json"),
-        ))
-        session.add(Run(
-            id=run_id,
-            case_id=view.id,
-            input_revision=input_revision,
-            purpose="development",
-            status=run_status,
-            attempts=attempts,
-        ))
+        session.add(
+            Case(
+                id=view.id,
+                workspace_id="workspace-1",
+                revision=view.revision,
+                input_revision=view.input_revision,
+                active_run_id=run_id,
+                state=view.model_dump(mode="json"),
+            )
+        )
+        session.add(
+            Run(
+                id=run_id,
+                case_id=view.id,
+                input_revision=input_revision,
+                purpose="development",
+                status=run_status,
+                attempts=attempts,
+            )
+        )
     return view.id, run_id
 
 
@@ -140,10 +179,17 @@ class FlakyIntelligence:
             raise RuntimeError("synthetic provider interruption")
         role = "SI" if document.document_id == "si-1" else "BL"
         fields = {
-            field: reading_from_evidence(field, document, [field], confidence=1, threshold=0.8)
+            field: reading_from_evidence(
+                field, document, [field], confidence=1, threshold=0.8
+            )
             for field in (
-                "shipper", "consignee", "notify_party", "port_of_loading",
-                "port_of_discharge", "container_count", "gross_weight_kg",
+                "shipper",
+                "consignee",
+                "notify_party",
+                "port_of_loading",
+                "port_of_discharge",
+                "container_count",
+                "gross_weight_kg",
             )
         }
         return ExtractionResult(role=role, role_confidence=1, fields=fields)
@@ -152,7 +198,12 @@ class FlakyIntelligence:
 def test_duplicate_completed_delivery_is_idempotent(postgres_db):
     db, settings, storage = postgres_db
     _case_id, run_id = add_case_and_run(db, run_status="completed", attempts=1)
-    processor = Processor(db, settings, storage, factory=lambda *_: (_ for _ in ()).throw(AssertionError("provider called")))
+    processor = Processor(
+        db,
+        settings,
+        storage,
+        factory=lambda *_: (_ for _ in ()).throw(AssertionError("provider called")),
+    )
 
     assert processor.execute(run_id) == "completed"
     assert processor.execute(run_id) == "completed"
@@ -161,6 +212,26 @@ def test_duplicate_completed_delivery_is_idempotent(postgres_db):
         assert run is not None
         assert run.status == "completed"
         assert run.attempts == 1
+
+
+def test_corrupt_checkpoint_stops_without_repeating_paid_work(postgres_db):
+    db, settings, storage = postgres_db
+    case_id, run_id = add_case_and_run(db)
+    with db.session() as session, session.begin():
+        session.get(Run, run_id).checkpoint = {"classification": {"unexpected": True}}
+    intelligence = FlakyIntelligence()
+    processor = Processor(db, settings, storage, factory=lambda *_: intelligence)
+
+    assert processor.execute(run_id) == "completed"
+    assert intelligence.classify_calls == 0
+    assert intelligence.extract_calls == 0
+    with db.session() as session:
+        run = session.get(Run, run_id)
+        case = CaseView.model_validate(session.get(Case, case_id).state)
+        assert run.status == "failed"
+        assert case.stage == "checkpoint_invalid"
+        assert case.processing == "failed"
+        assert case.report is None
 
 
 def test_checkpoint_survives_retry_and_avoids_reclassification(postgres_db):
@@ -239,7 +310,9 @@ def test_failed_dispatch_leaves_durable_outbox_for_reconcile(postgres_db, monkey
         def __init__(self):
             raise RuntimeError("synthetic Cloud Tasks outage")
 
-    monkeypatch.setattr("averis.processing.tasks_v2.CloudTasksClient", FailingTasksClient)
+    monkeypatch.setattr(
+        "averis.processing.tasks_v2.CloudTasksClient", FailingTasksClient
+    )
     processor = Processor(db, settings, storage)
 
     assert processor.reconcile() == 0
@@ -260,11 +333,22 @@ def test_replaced_run_with_same_inputs_cannot_publish_late_result(postgres_db):
         def classify(self, subject, body):
             with db.session() as session, session.begin():
                 row = session.get(Case, case_id)
-                session.add(Run(id=new_run_id, case_id=case_id, input_revision=1,
-                                purpose="development", status="queued"))
+                session.add(
+                    Run(
+                        id=new_run_id,
+                        case_id=case_id,
+                        input_revision=1,
+                        purpose="development",
+                        status="queued",
+                    )
+                )
                 row.active_run_id = new_run_id
-                row.state = {**row.state, "processing_run_id": new_run_id,
-                             "processing": "queued", "stage": "newer_run"}
+                row.state = {
+                    **row.state,
+                    "processing_run_id": new_run_id,
+                    "processing": "queued",
+                    "stage": "newer_run",
+                }
             return super().classify(subject, body)
 
     provider = SupersededDuringProvider()
@@ -293,11 +377,19 @@ def test_operational_metrics_are_aggregate_only(postgres_db):
     assert "fixture@example.test" not in str(metrics)
 
 
-def test_expired_attempt_cannot_checkpoint_and_recovery_preserves_completed_stage(postgres_db):
+def test_expired_attempt_cannot_checkpoint_and_recovery_preserves_completed_stage(
+    postgres_db,
+):
     db, settings, storage = postgres_db
     case_id, run_id = add_case_and_run(db, run_status="running", attempts=1)
-    classification = Classification(suggested="GENERAL", accepted="GENERAL", confidence=1,
-                                    probabilities={"GENERAL": 1}, source="model", model="test")
+    classification = Classification(
+        suggested="GENERAL",
+        accepted="GENERAL",
+        confidence=1,
+        probabilities={"GENERAL": 1},
+        source="model",
+        model="test",
+    )
     with db.session() as session, session.begin():
         run = session.get(Run, run_id)
         run.token = "dead-worker"
@@ -306,7 +398,9 @@ def test_expired_attempt_cannot_checkpoint_and_recovery_preserves_completed_stag
     processor = Processor(db, settings, storage, factory=lambda *_: FlakyIntelligence())
     with pytest.raises(LostLease):
         processor._checkpoint(run_id, "dead-worker", "document:si-1", {})
-    assert processor.reconcile() == 0  # local queue deliberately has no cloud dispatcher
+    assert (
+        processor.reconcile() == 0
+    )  # local queue deliberately has no cloud dispatcher
     assert processor.execute(run_id) == "completed"
     with db.session() as session:
         run = session.get(Run, run_id)
@@ -326,7 +420,9 @@ def test_checkpoint_progress_preserves_reviewer_edits(postgres_db):
         run.lease_until = utcnow() + timedelta(seconds=90)
         row = session.get(Case, case_id)
         row.state = {**row.state, "assignee": "Mei Lin", "workflow": "waiting"}
-    Processor(db, settings, storage)._checkpoint(run_id, "current-worker", "document:si-1", {})
+    Processor(db, settings, storage)._checkpoint(
+        run_id, "current-worker", "document:si-1", {}
+    )
     with db.session() as session:
         row = session.get(Case, case_id)
         assert row.state["assignee"] == "Mei Lin"
@@ -336,7 +432,9 @@ def test_checkpoint_progress_preserves_reviewer_edits(postgres_db):
 
 
 @pytest.mark.parametrize("category,elapsed", [("BL_COMPARISON", 436), ("GENERAL", 481)])
-def test_application_deadline_never_publishes_a_late_success(postgres_db, monkeypatch, category, elapsed):
+def test_application_deadline_never_publishes_a_late_success(
+    postgres_db, monkeypatch, category, elapsed
+):
     from types import SimpleNamespace
 
     from averis import processing
@@ -349,14 +447,26 @@ def test_application_deadline_never_publishes_a_late_success(postgres_db, monkey
     class LateClassification:
         def classify(self, _subject, _body):
             clock[0] = elapsed
-            return Classification(suggested=category, accepted=category, confidence=1,
-                                  probabilities={category: 1}, source="fixture", model="test")
+            return Classification(
+                suggested=category,
+                accepted=category,
+                confidence=1,
+                probabilities={category: 1},
+                source="fixture",
+                model="test",
+            )
 
         def extract(self, _document):
-            raise AssertionError("No extraction may start beyond the application deadline")
+            raise AssertionError(
+                "No extraction may start beyond the application deadline"
+            )
 
-    processor = Processor(db, settings, storage, factory=lambda *_: LateClassification())
-    assert processor.execute(run_id) == "completed"  # Terminal task acknowledgement, not a match.
+    processor = Processor(
+        db, settings, storage, factory=lambda *_: LateClassification()
+    )
+    assert (
+        processor.execute(run_id) == "completed"
+    )  # Terminal task acknowledgement, not a match.
     with db.session() as session:
         run = session.get(Run, run_id)
         row = session.get(Case, case_id)
@@ -368,7 +478,9 @@ def test_application_deadline_never_publishes_a_late_success(postgres_db, monkey
         assert view.processing_error
 
 
-def test_parser_and_provider_callbacks_release_database_connections(postgres_db, monkeypatch):
+def test_parser_and_provider_callbacks_release_database_connections(
+    postgres_db, monkeypatch
+):
     from averis import processing
     from averis.persistence import Document
 
@@ -383,8 +495,17 @@ def test_parser_and_provider_callbacks_release_database_connections(postgres_db,
             attachment.evidence = None
             content = b"Synthetic parser boundary fixture"
             key, digest = storage.put(content)
-            session.add(Document(id=attachment.id, workspace_id="workspace-1", case_id=case_id,
-                                 filename=attachment.filename, object_key=key, sha256=digest, size=len(content)))
+            session.add(
+                Document(
+                    id=attachment.id,
+                    workspace_id="workspace-1",
+                    case_id=case_id,
+                    filename=attachment.filename,
+                    object_key=key,
+                    sha256=digest,
+                    size=len(content),
+                )
+            )
         row.state = view.model_dump(mode="json")
 
     callbacks = []
@@ -399,24 +520,59 @@ def test_parser_and_provider_callbacks_release_database_connections(postgres_db,
         assert 0 < timeout_seconds <= 120
         return original_evidence[document_id]
 
+    original_read = storage.read
+
+    def read_storage(key):
+        observe("storage")
+        return original_read(key)
+
+    monkeypatch.setattr(storage, "read", read_storage)
+
     class ObservedIntelligence:
         def classify(self, _subject, _body):
             observe("classification")
-            return Classification(suggested="BL_COMPARISON", accepted="BL_COMPARISON", confidence=1,
-                                  probabilities={"BL_COMPARISON": 1}, source="fixture", model="test")
+            return Classification(
+                suggested="BL_COMPARISON",
+                accepted="BL_COMPARISON",
+                confidence=1,
+                probabilities={"BL_COMPARISON": 1},
+                source="fixture",
+                model="test",
+            )
 
         def extract(self, document):
             observe("extraction")
-            return ExtractionResult(role="SI" if document.document_id == "si-1" else "BL",
-                                    role_confidence=1, fields={
-                                        field: reading_from_evidence(field, document, [], confidence=0)
-                                        for field in ("shipper", "consignee", "notify_party", "port_of_loading",
-                                                      "port_of_discharge", "container_count", "gross_weight_kg")})
+            return ExtractionResult(
+                role="SI" if document.document_id == "si-1" else "BL",
+                role_confidence=1,
+                fields={
+                    field: reading_from_evidence(field, document, [], confidence=0)
+                    for field in (
+                        "shipper",
+                        "consignee",
+                        "notify_party",
+                        "port_of_loading",
+                        "port_of_discharge",
+                        "container_count",
+                        "gross_weight_kg",
+                    )
+                },
+            )
 
     monkeypatch.setattr(processing, "read_document_bounded", read)
-    processor = Processor(db, settings, storage, factory=lambda *_: ObservedIntelligence())
+    processor = Processor(
+        db, settings, storage, factory=lambda *_: ObservedIntelligence()
+    )
     monkeypatch.setattr(processor, "_heartbeat", lambda *_: None)
     assert processor.execute(run_id) == "completed"
-    assert callbacks == ["classification", "parser", "extraction", "parser", "extraction"]
+    assert callbacks == [
+        "classification",
+        "storage",
+        "parser",
+        "extraction",
+        "storage",
+        "parser",
+        "extraction",
+    ]
     with db.session() as session:
         assert session.get(Run, run_id).status == "completed"

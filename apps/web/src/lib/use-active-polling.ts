@@ -28,7 +28,8 @@ export function useActivePolling(
 
     const schedule = (wait: number) => {
       clearTimer();
-      if (!stopped && !document.hidden) timer = setTimeout(() => void run(), wait);
+      if (!stopped && !document.hidden)
+        timer = setTimeout(() => void run(), wait);
     };
 
     const run = async () => {

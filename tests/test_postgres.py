@@ -1,4 +1,5 @@
 """Concurrency and budget regression checks against isolated PostgreSQL schemas."""
+
 from __future__ import annotations
 
 import os
@@ -83,25 +84,31 @@ def case_view(case_id: str = "case-1", revision: int = 1) -> CaseView:
         assignee="Unassigned",
         review_reasons=[],
         attachments=[],
-        history=[AuditEntry(
-            at="2026-09-19T00:00:00+00:00",
-            actor="fixture",
-            action="created",
-            detail="deterministic fixture",
-        )],
+        history=[
+            AuditEntry(
+                at="2026-09-19T00:00:00+00:00",
+                actor="fixture",
+                action="created",
+                detail="deterministic fixture",
+            )
+        ],
     )
 
 
-def add_case(db: Database, workspace_id: str = "workspace-1", case_id: str = "case-1") -> None:
+def add_case(
+    db: Database, workspace_id: str = "workspace-1", case_id: str = "case-1"
+) -> None:
     view = case_view(case_id)
     with db.session() as session, session.begin():
-        session.add(Case(
-            id=case_id,
-            workspace_id=workspace_id,
-            revision=view.revision,
-            input_revision=view.input_revision,
-            state=view.model_dump(mode="json"),
-        ))
+        session.add(
+            Case(
+                id=case_id,
+                workspace_id=workspace_id,
+                revision=view.revision,
+                input_revision=view.input_revision,
+                state=view.model_dump(mode="json"),
+            )
+        )
 
 
 def test_workflow_concurrent_edits_have_one_winner(postgres_db):
@@ -125,10 +132,12 @@ def test_workflow_concurrent_edits_have_one_winner(postgres_db):
             return exc
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(
-            lambda pair: apply_edit(*pair),
-            zip(workflows, ("Mei Lin", "Aisha Rahman")),
-        ))
+        results = list(
+            pool.map(
+                lambda pair: apply_edit(*pair),
+                zip(workflows, ("Mei Lin", "Aisha Rahman")),
+            )
+        )
 
     assert sum(isinstance(result, tuple) for result in results) == 1
     assert sum(isinstance(result, Conflict) for result in results) == 1
@@ -150,7 +159,9 @@ def test_budget_reservation_race_allows_only_one_reservation(postgres_db):
     def reserve(index: int):
         try:
             return authority.reserve(f"run-{index}", "development", 1, 1)
-        except BudgetUnavailable as exc:  # one contender must lose the row lock/budget race
+        except (
+            BudgetUnavailable
+        ) as exc:  # one contender must lose the row lock/budget race
             return exc
 
     with ThreadPoolExecutor(max_workers=2) as pool:

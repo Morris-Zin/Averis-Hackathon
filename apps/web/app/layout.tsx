@@ -8,6 +8,14 @@ export const metadata: Metadata = {
   description: "Source-backed shipping document verification",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return <html lang="en"><body><SessionProvider>{children}</SessionProvider></body></html>;
+export default function RootLayout({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  return (
+    <html lang="en">
+      <body>
+        <SessionProvider>{children}</SessionProvider>
+      </body>
+    </html>
+  );
 }

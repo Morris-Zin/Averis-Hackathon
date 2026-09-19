@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { ApiError, liveApi, type AppApi } from "@/lib/api";
 import type { SessionView } from "@/lib/contracts";
 
@@ -27,30 +35,44 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setStatus("signed-out");
     setUnavailableMessage("");
-    setSessionMessage("Your workspace session expired. Its saved cases are no longer shown. Enter a new demo workspace to continue.");
+    setSessionMessage(
+      "Your workspace session expired. Its saved cases are no longer shown. Enter a new demo workspace to continue.",
+    );
   }, []);
 
-  const guard = useCallback(async <T,>(operation: Promise<T>): Promise<T> => {
-    try {
-      return await operation;
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) expireSession();
-      throw error;
-    }
-  }, [expireSession]);
+  const guard = useCallback(
+    async <T,>(operation: Promise<T>): Promise<T> => {
+      try {
+        return await operation;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) expireSession();
+        throw error;
+      }
+    },
+    [expireSession],
+  );
 
-  const api = useMemo<AppApi>(() => ({
-    session: () => guard(liveApi.session()),
-    enterDemo: () => guard(liveApi.enterDemo()),
-    cases: (...args: Parameters<AppApi["cases"]>) => guard(liveApi.cases(...args)),
-    case: (...args: Parameters<AppApi["case"]>) => guard(liveApi.case(...args)),
-    action: (...args: Parameters<AppApi["action"]>) => guard(liveApi.action(...args)),
-    actor: (...args: Parameters<AppApi["actor"]>) => guard(liveApi.actor(...args)),
-    logout: (...args: Parameters<AppApi["logout"]>) => guard(liveApi.logout(...args)),
-  }), [guard]);
+  const api = useMemo<AppApi>(
+    () => ({
+      session: () => guard(liveApi.session()),
+      enterDemo: () => guard(liveApi.enterDemo()),
+      cases: (...args: Parameters<AppApi["cases"]>) =>
+        guard(liveApi.cases(...args)),
+      case: (...args: Parameters<AppApi["case"]>) =>
+        guard(liveApi.case(...args)),
+      action: (...args: Parameters<AppApi["action"]>) =>
+        guard(liveApi.action(...args)),
+      actor: (...args: Parameters<AppApi["actor"]>) =>
+        guard(liveApi.actor(...args)),
+      logout: (...args: Parameters<AppApi["logout"]>) =>
+        guard(liveApi.logout(...args)),
+    }),
+    [guard],
+  );
 
   useEffect(() => {
-    void liveApi.session()
+    void liveApi
+      .session()
       .then((value) => {
         setSession(value);
         setStatus("ready");
@@ -63,7 +85,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           setStatus("signed-out");
           return;
         }
-        setUnavailableMessage(error instanceof Error ? error.message : "The Averis server is unavailable.");
+        setUnavailableMessage(
+          error instanceof Error
+            ? error.message
+            : "The Averis server is unavailable.",
+        );
         setStatus("unavailable");
       });
   }, []);
@@ -76,11 +102,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSessionMessage("");
   }, []);
 
-  const setActor = useCallback(async (actor: string) => {
-    if (!session) return;
-    const value = await api.actor(actor, session.csrf_token);
-    setSession(value);
-  }, [api, session]);
+  const setActor = useCallback(
+    async (actor: string) => {
+      if (!session) return;
+      const value = await api.actor(actor, session.csrf_token);
+      setSession(value);
+    },
+    [api, session],
+  );
 
   const logout = useCallback(async () => {
     if (!session) return;
@@ -106,9 +135,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setActor,
       logout,
     }),
-    [status, session, api, unavailableMessage, sessionMessage, enterDemo, setActor, logout],
+    [
+      status,
+      session,
+      api,
+      unavailableMessage,
+      sessionMessage,
+      enterDemo,
+      setActor,
+      logout,
+    ],
   );
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+  );
 }
 
 export function useSession() {

@@ -1,4 +1,5 @@
 """Shared immutable synthetic seeds with isolated workspace metadata."""
+
 from datetime import timedelta
 from hashlib import sha256
 from pathlib import Path
@@ -27,8 +28,12 @@ def demo_store(tmp_path):
     return db, storage
 
 
-def make_workspace(db: Database, storage: Storage, workspace_id: str, *, expired: bool = False) -> None:
-    expires_at = utcnow() - timedelta(minutes=1) if expired else utcnow() + timedelta(hours=1)
+def make_workspace(
+    db: Database, storage: Storage, workspace_id: str, *, expired: bool = False
+) -> None:
+    expires_at = (
+        utcnow() - timedelta(minutes=1) if expired else utcnow() + timedelta(hours=1)
+    )
     with db.session() as session, session.begin():
         workspace = Workspace(id=workspace_id, expires_at=expires_at)
         session.add(workspace)
@@ -41,20 +46,32 @@ def test_seed_objects_are_shared_while_workspace_metadata_isolated(demo_store):
     make_workspace(db, storage, "workspace-b")
 
     with db.session() as session:
-        documents = session.scalars(select(Document).order_by(Document.workspace_id)).all()
+        documents = session.scalars(
+            select(Document).order_by(Document.workspace_id)
+        ).all()
         cases = session.scalars(select(Case)).all()
 
     assert {case.workspace_id for case in cases} == {"workspace-a", "workspace-b"}
     assert {case.category for case in cases if case.category} == {
-        "BL_COMPARISON", "SI_REQUEST", "INVOICE_QUERY", "GENERAL", "SPAM",
+        "BL_COMPARISON",
+        "SI_REQUEST",
+        "INVOICE_QUERY",
+        "GENERAL",
+        "SPAM",
     }
-    first = [document for document in documents if document.workspace_id == "workspace-a"]
-    second = [document for document in documents if document.workspace_id == "workspace-b"]
+    first = [
+        document for document in documents if document.workspace_id == "workspace-a"
+    ]
+    second = [
+        document for document in documents if document.workspace_id == "workspace-b"
+    ]
     assert first and second
     assert {document.object_key for document in first}.isdisjoint(
         document.object_key for document in second
     )
-    assert {document.sha256 for document in first} == {document.sha256 for document in second}
+    assert {document.sha256 for document in first} == {
+        document.sha256 for document in second
+    }
     assert all(storage.read(document.object_key) for document in documents)
 
     seed_files = list((Path(storage.settings.storage_dir) / "seeds").glob("*"))
@@ -66,16 +83,25 @@ def test_expired_workspace_cleanup_keeps_shared_seed_objects(demo_store):
     db, storage = demo_store
     make_workspace(db, storage, "expired", expired=True)
     with db.session() as session:
-        before = session.scalars(select(Document).where(Document.workspace_id == "expired")).all()
+        before = session.scalars(
+            select(Document).where(Document.workspace_id == "expired")
+        ).all()
         assert before
         original = storage.read(before[0].object_key)
     seed_files = list((Path(storage.settings.storage_dir) / "seeds").glob("*"))
 
-    assert Processor(db, Settings(storage_dir=storage.settings.storage_dir), storage).expire_workspaces() == 1
+    assert (
+        Processor(
+            db, Settings(storage_dir=storage.settings.storage_dir), storage
+        ).expire_workspaces()
+        == 1
+    )
 
     with db.session() as session:
         assert not session.scalar(select(Workspace).where(Workspace.id == "expired"))
-        assert not session.scalars(select(Document).where(Document.workspace_id == "expired")).all()
+        assert not session.scalars(
+            select(Document).where(Document.workspace_id == "expired")
+        ).all()
     assert list((Path(storage.settings.storage_dir) / "seeds").glob("*")) == seed_files
     assert storage.read(before[0].object_key) == original
     storage.delete(before[0].object_key)

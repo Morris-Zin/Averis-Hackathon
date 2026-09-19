@@ -33,7 +33,9 @@ $env:AVERIS_TEST_DATABASE_URL = $env:AVERIS_DATABASE_URL
 uv run python scripts/verify.py
 ```
 
-This checks Python lint and strict types, meaningful offline tests, module boundaries, OpenAPI/TypeScript contract drift, frontend strict types, lint and the production static build. PostgreSQL tests use temporary schemas. No paid provider is called. `--backend-only` is available for backend work.
+This checks Python formatting, lint, function complexity (maximum 15 for application/scripts), strict types, meaningful offline tests, module boundaries, OpenAPI/TypeScript contract drift, frontend formatting, strict types, lint and the production static build. PostgreSQL tests use temporary schemas. No paid provider is called. `--backend-only` is available for backend work.
+
+Run `uv run ruff format src tests scripts migrations` and `pnpm --dir apps/web format` to apply the enforced formatting. Generated API types remain generator-owned. TypeScript non-null assertions are rejected by ESLint.
 
 For browser acceptance, use the built app through its real API: enter a workspace, open Mismatches, inspect evidence, correct a reading, attach a controlled replacement, change reviewer/workflow and refresh. A completed review does not clear a genuine document mismatch.
 
@@ -43,12 +45,16 @@ For browser acceptance, use the built app through its real API: enter a workspac
 - `intelligence.py`: budgeted Jev classification and independent document extraction.
 - `documents.py`: bounded TXT/PDF/DOCX/XLSX/OCR reading and previews.
 - `verification.py`: source validation, numeric units and seven-field comparison.
-- `workflow.py`: explicit reviewer actions, immutable revisions and conflict handling.
-- `processing.py`: durable runs, leases, checkpoints, outbox dispatch and recovery.
-- `apps/web/`: Next.js static frontend; generated API types.
+- `review.py`: source-bound reviewer decisions, independent of HTTP and persistence.
+- `workflow.py`: transactions, immutable revisions, conflict handling and scheduling review work.
+- `pipeline.py`: typed checkpoints, classification, independent document preparation and comparison.
+- `processing.py`: durable run ownership, leases, publication, outbox dispatch and recovery.
+- `case_status.py` and `responses.py`: authoritative report summaries and HTTP projections, separate from persisted case state.
+- `api.py`, `http_context.py`, `routes.py`: application composition, authentication and HTTP adapters.
+- `apps/web/`: Next.js static frontend; generated API types, review state hook and focused panels.
 - `migrations/`, `infra/`: database migration and deployment configuration.
 
-Read [architecture](docs/build-plan.md), [organizer brief](docs/hackathon-brief.md), and [submission checklist](docs/submission.md). Agent-specific instructions and skills are local-only.
+Read [architecture](docs/build-plan.md), [module contracts](docs/module-contracts.md), [organizer brief](docs/hackathon-brief.md), and [submission checklist](docs/submission.md). Agent-specific instructions and skills are local-only.
 
 ## Data and evaluation
 
