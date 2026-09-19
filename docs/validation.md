@@ -4,7 +4,7 @@ This records local and deployed evidence, not an enterprise-capacity claim.
 
 ## Verified locally
 
-- Full application verification passed 126 tests with real PostgreSQL enabled (one Linux-only process cleanup test skipped on Windows), including concurrent budget reservation/settlement, stale-run rejection, shared demo cleanup, portable delivery and evaluation preparation.
+- Full application verification passed 166 tests with real PostgreSQL enabled. Two tests were skipped: Linux-only process cleanup on Windows, and the opt-in natural-lease test, which separately passed in 92.75 seconds. Coverage includes concurrent budget reservation/settlement, stale-run rejection, shared demo cleanup, portable delivery and evaluation preparation.
 - Checks passed: Ruff, strict Pyright, module boundaries, tests, OpenAPI/generated TypeScript drift, frontend types/lint and production Next.js static export. PostgreSQL migration head is a83d6f9e2741.
 - Built image `averis:test` runs as UID 10001, includes Tesseract 5.5.0 and the static frontend/migrations.
 - The image processed all supplied PDFs with networking disabled and limits of one CPU/1 GiB. After the multiline OCR fix, all six scanned SI/BL documents (512–514) returned 5–8 evidence blocks each, retaining image coordinates with no reader issues. Malformed BL PDFs 511 and 515 returned explicit unreadable errors. This proves reading/location support, not field-selection accuracy.
@@ -16,13 +16,12 @@ This records local and deployed evidence, not an enterprise-capacity claim.
 - Two independent browser sessions deliberately shared a local synthetic workspace. A stale workflow edit was rejected, the first edit remained intact, and both mismatches remained visible. Fixed and browser-retested the conflict explanation so it survives the automatic refresh and explicitly says the second change was not saved.
 - The portable PostgreSQL worker passed 17 focused processing/runner tests, including eligible work behind 256 delayed rows and recovery from transient claim failures without logging sensitive error bodies.
 
-Latest backend verification after the worker, TXT evidence and identifier fixes passed 139 tests with one platform skip, plus Ruff, strict Pyright and module boundaries. Operator cases retain their development budget purpose across retries; disabled processing leaves queued work untouched.
+The earlier backend verification after the worker, TXT evidence and identifier fixes passed 139 tests with one platform skip, plus Ruff, strict Pyright and module boundaries. Operator cases retain their development budget purpose across retries; disabled processing leaves queued work untouched.
 
 ## Still required
 
-- Full dataset evaluation remains incomplete. A corrected 20-email development batch is recorded in [evaluation results](evaluation-results.md).
-- Deployed interruption/recovery and resource measurements; Cloud Run remains an undeployed alternative.
-- Actual bounded pipeline evaluation, threshold freeze, independent holdout reporting and resource measurements. Existing tiny Jev experiments are not full-pipeline accuracy evidence.
+- Development evaluation and reused-validation runs are complete and disclosed in [evaluation results](evaluation-results.md). There is no independent final holdout accuracy claim.
+- Sustained deployed load/capacity testing remains outside the measured acceptance scope; Cloud Run remains an undeployed alternative.
 - Submission materials and five-minute video.
 
 ## Deployed acceptance
@@ -39,13 +38,13 @@ Before enabling production inference, the TypeSafe dashboard showed 13 requests 
 
 ## Deployed recovery acceptance
 
-On 20 September, the live Railway polling worker recovered an isolated synthetic run with an expired lease, one abandoned attempt and a persisted GENERAL classification checkpoint. It completed on substantive attempt two in 6.25 seconds, with zero AI reservations for that run. Its workspace expires after 24 hours. This deliberately seeded state verifies deployed lease recovery and checkpoint reuse; it is not an actual platform crash or a capacity test. Full interruption/resource profiling remains outstanding. CI and worker deployment succeeded for 451afc9.
+On 20 September, the live Railway polling worker recovered an isolated synthetic run with an expired lease, one abandoned attempt and a persisted GENERAL classification checkpoint. It completed on substantive attempt two in 6.25 seconds, with zero AI reservations for that run. Its workspace expires after 24 hours. This deliberately seeded state verifies deployed lease recovery and checkpoint reuse; it is not an actual platform crash or a capacity test. This result is separate from the later local process-crash and full-duration reader-resource checks below. CI and worker deployment succeeded for 451afc9.
 
 ## Document reliability update
 
 Full local verification after evidence-v2 and extraction-v2: 149 tests passed, one Linux-only test skipped on Windows; PostgreSQL tests, Ruff, strict Pyright, module boundaries, OpenAPI/TypeScript drift, frontend types/lint and production build passed. Native PDF evidence now separates field headings while preserving multiline locations. OCR word quality is retained separately from model confidence; missing or low quality requires review. Mixed or wrong-field evidence cannot become a trustworthy reading.
 
-A Linux component check on development scan email_512 produced six unresolved fields and one match, replacing prior false port mismatches. This bypassed email classification and is a component result, not automatic end-to-end accuracy. The earlier native-PDF component email_059 produced seven matches. Holdout evaluation follows this frozen policy.
+A Linux component check on development scan email_512 produced six unresolved fields and one match, replacing prior false port mismatches. This bypassed email classification and is a component result, not automatic end-to-end accuracy. The earlier native-PDF component email_059 produced seven matches. Subsequent evaluation exposed a name-only party extraction defect; extraction-v3 and the explicitly reused validation results are recorded in the evaluation report.
 
 ## Completion-audit checks
 
@@ -58,3 +57,15 @@ A full-duration offline Linux reader workload processed all 58 supplied PDF/DOCX
 The workload included six documents with OCR evidence. Two PDFs (`email_511_BL.pdf` and `email_515_BL.pdf`) returned explicit `document_unreadable:PdfminerException` issues; processing the workload does not mean every input was readable. All nonempty evidence blocks had locations.
 
 The review layout was browser-checked at 950 pixels after moving Details below the comparison at narrow desktop widths; the temporary viewport was reset afterward.
+
+## Actual process-crash recovery
+
+A local PostgreSQL acceptance test killed the worker OS process after its classification checkpoint was committed, then started a fresh process after the real lease expired. The natural-expiry run passed in 92.75 seconds, including 89.969 seconds waiting for the persisted lease. Attempt two completed with exactly one classification call across both processes, and the stale report stayed cleared. This used deterministic offline intelligence and no paid calls; it is an actual local process interruption, not a Railway outage simulation.
+
+The default regression performs the same OS kill and explicitly advances lease expiry to keep CI fast. Run the natural variant with `AVERIS_RUN_NATURAL_LEASE_ACCEPTANCE=1`; its evidence is saved in `outputs/process-crash-recovery/natural-expiry.json`. Database credentials reach children through their environment, not command arguments.
+
+## Current hosting observation
+
+Railway CLI observations on 20 September reported $0.004773 current workspace usage, approximately 114 MB current web memory and 104 MB worker memory, against 1 GiB per-service limits. These are point-in-time measurements under light demo traffic, not throughput or sustained-load results. The billing estimate field was lower than current usage and was not used for forecasting.
+
+Railway rejected an attempted spending email alert: the minimum is $5, and usage limits require an active subscription. The trial has no configured spending alert; no paid subscription was purchased. This is an external account limitation. It does not weaken the separate atomic Jev $7 application ledger. Recheck trial availability before judging.

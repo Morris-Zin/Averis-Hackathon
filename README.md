@@ -4,7 +4,7 @@ A Jira-inspired shipping operations workspace. It classifies incoming messages, 
 
 **Live demo:** https://averis-hackathon-production.up.railway.app/
 
-The app and private worker run on Railway with Neon PostgreSQL and private R2 storage. Live Jev processing is enabled under the shared budget guard; a deployed comparison completed with the expected two mismatches. Saved demo classifications are illustrative until a live check is run. Full pipeline evaluation and submission materials remain in progress. See [measured validation and remaining work](docs/validation.md).
+The app and private worker run on Railway with Neon PostgreSQL and private R2 storage. Live Jev processing is enabled under the shared budget guard; a deployed comparison completed with the expected two mismatches. Saved demo classifications are illustrative until a live check is run. Development evaluation and the disclosed reused-validation results are recorded; final submission materials remain in progress. See [measured validation and remaining work](docs/validation.md).
 
 ## Run locally
 
