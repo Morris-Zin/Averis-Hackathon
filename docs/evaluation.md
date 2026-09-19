@@ -45,3 +45,22 @@ The command refuses to run when the evaluation environment or queue gate fails, 
 After a run, `snapshot.json` is refreshed with processing state, run outcomes, source-keyed case views, adapter predictions, diagnostics, coverage, and blocker counts. Blockers remain visible when processing is incomplete, category resolution is unavailable, evidence is unreadable, or the official adapter cannot represent the result. The snapshot is an evaluation artifact and does not claim accuracy. Holdout membership and policy metadata are frozen in the manifest; this tooling does not import ground truth or calculate a score.
 
 The organizer scorer remains a separate command. Use the existing CLI only when an explicit submission payload and the organizer’s scoring environment are available; evaluation preparation does not import or use ground truth and does not invoke the scorer.
+
+## Offline diagnostics and unchanged scorer
+
+After inference, run this separate command. It never calls Jev and does not belong in a runtime container:
+
+```powershell
+uv run python scripts/report_evaluation.py `
+  --snapshot outputs/evaluation-linux-v4/snapshot.json `
+  --manifest outputs/evaluation-linux-v4/manifest.json `
+  --ground-truth resources/official/docker/data_v2/ground_truth.json `
+  --artifacts outputs/evaluation-linux-v4/development-report `
+  --split development
+```
+
+Use a new artifacts directory for each report. For holdout, use `--split holdout`; report the full selection and a second report with `--exclude-id email_001 --exclude-id email_002 --exclude-id email_025` to disclose known earlier experiment exposure. Do not change split membership after seeing results.
+
+The report separates automatic and reviewer-assisted exports, counts abstentions and unfinished/failed processing, and reports category, exact-row and representable-field diagnostics. It invokes the unchanged organizer scorer on filtered truth and partial predictions. The scorer defaults absent categories to GENERAL; the output explicitly labels this behavior and must not be presented as a complete official submission or as abstention-aware accuracy. Ground-truth artifacts stay in ignored outputs and never enter AI requests.
+
+Snapshots are updated atomically after each processed case, so interrupted batches preserve completed evidence. An in-progress report remains provisional; selected cases not yet finished count as incomplete, not successes.
