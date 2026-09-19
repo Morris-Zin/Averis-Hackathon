@@ -1,8 +1,10 @@
 # Averis submission video draft
 
-This Remotion composition is a 3:45 editable, captioned draft for the GoodLord submission. It covers the problem, seven-field comparison, architecture, source-bound corrections, operational limits, shared Jev budget and the current evidence boundary.
+This Remotion composition is a 4:15 editable, captioned draft for the GoodLord submission. It covers the problem, seven-field comparison, architecture, source-bound corrections, operational limits, shared Jev budget and the current evidence boundary.
 
-The UI section is deliberately marked **REAL UI CAPTURE REQUIRED**. It is a visual placeholder, not fabricated application footage. Replace that 30-second section with a signed-out browser recording of the deployed app before publishing. The draft has no voiceover or music; the on-screen caption bar keeps the story understandable while real footage and audio are added.
+The UI walkthrough uses four screenshots from the deployed app: queue, review, comparison and correction. It is labelled **SCREENSHOT WALKTHROUGH · SYNTHETIC DEMO**. The draft is captioned and has no voiceover or music. Continuous interaction footage and narration can be added before submission if the team prefers.
+
+Review copy: https://drive.google.com/file/d/12hX70kszrn_eIjhXreldpp6YIJV-ek4T/view
 
 ## Commands
 
@@ -18,16 +20,17 @@ Start the editable preview:
 pnpm dev
 ```
 
-Open the `AverisSubmissionDraft` composition in Remotion Studio. Render only after replacing the placeholder and checking current validation facts:
+Open the `AverisSubmissionDraft` composition in Remotion Studio. Render the reviewable MP4:
 
 ```console
-pnpm exec remotion render AverisSubmissionDraft out/averis-submission-draft.mp4
+pnpm exec remotion render AverisSubmissionDraft out/averis-submission-review.mp4
 ```
 
-## Assets still needed
+## Evidence labels
 
-- A real signed-out browser capture of the deployed Railway UI: fresh workspace, five categories, Needs review, Mismatches, evidence and one source-bound correction.
+- `public/captures/queue.png`, `review.png`, `comparison.png` and `correction.png` are actual deployed UI captures supplied for this draft.
+- The captures show a saved synthetic scenario; the video does not present it as organizer ground truth or measured accuracy.
+- The status card reports reused extraction-v3 validation: 84/97 automatic exports, 13 abstentions, 85/88 accepted categories correct, and 22 fully comparable pairs with 154/154 fields correct. It explicitly avoids all-request accuracy and independent-holdout claims.
 - Optional narration/music, recorded separately and kept free of credentials, billing screens, ground truth and private browser tabs.
-- Final measured evaluation results, if available, to replace the status card without claiming accuracy before the holdout run is complete.
 
-The composition itself uses no external image or video assets, so the placeholder can be replaced by a Remotion `<Video>` or `<Img>` layer without changing the rest of the timeline.
+The composition uses only the four local PNG captures and editable Remotion layout. No interaction is fabricated and no upload or deployment is performed by the video tooling.

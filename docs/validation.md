@@ -34,6 +34,8 @@ A real Jev run completed in one attempt and published the expected port and cont
 
 ## Spending evidence
 
+The current `ad3335d` release was deployed successfully to both Railway services and rechecked through the public browser on 20 September. A controlled clean comparison progressed through live classification and extraction to seven matches in one attempt, without browser refresh. The shared ledger afterward accounted for $0.162180: prior $0.003148, development $0.158357, demo $0.000675. This is a current-release smoke test, not dataset accuracy or a provider invoice.
+
 Before enabling production inference, the TypeSafe dashboard showed 13 requests and 74,941 total tokens, with displayed estimated cost $0.0025. The ledger conservatively accounts $0.003148 for prior use by treating all those tokens as paid input at $0.042 per million, rounded upward. The first deployed comparison settled $0.000214 in the demo bucket. Shared accounted total at that checkpoint: $0.003362 of the $7 ceiling. These are usage estimates and ledger reservations, not an invoice.
 
 ## Deployed recovery acceptance

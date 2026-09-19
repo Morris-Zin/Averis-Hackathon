@@ -23,8 +23,9 @@ Suggested 4:45 video: 0:00–0:25 introduction/problem; 0:25–0:55 architecture
 
 - Repository: https://github.com/Morris-Zin/Averis-Hackathon
 - Demo: https://averis-hackathon-production.up.railway.app/
+- Video review copy (4:15, captioned screenshot walkthrough): https://drive.google.com/file/d/12hX70kszrn_eIjhXreldpp6YIJV-ek4T/view
 - Submission narrative: [brief](submission-brief.md)
 - Architecture: [build plan](build-plan.md)
 - Measured evidence and limitations: [validation](validation.md), [development evaluation](evaluation-results.md)
 
-Hosting currently uses Railway trial credit; verify its remaining balance and keep the services available through judging. Team: GoodLord. Members: Aung Phone Khant, Ella, Pei En and Congye. Representative selection/contact, final video URL and final submission are still outstanding. Do not infer or submit those details from cloud-account profiles.
+Hosting currently uses Railway trial credit; verify its remaining balance and keep the services available through judging. Team: GoodLord. Members: Aung Phone Khant, Ella, Pei En and Congye. Representative selection/contact, video review and final submission are still outstanding. The captioned video uses real screenshots of synthetic examples; it has no voiceover or continuous interaction recording. Do not infer or submit representative details from cloud-account profiles.

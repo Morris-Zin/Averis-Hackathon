@@ -2,8 +2,10 @@ import {
   AbsoluteFill,
   Composition,
   Easing,
+  Img,
   interpolate,
   Sequence,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -61,13 +63,12 @@ const SCENES: Scene[] = [
     kind: "architecture",
   },
   {
-    title: "The live interface belongs here",
-    eyebrow: "UI FOOTAGE PLACEHOLDER",
-    body: "Insert a real, signed-out browser capture of the deployed Averis workspace here. Show a fresh session, the five categories and Needs review. This draft intentionally does not invent interface footage.",
-    caption:
-      "PENDING CAPTURE · Replace this labelled card with actual UI footage before submission.",
-    accent: "#ff8f9e",
-    duration: 30 * FPS,
+    title: "A reviewable queue, in four views",
+    eyebrow: "ACTUAL APP CAPTURES · STATIC WALKTHROUGH",
+    body: "Four static screenshots from the deployed interface show a saved synthetic example.",
+    caption: "ACTUAL APP CAPTURE · SAVED SYNTHETIC EXAMPLE",
+    accent: "#70e1c1",
+    duration: 60 * FPS,
     kind: "ui",
   },
   {
@@ -102,9 +103,9 @@ const SCENES: Scene[] = [
   {
     title: "Useful now. Honest about what remains.",
     eyebrow: "STATUS",
-    body: "Railway, Neon PostgreSQL and private R2 are live. A deployed comparison and recovery smoke checks passed. Full dataset evaluation, independent holdout reporting and resource measurements are still in progress.",
+    body: "Railway, Neon PostgreSQL and private R2 are live. Reused extraction-v3 validation on 97 records produced 84/97 automatic exports and 13 abstentions; 85/88 accepted categories were correct, and 22 fully comparable pairs had 154/154 fields correct.",
     caption:
-      "This draft is a production story with a clearly marked footage gap—not an accuracy claim.",
+      "Reused validation data · not all-request accuracy · not an independent holdout claim",
     accent: "#70e1c1",
     duration: 30 * FPS,
     kind: "status",
@@ -124,6 +125,9 @@ const SceneFrame: React.FC<{ scene: Scene }> = ({ scene }) => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const opacity = fade(frame, scene.duration);
+  if (scene.kind === "ui") {
+    return <UiSceneFrame scene={scene} opacity={opacity} />;
+  }
   const lift = interpolate(frame, [0, 24], [24, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -165,6 +169,22 @@ const SceneFrame: React.FC<{ scene: Scene }> = ({ scene }) => {
     </AbsoluteFill>
   );
 };
+
+const UiSceneFrame: React.FC<{ scene: Scene; opacity: number }> = ({
+  scene,
+  opacity,
+}) => (
+  <AbsoluteFill className="scene ui-scene" style={{ opacity }}>
+    <div className="grain" />
+    <header className="ui-scene-header">
+      <span className="brand-mark">A</span>
+      <span>AVERIS / GOODLORD</span>
+      <span>SCREENSHOT WALKTHROUGH · SYNTHETIC DEMO</span>
+      <span className="topline-right">04 / 08</span>
+    </header>
+    <UiWalkthrough duration={scene.duration} full />
+  </AbsoluteFill>
+);
 
 const Visual: React.FC<{ scene: Scene }> = ({ scene }) => {
   if (scene.kind === "title") {
@@ -214,27 +234,7 @@ const Visual: React.FC<{ scene: Scene }> = ({ scene }) => {
     );
   }
   if (scene.kind === "ui") {
-    return (
-      <div className="ui-placeholder">
-        <div className="placeholder-label">REAL UI CAPTURE REQUIRED</div>
-        <div className="placeholder-window">
-          <div className="window-bar">
-            <i />
-            <i />
-            <i />
-          </div>
-          <div className="placeholder-lines">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="placeholder-side">
-            Insert signed-out browser footage here
-          </div>
-        </div>
-      </div>
-    );
+    return <UiWalkthrough duration={scene.duration} />;
   }
   if (scene.kind === "comparison") {
     const fields = [
@@ -312,7 +312,88 @@ const Visual: React.FC<{ scene: Scene }> = ({ scene }) => {
       </div>
       <div className="status-badge">NEON POSTGRES</div>
       <div className="status-badge">PRIVATE R2</div>
-      <div className="status-badge pending">EVALUATION IN PROGRESS</div>
+      <div className="status-badge pending">REUSED VALIDATION</div>
+      <div className="status-url">
+        averis-hackathon-production.up.railway.app
+      </div>
+    </div>
+  );
+};
+
+const UI_STEPS = [
+  {
+    src: staticFile("captures/queue.png"),
+    title: "Queue",
+    detail: "Eight cases grouped by result, category and assignee.",
+    position: "top",
+    zoom: 1,
+    offset: 0,
+  },
+  {
+    src: staticFile("captures/review.png"),
+    title: "Review",
+    detail: "A saved synthetic comparison routes two mismatches to review.",
+    position: "top",
+    zoom: 1,
+    offset: 0,
+  },
+  {
+    src: staticFile("captures/comparison.png"),
+    title: "Comparison",
+    detail: "The SI is the reference; seven fields stay explicit.",
+    position: "center",
+    zoom: 1.6,
+    offset: 32,
+  },
+  {
+    src: staticFile("captures/correction.png"),
+    title: "Correction",
+    detail: "Evidence is selected before a source-bound reading is recomputed.",
+    position: "center",
+    zoom: 1.2,
+    offset: 0,
+  },
+] as const;
+
+const UiWalkthrough: React.FC<{ duration: number; full?: boolean }> = ({
+  duration,
+  full = false,
+}) => {
+  const frame = useCurrentFrame();
+  const stepDuration = duration / UI_STEPS.length;
+  const activeIndex = Math.min(
+    UI_STEPS.length - 1,
+    Math.floor(frame / stepDuration),
+  );
+  const localFrame = frame - activeIndex * stepDuration;
+  const imageOpacity = interpolate(
+    localFrame,
+    [0, 18, stepDuration - 18, stepDuration],
+    [0, 1, 1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+  const step = UI_STEPS[activeIndex];
+
+  return (
+    <div className={`ui-walkthrough ${full ? "ui-walkthrough-full" : ""}`}>
+      <div className="ui-capture-frame">
+        <Img
+          src={step.src}
+          className="ui-capture-image"
+          style={{
+            opacity: imageOpacity,
+            objectPosition: step.position,
+            transform: `translateX(${step.offset}px) scale(${step.zoom})`,
+          }}
+        />
+      </div>
+      <div className="ui-step-label">
+        <span>
+          {String(activeIndex + 1).padStart(2, "0")} / {UI_STEPS.length} ·{" "}
+          {step.title}
+        </span>
+        <strong>{step.detail}</strong>
+      </div>
     </div>
   );
 };
