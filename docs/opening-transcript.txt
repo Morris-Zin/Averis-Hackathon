@@ -1,0 +1,859 @@
+YouTube transcript
+Video ID: ORsJx5W2Q6s
+Language: en
+Captions: auto-generated
+
+[0:09] Good evening everyone and a very warm
+[0:11] welcome to the Aber hackathon 2026
+[0:14] opening ceremony. My name is Yan Bin
+[0:17] >> and my name is Hugh. We'll be your MC's
+[0:19] for today's opening ceremony.
+[0:21] >> We're really excited to have all of you
+[0:23] joining us virtually as we officially
+[0:25] kick off this year's hackathon. Whether
+[0:27] you're here with an amazing idea already
+[0:29] in mind or you're here to build
+[0:32] something from scratch or you're simply
+[0:33] excited to see what everyone comes up
+[0:35] with.
+[0:36] >> We hope you're ready for an exciting few
+[0:38] days of creativity, problem solving,
+[0:40] teamwork, and of course, a little bit of
+[0:42] debunk.
+[0:44] >> So with that said, let's get started.
+[0:50] >> Before we jump into the hackathon
+[0:51] itself, let's properly introduce
+[0:53] ourselves. But you're simply excited to
+[0:55] see what session.
+[1:01] >> Okay. And I'm Yamin. We'll be guiding
+[1:05] everyone through the important
+[1:07] information you need to know before you
+[1:08] start building.
+[1:09] >> So do keep your attention on the
+[1:11] presentation because we'll be covering
+[1:13] everything from the rules and technical
+[1:14] requirements to submissions, judging,
+[1:17] timeline, and also the support available
+[1:19] to you.
+[1:20] >> And don't worry, we will also leave some
+[1:22] time for your questions.
+[1:25] Once again, welcome to the Everis Mesh
+[1:27] Hackathon 2026. This hackathon is your
+[1:30] opportunity to take a problem, turn an
+[1:33] idea into a solution, and build
+[1:35] something that has real potential to
+[1:37] make an impact. Over the course of the
+[1:39] hackathon, you'll be working in teams,
+[1:41] developing your projects, incorporating
+[1:43] technologies such as AI and cloud
+[1:44] infrastructure, and ultimately
+[1:46] presenting your solution to our judges.
+[1:49] Now let's take a look at the overall
+[1:51] timeline so everyone knows what's coming
+[1:53] up.
+[1:54] >> Today the 18th of September is our
+[1:56] virtual opening ceremony.
+[1:59] >> Then we have workshop one on the 20th of
+[2:01] September followed by workshop two on
+[2:03] the 21st.
+[2:05] >> The preliminary round submission
+[2:07] deadline is 22nd September.
+[2:09] >> On the 24th the finalist will be
+[2:11] announced. And finally the final pitch
+[2:14] day takes place on the 26th of
+[2:17] September. So in short, you have a lot
+[2:20] to build in a very short time.
+[2:25] Before we continue with the hackathon
+[2:26] details, we'd like to take a moment to
+[2:28] introduce Everest, one of the key
+[2:30] partners behind this hackathon. Everest
+[2:33] is a leading global business and
+[2:35] technology services provider supporting
+[2:37] organizations across areas such as
+[2:40] finance, technology, data, and digital
+[2:43] transformation
+[2:45] through its work across different
+[2:47] industries and markets. Everest focuses
+[2:49] on using technology and innovation to
+[2:51] solve real world challenges and create
+[2:54] meaningful impact.
+[2:56] >> And that vision ties in closely with
+[2:57] what we hope everyone will experience
+[2:59] throughout this hackathon. Over the next
+[3:01] few days, you have the opportunity to
+[3:03] work with your teammates, explore new
+[3:05] technologies, and develop solutions to
+[3:07] real world problems. So, it's not just
+[3:09] about building something that works, but
+[3:11] it's also about thinking about the
+[3:12] problem, the people affected by it, and
+[3:14] how technology can create meaningful
+[3:16] value.
+[3:18] To share more about Everest, its work,
+[3:20] and opportunities that come with working
+[3:22] at the intersection of technology and
+[3:24] innovation, we're now pleased to have an
+[3:26] opening keynote from the Everest team.
+[3:28] So without further ado, we'd like to
+[3:31] invite Miss Chin, head of HR, IT, and
+[3:34] digital from Everest to deliver the
+[3:36] opening keynote. Please join us in
+[3:38] giving them a very warm welcome.
+[3:41] >> Thank you, Yenbing. Thank
+[3:42] [sighs and gasps] you. Um I um I'm
+[3:46] Chain. Good evening everyone. I can you
+[3:49] can you hear can you all hear me
+[3:50] clearly?
+[3:52] Yes. All right. Um good evening
+[3:54] everyone. I think it's really nice to
+[3:55] see all of you here today and I'm very
+[3:58] happy to welcome you to the Aries
+[3:59] hackathon xmones 2026. First, I would
+[4:03] like to thank MES Unity, our judges,
+[4:06] mentors and our organizing team and of
+[4:09] course all of you who are taking part
+[4:11] today. For those who may not know about
+[4:13] Aries well, we provide shared service um
+[4:16] technology services to support our
+[4:17] clients operations and transformation.
+[4:20] And but today is not really about us. is
+[4:22] actually about you. A hackathon is a
+[4:25] great opportunity to try something new
+[4:27] and work with the people, solve a real
+[4:29] world problem and see how far an idea
+[4:31] can go. So as a head of HR, I have met a
+[4:34] lot of young talents. But one thing I
+[4:36] always noticed is that companies are not
+[4:39] only looking for people with strong
+[4:40] technical skills. We are also looking
+[4:43] for people who are curious, adaptable,
+[4:45] willing to learn and able to work well
+[4:47] with others. With AI changing the world
+[4:50] we work today, these qualities are very
+[4:53] important, even more important today. So
+[4:56] my message to all of you today is very
+[4:58] simple. Don't be afraid to experiment,
+[5:01] ask questions, challenge each other
+[5:03] ideas, make mistake, learn from them and
+[5:05] enjoy the process. And of course,
+[5:08] everyone of you wants to win this
+[5:10] hackathon. And I wish all of you the
+[5:13] very best. But I also by the I also hope
+[5:16] that by the end of this hackathon you
+[5:18] walk away with something beyond the
+[5:19] price. Maybe a new skill, a new
+[5:22] connection, even a new idea about what
+[5:25] you want to do in the future, a new
+[5:28] version of you. And thank you again for
+[5:30] being here and being part of this
+[5:32] journey with us. Have fun. Enjoy the
+[5:35] experience and let the hackathon begin.
+[5:37] Thank you so much.
+[5:41] Thank you Miss Ch for sharing those
+[5:43] insights with us and taking the time to
+[5:45] be a part of our opening ceremon. So now
+[5:48] that we've heard a little more about and
+[5:51] ideas behind the collaboration, let's
+[5:52] get into the main challenge of the hyper
+[5:55] and for that let us welcome Mr. Sergio
+[5:58] software engineer from Aberest to
+[6:00] announce the problem statement. Please
+[6:03] give him a very warm welcome also.
+[6:07] >> Okay. Um thank you. Hi everyone. So um
+[6:13] let's go with the problem statement.
+[6:16] Okay. So uh one of the problem statement
+[6:19] and the challenge that you guys are
+[6:21] trying will solve during this hackathon
+[6:24] is about like shipping documents
+[6:26] verification.
+[6:28] So um in a we actually have a shipping
+[6:31] operation teams that actually receive
+[6:33] multiple messages right in the same
+[6:36] inbox. It means they they inbox through
+[6:39] their email. It inside the email they
+[6:42] receive multiple requests like either
+[6:45] from like preparing documents um
+[6:48] shipping instructions, answering about
+[6:50] uh invoice questions and like any other
+[6:53] email sometimes it's also a spam email
+[6:57] and stuff like that. So for specifically
+[7:00] for the document checking request the
+[7:02] teams will actually compare the shipping
+[7:05] instruction which contains in the
+[7:08] previous email right as an attachment
+[7:12] um and then it will draft bill of
+[7:14] leading. So a bill of leading is a
+[7:18] documents that being prepared to uh for
+[7:21] the uh shipping um company right and
+[7:25] then um they will check both of these
+[7:28] documents
+[7:30] right and in a situation that the bill
+[7:33] of leading um is not matching on the
+[7:36] shipping instruction they need to
+[7:39] rectify it they need to adjust and they
+[7:41] need to change until both actually match
+[7:44] right uh so it you it create a bill of
+[7:47] leading uh and using a shipping
+[7:49] instruction as a reference. So the goal
+[7:52] here is actually to check and catch the
+[7:56] incorrect details of bill of leading
+[7:58] before the draft is finalized.
+[8:03] Right? So uh common problems that uh we
+[8:07] encounter is like one finding the right
+[8:09] email takes times. You can consider in a
+[8:12] real life situations like in a day the
+[8:16] shipping docs team can actually receive
+[8:19] up to 2,000 emails a day, right? Uh it's
+[8:23] from the customers and stuff like that.
+[8:26] Second, manual comparison is repetitive
+[8:28] and easy to get wrong because imagine
+[8:30] that they they need to handle like 2,000
+[8:33] emails. They need to uh read the content
+[8:36] of the email. They need to understand
+[8:38] the instruction of it. they need to
+[8:40] check the attachment within the email
+[8:43] and they need to refer back to uh the
+[8:46] documents and check it right.
+[8:49] Um additionally because of the nature of
+[8:53] the business and the uh bill of ladying
+[8:57] or like the BL documents is actually
+[8:59] handled by the ship uh shipping company,
+[9:02] right? Um there will be some different
+[9:04] terms that being used of between
+[9:06] shipping instruction as well as the bill
+[9:10] of lady.
+[9:15] So um the common things that uh the
+[9:19] problem that we want to solve is
+[9:21] actually one ability to classify the
+[9:24] email. So like the s like we are trying
+[9:28] to help the the shipping uh docs team to
+[9:32] really understand what is the email. Is
+[9:34] this email asking about invoices? Is it
+[9:37] just uh spam? Is it talking about the
+[9:40] shipping instruction? Is it talking
+[9:42] about the
+[9:44] uh draft of bill of leading? Is it
+[9:47] confirmation of bill of leading? Right?
+[9:50] And it should like it should also be
+[9:53] able to extract this informations right
+[9:56] um whether the the information exists as
+[10:00] part of the email body or part of the
+[10:03] attachment and if it's an attachment
+[10:06] ideally and once you found out that it's
+[10:10] an attachment that contain draft for
+[10:12] bill of ladying like the system should
+[10:15] be able to compare with the existing
+[10:17] shipping instructions
+[10:19] And uh like any other system in a
+[10:23] situation that um like the the system
+[10:28] unable to um correctly uh classify
+[10:32] extract or compare it should always try
+[10:35] to ask for clarification and help from
+[10:38] the shipping doc team.
+[10:42] So um yeah uh on this process later I
+[10:46] believe the organizer will actually
+[10:47] share some sample data that we already
+[10:51] prepared for you. Um there are two um
+[10:55] data there one um is the one that
+[10:59] technically you can use it in your
+[11:01] application as is. So it's already have
+[11:04] like like uh I believe around like 500s
+[11:06] emails and over like hundreds of
+[11:08] attachments, right? Um the other one if
+[11:12] you're familiar using docker um that
+[11:15] technically will provide an API for you.
+[11:18] So um you have an options like to design
+[11:22] the system or like to solve a problem
+[11:25] however you like with any kind of
+[11:27] technology that you think suitable.
+[11:33] Yeah.
+[11:35] So um some of the expectation in terms
+[11:39] of like comparison itself um the sample
+[11:42] data already being simplified. So common
+[11:45] fields that it need to extract is like
+[11:48] the shipper information the consigning
+[11:50] information the notify uh party port of
+[11:54] loading port of discharge. So port
+[11:56] offloading basically like where the
+[11:59] shipment started and port of discharge
+[12:01] when the shipment ends. Okay. container
+[12:03] count and gross weight in kilograms.
+[12:08] So these are the sample of the
+[12:10] informations that you can see uh which
+[12:13] is the email. I believe you guys can
+[12:17] scan the QR to get the problem
+[12:20] statement.
+[12:23] >> Yes, also in this uh Google drive
+[12:26] there's also a link with the zip files
+[12:28] for the sample data that Sergio has
+[12:30] mentioned.
+[12:35] Give you guys uh a minute or two to scan
+[12:38] the QR code and save the link.
+[12:46] Oh uh sorry. So uh we'll have a few
+[12:51] moments for you guys to scan the QR code
+[12:53] link for the problem statement. So after
+[12:55] this we'll move on to the next part.
+[13:13] Today is the Max Seput.
+[13:26] >> Okay. Going once, going twice, last
+[13:30] chance.
+[13:33] All right. So, thank you, Mr. Sergio,
+[13:36] for sharing the problem statement with
+[13:37] us. And with that in mind, let's move on
+[13:40] to our Q&A. So, if there's anything
+[13:42] about the problem statement that you
+[13:43] would like us to clarify, uh feel free
+[13:45] to ask it now. You can use uh the Zoom
+[13:48] chat and for the friends in the YouTube
+[13:50] link, you can also use the YouTube live
+[13:52] chat.
+[13:55] We will try our best to answer the
+[13:57] questions. But if in the event that we
+[14:01] are unable to answer your questions,
+[14:02] feel free to also ask it in the discord.
+[14:20] I believe there is one questions in the
+[14:23] zoom.
+[14:39] Uh as for the questions um Sergio you
+[14:43] could could you answer them as well?
+[14:46] >> Yeah sure. Um for limitation on using AI
+[14:50] any kind of AI do you guys up to you
+[14:52] guys.
+[14:54] There is there is uh personally for me
+[14:58] on the like um as a use case uh there is
+[15:01] no limitation. Um it means like you guys
+[15:05] can use AI to brainstorm to build as a
+[15:08] part of the solution itself be creative
+[15:11] on your solutions. What matter is like
+[15:13] by the end of the day it solves the
+[15:15] problem.
+[15:21] Okay. Um so I hope that answer in terms
+[15:25] of like what extent the AI can be used
+[15:27] and whether you guys can use AI. Totally
+[15:30] no limit on whatever you guys want to
+[15:32] do. You guys um can do like uh can use
+[15:37] it as much as you like.
+[15:41] Uh
+[15:44] okay let me read one by one as well.
+[15:49] Um,
+[15:51] >> okay. Meanwhile, we also have some
+[15:53] questions from our YouTube live stream.
+[15:56] So, one of the viewers asked the is
+[15:59] there a workflow that Everest uses that
+[16:01] we can refer to or do we have to define
+[16:04] a new one entirely?
+[16:06] >> Yeah, feel free to uh define uh define
+[16:09] it as as what you guys like. Um, like
+[16:13] it's not necessarily a specific
+[16:15] workflow. Um it is can be in agentic
+[16:19] format. It can be like agent to agent or
+[16:22] whatever like solution that you guys
+[16:24] think uh can solve the problems. Uh
+[16:27] again um as much as it actually coming
+[16:30] from the email but you guys can use it
+[16:33] as like the input can be you can use it
+[16:36] like the data sample that we actually
+[16:38] provide.
+[16:40] You can be creative as well in in terms
+[16:42] of the data. But what ma matter is by
+[16:45] the end of the day um one the system
+[16:48] should be able to like do some kind of
+[16:50] like a classification right and then it
+[16:53] should be understand the intent and then
+[16:57] it should be able to compare the
+[17:00] documents.
+[17:07] >> I see. Yeah. Thank you for that. So
+[17:09] maybe I can add a little bit more
+[17:11] context as well. If you guys thinks like
+[17:14] the you guys can showcase something
+[17:16] more, we really appreciate that. Um if
+[17:20] you guys want to adjust u like the data
+[17:23] itself, use a different kind of data
+[17:25] that will be great as well as long as it
+[17:28] actually solve that uh three problems,
+[17:31] right? Um classification, what what does
+[17:35] it mean by the email? What it need to
+[17:37] do? Uh second is actually um read the
+[17:41] intent and then the last will be do the
+[17:44] document comparison.
+[17:49] Okay, moving on from the from this
+[17:54] question. Uh let me just handp pick a
+[17:56] few questions. Yes, so it will be
+[17:58] easier. Okay, so one of the questions
+[18:01] from Zoom chat was your desired solution
+[18:04] encompasses cloud infrastructure and AI.
+[18:07] Do you have a budget in place for these
+[18:10] services?
+[18:12] >> Um,
+[18:14] okay. I'm not sure whether the the
+[18:16] question is like related whether we have
+[18:19] a budget or like what, but um
+[18:23] I don't think you guys need to think
+[18:25] about the budget, right? be be be as
+[18:29] creative as as possible.
+[18:33] >> I see. Understand. All right. Uh and
+[18:37] then another question is from YouTube
+[18:41] chat is about the API key from Docker.
+[18:46] So they just want to know how could we
+[18:50] obtain it from Everis?
+[18:52] Um I don't recall there is an API key
+[18:55] but if there is any API key later I'll
+[18:58] share with the organizer. So there are
+[19:00] uh when you actually download the file
+[19:02] there should be two things uh two zip
+[19:05] file. One is using docker the other one
+[19:07] is just a python script to actually sip
+[19:09] the data. So uh the docker is basically
+[19:13] um if you guys want to use or build a
+[19:16] system that connect directly with the
+[19:18] API that's it. Um if you guys want to do
+[19:21] the embedding directly without um like
+[19:25] uh simulating the request and response
+[19:27] that is also fine.
+[19:35] Okay, got it. Thank you so much. Let's
+[19:38] see any more questions.
+[19:44] The [clears throat] another question is
+[19:47] is there any HS code involved?
+[19:50] >> HS code involved.
+[19:55] I'm not sure what does it mean by HS
+[19:59] code.
+[20:01] >> Okay, no worries. Uh maybe as for this
+[20:06] uh person who asked the question, you
+[20:08] could just come back later and ask in
+[20:10] the discord. will help will help you
+[20:13] later. Thank you so much. And then oh a
+[20:17] new question
+[20:19] uh from the zoom chat. What is the
+[20:22] definition of cloud infrastructure? Do
+[20:24] we afford the AWS, GCP or Asia platform
+[20:28] service charges by ourself? If the web
+[20:33] if the web can we use cell or cloudflare
+[20:37] or something else including cloud infra?
+[20:41] >> Okay. Um I think for the like the cloud
+[20:45] infrastructures
+[20:46] um right do we afford um okay you guys
+[20:50] can use any kind of like a free solution
+[20:52] again um like it doesn't necessarily
+[20:55] mean that you guys need to use the AWS
+[20:58] or whatever it is like to actually
+[21:00] scaffold and propose the solution or run
+[21:03] the solutions you guys can always use a
+[21:05] docker or docker compose to actually run
+[21:08] and scaffold all this uh infrastructure
+[21:11] as needed.
+[21:16] >> Okay, got it.
+[21:18] Another question is, is there a fixed
+[21:22] output format that the participants must
+[21:24] follow and how will it be scored?
+[21:27] Classification accuracy or mismatch this
+[21:29] detection and will it be tested on
+[21:32] emails that is not provided or that the
+[21:35] participant has not seen?
+[21:39] >> Okay.
+[21:42] Right. So um in terms of like the
+[21:45] accuracy and stuff like I think for the
+[21:50] um preliminary I believe that's not part
+[21:53] of the main criteria but on the final
+[21:57] judgments we will like um run some kind
+[22:00] of test.
+[22:03] >> Okay.
+[22:05] And also as for the email content, do
+[22:09] the participants know if the emails will
+[22:12] come only in English or they will
+[22:14] include different languages as well?
+[22:17] >> Right. For the sample code itself on and
+[22:20] the sample data like the email I believe
+[22:23] is mostly on English, right? Um but if
+[22:27] you really want to again if you want to
+[22:29] do a little bit more you can always
+[22:32] think of it there is a potential that
+[22:34] the language can be in Malay or in
+[22:37] Indonesians or also in ch uh Mandarin as
+[22:41] well or like any kind of languages it
+[22:44] just like for
+[22:47] >> okay it just like uh for the sample data
+[22:50] it's mostly um I'm I'm quite sure that
+[22:54] the sample is in English.
+[22:58] >> All right. Thank you so much for
+[23:00] answering the question, Sergio. So, uh
+[23:03] just a reminder that that for this
+[23:07] hackathon, there is no specific text tag
+[23:09] for building the project and for as for
+[23:12] the preliminary round
+[23:15] um just uh pro your submission must
+[23:19] include a working prototype. Yep. Uh, as
+[23:23] for the remaining questions, I'm so
+[23:25] sorry, but we have to move on to the
+[23:26] next section. Thank you so much, Sil.
+[23:29] And for participants who have any
+[23:31] additional questions, please feel free
+[23:33] to ask in Discord. Thank you so much.
+[23:39] >> Oh, hi. Also, for participants that just
+[23:41] joined, can you please rename yourself
+[23:43] to your team name and then your name?
+[23:46] Thank you.
+[23:48] Okay.
+[23:51] All right. So now let's move on to the
+[23:53] rules and regulations for the hackathon.
+[23:57] Uh before that now we should discuss
+[24:00] about the technical requirements first.
+[24:04] Yes. So as he has mentioned just now all
+[24:08] the teams have a lot of freedom to use
+[24:10] any programming languages, platform,
+[24:12] framework, library, API or any
+[24:14] development choose that you choose.
+[24:16] >> There are no restrictions on your
+[24:18] technical stack. However, you are
+[24:20] encouraged to think carefully about your
+[24:22] software architecture and whether it
+[24:24] supports the functionality and
+[24:25] objectives of your project. And don't
+[24:28] only think about getting something to
+[24:29] work during the hackathon. You should
+[24:31] consider scalability, maintainability,
+[24:33] extensibility, and whether your project
+[24:35] could potentially be developed further
+[24:37] after the hackathon.
+[24:42] There are also two particularly
+[24:45] important requirements. First, your
+[24:48] submission must meaningfully incorporate
+[24:50] AI as part of the core functionality,
+[24:53] development or deployment.
+[24:55] >> And second, your solution must utilize
+[24:57] cloud infrastructure. So, a failure to
+[25:00] meaningfully integrate cloud
+[25:01] infrastructure may significantly reduce
+[25:03] your score during evaluation.
+[25:05] >> So, please remember they have to be
+[25:07] meaningfully integrated into your
+[25:09] project.
+[25:11] >> So, for participants who had some
+[25:13] questions just now, I hope uh this makes
+[25:15] it more clear for you guys.
+[25:20] Now, let's talk about what you actually
+[25:22] need to submit. There are several
+[25:24] mandatory components, so we recommend
+[25:26] keeping track of these from the very
+[25:27] beginning.
+[25:28] >> First, you need a project description.
+[25:31] This should briefly explain your
+[25:32] project, including its name, purpose,
+[25:35] and the problem statement you're
+[25:36] addressing.
+[25:37] >> Next is your demo video. Your demo video
+[25:40] can be uploaded to YouTube as either
+[25:41] unlisted or public. Private videos will
+[25:44] not be accepted. If you're using a
+[25:46] Google Drive link, please make sure that
+[25:48] the sharing setting is anyone with the
+[25:50] link can view.
+[25:54] >> Your video should introduce your team
+[25:56] and project, explain the problem, cover
+[25:58] your tech stack, demonstrate your
+[26:00] working prototype, and highlight the
+[26:02] impact of your solution.
+[26:05] So, take note, the maximum duration of
+[26:07] the video is 5 minutes, and there will
+[26:08] be a penalty for going over time. For
+[26:11] every 30 secondond delay, one mark will
+[26:13] be deducted. So, please take your time
+[26:15] and rehearse your demo.
+[26:18] You will also need to provide your
+[26:20] GitHub repo link along with a clear
+[26:22] readme that includes setup instructions.
+[26:24] >> In addition, you'll need to provide a
+[26:26] live prototype or demo link.
+[26:29] >> So, this needs to be publicly accessible
+[26:32] and functional during the judging period
+[26:33] so that the judges can actually access
+[26:35] and evaluate your project.
+[26:39] >> You also need to provide a slide deck or
+[26:42] documentation link. This should cover
+[26:44] areas such as your technical
+[26:45] architecture, implementation details,
+[26:48] challenges faced, and your future road
+[26:50] map.
+[26:51] >> So, as you build, don't leave
+[26:53] documentation until the last minute.
+[26:54] >> Your future selves will thank you.
+[27:01] >> Now, here is the key information for
+[27:04] your final submissions. All submissions
+[27:06] will be made through Google form. The
+[27:08] submission period is from 18th September
+[27:12] until 22nd September at 12:00 p.m.
+[27:15] sharp.
+[27:16] >> So the deadline is very important.
+[27:18] Please make sure that your entire team
+[27:20] is aware
+[27:20] >> and once again don't wait until the
+[27:22] final few minutes to upload everything.
+[27:27] Now as you can see from the timeline
+[27:28] just now we have two workshops happening
+[27:30] during the first workshop will be held
+[27:33] on the 20th of September by Shik and
+[27:35] Darren followed by the second workshop
+[27:37] on the 21st of September by speakers
+[27:39] from Everest. These workshops are
+[27:42] designed to support you while you're
+[27:44] developing your projects with sessions
+[27:46] covering topics and skills that can help
+[27:48] you throughout the hackathon. So while
+[27:50] you're planning your time and dividing
+[27:52] up tasks within your team, make sure you
+[27:54] also set aside some time to attend these
+[27:56] sessions.
+[28:00] After the preliminary judging, the top
+[28:03] 10 finalist teams will advance to the
+[28:05] final pitch day. The final pitch day
+[28:07] will take place on the 20th of September
+[28:10] and each finalist team will receive 15
+[28:12] minutes in total.
+[28:14] that consists of 10 minutes of your
+[28:16] project pitch and demonstration followed
+[28:18] by five minutes of Q&A with the judges.
+[28:21] >> So if you make it to the finals, you'll
+[28:23] be you need to be able to communicate
+[28:25] your idea clearly, demonstrate your
+[28:27] product effectively and answer questions
+[28:29] from the judges.
+[28:30] >> And immediately after all teams have
+[28:32] completed their pitches, we will move
+[28:34] into the award ceremony and announce the
+[28:37] winner.
+[28:40] The final pitch day will be held at Mes
+[28:43] University Malaysia Panda Sunre in
+[28:45] Sububanga.
+[28:46] >> Please note that every member of your
+[28:48] team must be physically present to pitch
+[28:50] to the judges.
+[28:54] >> Now after the preliminary round, each of
+[28:57] the top 10 finalist teams will be paired
+[28:58] with a dedicated mentor who will provide
+[29:00] technical and strategical guidance to
+[29:02] help you further develop and refine your
+[29:04] product before the finals. So, if your
+[29:07] team makes it to the top 10, make sure
+[29:09] you take full advantage of the
+[29:10] mentorship session and use the feedback
+[29:12] to strengthen your project before the
+[29:14] final presentation.
+[29:17] And of course, we can't forget about the
+[29:20] prizes. For first place, the prize is
+[29:22] 5,000 ringgit. Second place will receive
+[29:25] 3,000 ringgit and third place will
+[29:27] receive 1,000 ringgit. So, yes, that's
+[29:30] definitely something worth competing
+[29:32] for. But beyond the prizes, I hope
+[29:35] everyone treats this as an opportunity
+[29:37] to build something that you're genuinely
+[29:38] proud of.
+[29:41] Now, let's go over how your projects
+[29:44] will be evaluated. The judging criteria
+[29:46] is divided into two major areas.
+[29:49] Technical holding 70 points and product
+[29:51] and impact with 30 points.
+[29:53] >> This means technical execution is a
+[29:56] major component of your overall
+[29:57] evaluation. But don't forget about the
+[29:59] other 30 points. A technically
+[30:02] impressive project still needs to
+[30:03] demonstrate a clear product purpose and
+[30:05] meaningful impact.
+[30:06] >> So as you build, ask yourself two
+[30:09] questions. Does it work? Does it
+[30:12] actually solve the problem in a
+[30:13] meaningful way?
+[30:16] On the technical side, the rubric
+[30:18] consists of several key areas starting
+[30:21] with a working core prototype which
+[30:24] carries 25 points and then system design
+[30:28] and architecture consists of 15 points.
+[30:31] Technology integration and technical
+[30:33] feibility and validation are also worth
+[30:36] 15 points each. So, make sure your
+[30:38] solution is not only functional but also
+[30:41] technically welldesigned and properly
+[30:43] validated. The remaining criteria
+[30:46] focuses on your understanding of the
+[30:47] problem statement, the innovativeness of
+[30:49] your solution, and its practical value
+[30:52] and potential, each carrying 10 points.
+[30:54] We recommend that every team uses this
+[30:56] rubric as a checklist while developing
+[30:58] your project. Make sure you have
+[31:01] addressed each criterion and can clearly
+[31:03] demonstrate how your solution meets the
+[31:05] requirements.
+[31:08] Now, you're not going to be completely
+[31:10] on your own throughout this hackathon.
+[31:13] If you have any doubts about the
+[31:14] procedures you should follow, feel free
+[31:16] to refer to the resources here.
+[31:19] >> Perhaps the answers to your questions
+[31:21] can be found in the official rules and
+[31:22] regulations as well as the participant
+[31:24] info card. So once again, I'll let you
+[31:26] guys take a moment to scan the GR code
+[31:28] and save the
+[32:07] Yeah. Yeah. Just a reminder, just a
+[32:10] reminder for the participants who have
+[32:12] not joined the discord yet, please do so
+[32:15] because our main communications will
+[32:18] through be through that. Thank you so
+[32:20] much.
+[32:30] All right. So, we will now move on and
+[32:33] since we still have some time left,
+[32:35] let's do one final round of Q&A before
+[32:38] we send you off to build the solution.
+[32:41] All right. Questions are open to the
+[32:44] floor. Okay.
+[32:48] Uh one question one previous question
+[32:50] from uh YouTube chat is is there a
+[32:53] minimum test case for the number of
+[32:55] email classification?
+[32:58] So Joe maybe you could answer this.
+[33:01] Um no. Um if you guys want to like uh
+[33:06] run it, there is a docker that actually
+[33:09] uh like will check um if you're familiar
+[33:13] how on testing um AI output uh you will
+[33:17] need a ground proof. The ground proof is
+[33:19] also generated um and you can run the
+[33:24] accuracy test through the docker.
+[33:27] But I think again um there are multiple
+[33:31] ways you guys can showcase that the uh
+[33:34] product is showing the accuracy. Um so
+[33:39] you guys might want to let's say like
+[33:42] testing it um is one of the way or you
+[33:46] can just show it directly as part of the
+[33:48] UIUX that you so you have more
+[33:51] flexibility on designing how you are
+[33:54] going to show the accuracy.
+[33:59] I see. Thank you so much for that.
+[34:02] >> For those who ask uh if there's any
+[34:04] limit pages for documentation and slide
+[34:06] deck, there is no limit as long as you
+[34:08] can fit within your time for your 5
+[34:10] minutes demo video.
+[34:18] Any other question?
+[34:20] Oh,
+[34:22] okay. So,
+[34:25] one of the participants asked
+[34:29] um is it better to build an AI solution
+[34:33] or nonAI solution and what about UX or
+[34:36] UI? How important is it?
+[34:40] >> Okay. Um I believe for AI or nonAI um
+[34:45] like the team from like organizer
+[34:48] already mentions it is expected to be
+[34:51] there is like some kind of like AI
+[34:52] component inside um um so that's there
+[34:57] is that um for the UIUX um I like you
+[35:04] guys are free to use any kind of like
+[35:07] UIUX right um the intention is like the
+[35:12] system again should clearly able to um
+[35:18] do a classifications right and then uh
+[35:22] do a comparison okay um and if like if
+[35:28] you develop the solution then like the
+[35:31] solution does not able to let's say
+[35:33] accurately
+[35:35] um uh do the classification or like
+[35:38] comparison the system
+[35:40] ask feedback from the users. So that's
+[35:45] pretty much it. In terms of UIUX, there
+[35:47] are way many UIUX you guys can uh can
+[35:51] use. Um if you use like AI, a lot of
+[35:55] people use a chatbased that is that's
+[35:58] one kind of like UIUX. There are also
+[36:00] like a web dashboard for example, that's
+[36:03] also a kind of like UIUX.
+[36:05] So it's more like like up to you guys
+[36:09] how you want to actually um develop the
+[36:13] UIUX because uh different UIUX I believe
+[36:17] will have its pro and cons and I think
+[36:20] like the pro and con is something that
+[36:22] you guys need to highlight during your
+[36:23] presentation as well. So there is never
+[36:26] be like right or wrong. It's just like
+[36:30] which one you can justify better.
+[36:35] I see. Thank you so much for that. All
+[36:38] right. Another question is, how do
+[36:41] judges run a live prototype when the
+[36:42] data set is local? Should the data set
+[36:45] be bundled into deployment, a hosted
+[36:48] copy or a demo mode with embedded
+[36:50] samples?
+[36:52] >> Right. Um yeah. So um if you're familiar
+[36:56] with Docker like your system using
+[36:58] Docker, you can technically connecting
+[37:00] using a Docker compose, right?
+[37:03] um
+[37:05] uh or just embed the data directly
+[37:08] inside whichever easier for you guys.
+[37:14] Okay.
+[37:15] Okay. So moving on with the next
+[37:19] question. Should we propose should we
+[37:21] prioritize solving the proposed problem
+[37:24] or developing a practical solution that
+[37:27] could be adopted and used in actual work
+[37:29] environment? for example, Everest.
+[37:34] >> Okay. Um, from my point of view,
+[37:38] um, it's up to you guys. If you can
+[37:40] propose a better solutions, that will be
+[37:43] great.
+[37:45] I'm quite sure the uh the problem that
+[37:49] uh we share um is practical enough
+[37:53] because this is the exact problems that
+[37:55] we are facing um uh in a
+[38:08] All right.
+[38:09] All right. Uh participants, do you guys
+[38:11] have any more questions? We if there are
+[38:14] no questions, we will just be ending it
+[38:16] with ending the
+[38:19] opening ceremony really really soon.
+[38:24] Oh, one question. Do we need to train
+[38:27] our MLS or just the APIs and do we need
+[38:30] to use our own ML pipeline or just
+[38:32] external API?
+[38:34] >> Okay. Um right there is no expectation
+[38:39] from us whether you want to train your
+[38:41] own machine learning or you actually use
+[38:44] the existing API or like AI solution out
+[38:48] there. Again, whichever suitable for
+[38:51] your uh proposed solution.
+[38:56] If I think um like I'm aligned with the
+[39:00] organizer as well um that whichever
+[39:04] options that you choose or like the
+[39:07] things that you want to highlight um you
+[39:10] should showcase it um as part of the
+[39:13] working prototype or you need to
+[39:16] highlight it during your uh slide
+[39:18] presentation.
+[39:21] I see there is also one question from
+[39:25] YouTube chat saying that asking that can
+[39:28] the data set go into a public GitHub
+[39:30] repo?
+[39:32] Um yes the data set can go to a public
+[39:35] GitHub repo. The data set that we
+[39:37] provide is uh synthetic data. So it's
+[39:40] not a real real real data on
+[39:43] productions. Um so yes you guys can put
+[39:46] it um anywhere.
+[40:03] All right. Thank you so much, Sergio,
+[40:05] for addressing everyone's concerns. And
+[40:08] with that, let us celebrate the end of
+[40:12] the opening ceremony. Thank you so much,
+[40:14] everyone, for joining us today. And a
+[40:16] huge thank you to everyone for taking
+[40:18] part in the Everest Monache hackathon
+[40:20] 2026.
+[40:22] >> Over the next few days, you'll have the
+[40:23] opportunity to take an idea, turn it
+[40:25] into a working solution, and show us
+[40:27] what you can build. So, collaborate with
+[40:29] your teammates, make use of the
+[40:31] workshops and resources, think
+[40:32] creatively, and most importantly, have
+[40:35] fun.
+[40:36] >> We wish all the teams the very [snorts]
+[40:38] best of luck. We can't wait to see what
+[40:40] you guys come up with. Thank you
+[40:42] everyone, and happy hacking. See you at
+[40:45] the Everest Monache Hackathon 2026. All
+[40:47] right. Bye-bye everyone. See you soon.

@@ -1,0 +1,1 @@
+"""Averis hackathon project foundation."""
