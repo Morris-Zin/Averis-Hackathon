@@ -11,3 +11,14 @@ __pycache__/
 resources/downloads/
 resources/official/
 outputs/
+
+# Local coding-agent configuration and consultation artifacts
+.agents/
+.codex/
+.claude/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+docs/chatgpt-pro-review*.txt
+docs/chatgpt-pro-review*.md
+docs/pro-review-brief.md
