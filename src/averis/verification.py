@@ -9,14 +9,19 @@ from decimal import Decimal, InvalidOperation
 from typing import Final, Literal, cast
 
 from averis.contracts import FIELDS, Field
-from averis.domain import DocumentEvidence, Finding, Reading, Report
+from averis.domain import DocumentEvidence, EvidenceBlock, Finding, Reading, Report
 
 LABELS: Final[dict[Field, tuple[str, ...]]] = {
     "shipper": ("shipper/exporter", "shipper", "exporter"),
     "consignee": ("to the order of", "consignee"),
     "notify_party": ("notify party/intermediate consignee", "notify party", "notify"),
-    "port_of_loading": ("port of loading", "load port", "pol"),
-    "port_of_discharge": ("port of discharge", "discharge port", "pod"),
+    "port_of_loading": ("port of loading", "portof loading", "load port", "pol"),
+    "port_of_discharge": (
+        "port of discharge",
+        "portof discharge",
+        "discharge port",
+        "pod",
+    ),
     "container_count": (
         "number of containers or packages",
         "no. of containers or packages",
@@ -27,6 +32,12 @@ LABELS: Final[dict[Field, tuple[str, ...]]] = {
         "containers",
     ),
     "gross_weight_kg": (
+        "total gross weight (kg)",
+        "total gross weight kg",
+        "total gross weight",
+        "total gross wt (kgs)",
+        "total gross wt kgs",
+        "total gross wt",
         "gross weight毛重(kgs)",
         "gross weight (kg)",
         "gross wt (kgs)",
@@ -37,6 +48,7 @@ LABELS: Final[dict[Field, tuple[str, ...]]] = {
 }
 
 _TYPED_FIELDS = cast(tuple[Field, ...], FIELDS)
+OCR_CONFIDENCE_THRESHOLD: Final = 0.8
 _SIMPLE_NUMBER = re.compile(
     r"([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)\s*"
     r"(kg|kgs|kilograms?|mt|tonnes?|tons?|containers?|units?)?",
@@ -54,7 +66,10 @@ def source_value(field: Field, text: str) -> str:
 
     for label in sorted(LABELS[field], key=len, reverse=True):
         result = re.sub(
-            r"^\s*" + re.escape(label) + r"(?:\s*\([^()\r\n]*\))*\s*(?:[:=\t]|\|)\s*",
+            r"^\s*"
+            + re.escape(label)
+            + r"(?:\s*\([^()\r\n]*\))*"
+            + r"(?:(?:\s*[:=\t|]\s*)|\s+)(?=\S)",
             "",
             text,
             count=1,
@@ -134,6 +149,7 @@ def reading_from_evidence(
         block.method == "ocr" for block in selected
     ):
         raise ValueError("Transcription is available only for OCR evidence")
+    source_issue = _source_field_issue(field, selected)
     text = (
         transcription
         if transcription is not None
@@ -146,12 +162,22 @@ def reading_from_evidence(
         provenance = "human_transcribed"
     else:
         provenance = "machine"
-    normalized = normalize(field, text)
+    normalized = None if source_issue is not None else normalize(field, text)
+    ocr_blocks = [block for block in selected if block.method == "ocr"]
     issue: str | None = None
-    if normalized is None:
+    if source_issue is not None:
+        issue = source_issue
+    elif normalized is None:
         issue = "missing_or_ambiguous_value"
     elif transcription is not None and not verified:
         issue = "unverified_transcription"
+    elif not verified and any(block.ocr_confidence is None for block in ocr_blocks):
+        issue = "unknown_ocr_confidence"
+    elif not verified and any(
+        cast(float, block.ocr_confidence) < OCR_CONFIDENCE_THRESHOLD
+        for block in ocr_blocks
+    ):
+        issue = "low_ocr_confidence"
     elif confidence < threshold:
         issue = "low_field_confidence"
     return Reading(
@@ -164,6 +190,27 @@ def reading_from_evidence(
         provenance=provenance,
         issue=issue,
     )
+
+
+def _source_field_issue(field: Field, selected: Sequence[EvidenceBlock]) -> str | None:
+    """Reject evidence that visibly belongs to another official field.
+
+    Value-only blocks remain valid. When recognizable labels are present, a
+    selected block must contain labels for only the requested field. Human OCR
+    verification cannot clear this source-selection error.
+    """
+
+    detected: set[Field] = set()
+    for block in selected:
+        for line in block.text.splitlines():
+            stripped = line.strip()
+            for candidate in _TYPED_FIELDS:
+                if source_value(candidate, stripped) != stripped:
+                    detected.add(candidate)
+    wrong = detected - {field}
+    if not wrong:
+        return None
+    return "ambiguous_source_fields" if field in detected else "source_field_mismatch"
 
 
 def compare(
@@ -205,7 +252,9 @@ def compare(
 
 
 def shipment_references(document: DocumentEvidence) -> set[str]:
-    return {value for values in _references_by_kind(document).values() for value in values}
+    return {
+        value for values in _references_by_kind(document).values() for value in values
+    }
 
 
 def _references_by_kind(document: DocumentEvidence) -> dict[str, set[str]]:
@@ -213,15 +262,20 @@ def _references_by_kind(document: DocumentEvidence) -> dict[str, set[str]]:
     text = "\n".join(block.text for block in document.blocks)
     labels = {
         "shipment": r"shipment\s*(?:id|ref(?:erence)?\.?)",
-        "booking": r"booking\s*(?:no\.?|number|ref(?:erence)?\.?)",
+        "booking": r"booking\b(?:\s*(?:no\.?|number|ref(?:erence)?\.?))?",
         "oc": r"OC\b(?:\s*(?:no\.?|number|ref(?:erence)?\.?))?",
     }
     return {
-        kind: {match.upper() for match in re.findall(
-            r"(?:^|\n)\s*" + label
-            + r"\s*[:#|=]?\s*([A-Za-z0-9][A-Za-z0-9/-]{3,})(?=\s|$)",
-            text, re.IGNORECASE,
-        )}
+        kind: {
+            match.upper()
+            for match in re.findall(
+                r"(?<![A-Za-z0-9])"
+                + label
+                + r"\s*[:#|=]?\s*([A-Za-z0-9][A-Za-z0-9/-]{3,})(?=\s|$)",
+                text,
+                re.IGNORECASE,
+            )
+        }
         for kind, label in labels.items()
     }
 

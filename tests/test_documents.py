@@ -29,6 +29,20 @@ from averis.domain import Location
 from averis.verification import normalize
 
 
+def test_logistics_lines_do_not_contaminate_weight_evidence() -> None:
+    document = read_document(
+        "labels",
+        "source.txt",
+        b"Gross Weight 12,000 KG\nVessel Example 123\nBooking: BKG-12345\n",
+    )
+    assert [block.text for block in document.blocks] == [
+        "Gross Weight 12,000 KG",
+        "Vessel Example 123",
+        "Booking: BKG-12345",
+    ]
+    assert normalize("gross_weight_kg", document.blocks[0].text) == "12000"
+
+
 def test_txt_preserves_multiline_blocks_and_line_locations() -> None:
     evidence = read_document(
         "txt-1",
@@ -241,6 +255,43 @@ def test_pdf_native_text_has_page_and_bounding_box_locations() -> None:
     assert all(location.bbox is not None for location in locations)
 
 
+def test_pdf_native_text_splits_adjacent_fields_and_retains_address_regions() -> None:
+    evidence = read_document(
+        "pdf-fields",
+        "si.pdf",
+        _text_pdf(
+            [
+                "Shipper Averis Trading",
+                "77 Robinson Road",
+                "Singapore 068896",
+                "Consignee Meridian LLC",
+                "43 Metropolitan Road",
+                "Notify Party Pacific Office",
+                "Port of Loading Singapore",
+                "TOTAL Gross Wt (kgs) 1,250 KG",
+                "HS Code 48025700",
+            ],
+            line_spacing=14,
+        ),
+    )
+
+    assert evidence.issues == []
+    assert [block.text for block in evidence.blocks] == [
+        "Shipper Averis Trading\n77 Robinson Road\nSingapore 068896",
+        "Consignee Meridian LLC\n43 Metropolitan Road",
+        "Notify Party Pacific Office",
+        "Port of Loading Singapore",
+        "TOTAL Gross Wt (kgs) 1,250 KG",
+        "HS Code 48025700",
+    ]
+    assert [len(block.locations) for block in evidence.blocks] == [3, 2, 1, 1, 1, 1]
+    assert all(
+        location.kind == "pdf" and location.page == 1 and location.bbox is not None
+        for block in evidence.blocks
+        for location in block.locations
+    )
+
+
 def test_standalone_png_uses_bounded_ocr_with_image_location(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -261,6 +312,7 @@ def test_standalone_png_uses_bounded_ocr_with_image_location(
                 "0",
                 "KG",
             ],
+            "conf": [99, 98, 97, 92, 96, 95, 94, 88],
             "block_num": [1] * 8,
             "par_num": [1] * 8,
             "line_num": [1, 1, 2, 2, 3, 3, 3, 3],
@@ -279,6 +331,7 @@ def test_standalone_png_uses_bounded_ocr_with_image_location(
         "Gross Weight 0 KG",
     ]
     assert all(block.method == "ocr" for block in evidence.blocks)
+    assert [block.ocr_confidence for block in evidence.blocks] == [0.92, 0.88]
     assert evidence.blocks[0].locations[0].kind == "image"
     assert [location.bbox for location in evidence.blocks[0].locations] == [
         (10.0, 20.0, 110.0, 35.0),
@@ -302,16 +355,21 @@ def test_scanned_pdf_uses_ocr_with_page_location(monkeypatch: MonkeyPatch) -> No
                 "Averis",
                 "77",
                 "Robinson",
-                "Consignee",
-                "Meridian",
+                "Portof",
+                "Loading",
+                "Singapore",
+                "Portof",
+                "Discharge",
+                "Sydney",
             ],
-            "block_num": [1] * 6,
-            "par_num": [1] * 6,
-            "line_num": [1, 1, 2, 2, 3, 3],
-            "left": [10, 80, 10, 40, 10, 90],
-            "top": [20, 20, 45, 45, 70, 70],
-            "width": [60, 50, 20, 65, 75, 70],
-            "height": [15] * 6,
+            "conf": [99, 98, 97, 96, 95, 94, 93, 92, 91, 90],
+            "block_num": [1] * 10,
+            "par_num": [1] * 10,
+            "line_num": [1, 1, 2, 2, 3, 3, 3, 4, 4, 4],
+            "left": [10, 80, 10, 40, 10, 60, 130, 10, 60, 140],
+            "top": [20, 20, 45, 45, 70, 70, 70, 95, 95, 95],
+            "width": [60, 50, 20, 65, 45, 60, 65, 45, 75, 55],
+            "height": [15] * 10,
         }
 
     monkeypatch.setattr(pytesseract, "image_to_data", fake_image_to_data)
@@ -320,19 +378,30 @@ def test_scanned_pdf_uses_ocr_with_page_location(monkeypatch: MonkeyPatch) -> No
     assert evidence.issues == []
     assert [block.text for block in evidence.blocks] == [
         "Shipper Averis\n77 Robinson",
-        "Consignee Meridian",
+        "Portof Loading Singapore",
+        "Portof Discharge Sydney",
     ]
     assert all(block.method == "ocr" for block in evidence.blocks)
     assert [location.page for location in evidence.blocks[0].locations] == [1, 1]
     assert [location.page for location in evidence.blocks[1].locations] == [1]
+    assert [location.page for location in evidence.blocks[2].locations] == [1]
+    assert [block.ocr_confidence for block in evidence.blocks] == [0.96, 0.93, 0.9]
     assert evidence.blocks[0].locations[0].bbox is not None
 
 
 def _minimal_text_pdf() -> bytes:
-    stream = (
-        b"BT /F1 12 Tf 72 720 Td (Shipping Instruction) Tj "
-        b"0 -18 Td (Gross Weight: 123 kg) Tj ET"
-    )
+    return _text_pdf(["Shipping Instruction", "Gross Weight: 123 kg"])
+
+
+def _text_pdf(lines: list[str], line_spacing: int = 18) -> bytes:
+    commands = [b"BT /F1 12 Tf 72 720 Td"]
+    for index, line in enumerate(lines):
+        escaped = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        if index:
+            commands.append(f"0 -{line_spacing} Td".encode())
+        commands.append(f"({escaped}) Tj".encode())
+    commands.append(b"ET")
+    stream = b" ".join(commands)
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",

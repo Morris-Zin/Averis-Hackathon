@@ -11,6 +11,7 @@ from averis.verification import (
     normalize,
     reading_from_evidence,
     shipment_references,
+    source_value,
     validate_pair,
 )
 
@@ -22,6 +23,7 @@ def evidence(
     text: str,
     *,
     method: Literal["native", "ocr"] = "native",
+    ocr_confidence: float | None = None,
 ) -> DocumentEvidence:
     return DocumentEvidence(
         document_id=document_id,
@@ -31,6 +33,7 @@ def evidence(
                 text=text,
                 locations=[Location(kind="text", line_start=1, line_end=1)],
                 method=method,
+                ocr_confidence=ocr_confidence,
             )
         ],
     )
@@ -78,6 +81,17 @@ def test_normalize_does_not_guess_units_for_a_bare_weight() -> None:
     assert normalize("gross_weight_kg", "Gross Weight: 10 pounds") is None
 
 
+def test_source_value_accepts_safe_label_space_and_total_weight_aliases() -> None:
+    assert source_value("shipper", "Shipper Averis Trading") == "Averis Trading"
+    assert source_value("shipper", "Shipperton Logistics") == "Shipperton Logistics"
+    assert normalize("gross_weight_kg", "TOTAL Gross Wt (kgs) 131,322 KG") == "131322"
+    assert (
+        normalize("gross_weight_kg", "TOTAL Gross Weight (KG) 131,322 KG") == "131322"
+    )
+    assert normalize("port_of_loading", "Portof Loading Singapore") == "singapore"
+    assert normalize("port_of_discharge", "Portof Discharge Sydney") == "sydney"
+
+
 def test_reading_retains_multiline_source_and_marks_low_confidence() -> None:
     document = evidence(
         "si",
@@ -114,6 +128,68 @@ def test_ocr_transcription_requires_verification_before_comparison() -> None:
     assert result.issue == "unverified_transcription"
     assert verified.provenance == "human_verified"
     assert verified.issue is None
+
+
+def test_ocr_quality_is_independent_of_high_model_confidence() -> None:
+    low_quality = evidence(
+        "low",
+        "Shipper Aver1s Trading",
+        method="ocr",
+        ocr_confidence=0.42,
+    )
+    unknown_quality = evidence("unknown", "Shipper Averis Trading", method="ocr")
+    native = evidence("native", "Shipper Averis Trading")
+
+    low = reading_from_evidence("shipper", low_quality, ["low:b1"], confidence=0.99)
+    unknown = reading_from_evidence(
+        "shipper", unknown_quality, ["unknown:b1"], confidence=0.99
+    )
+    native_result = reading_from_evidence(
+        "shipper", native, ["native:b1"], confidence=0.99
+    )
+
+    assert low.normalized == "aver1s trading"
+    assert low.issue == "low_ocr_confidence"
+    assert unknown.issue == "unknown_ocr_confidence"
+    assert native_result.issue is None
+
+
+def test_verified_ocr_clears_quality_but_not_mixed_source_fields() -> None:
+    clean = evidence(
+        "clean",
+        "Portof Loading Singapore",
+        method="ocr",
+        ocr_confidence=0.31,
+    )
+    mixed = evidence(
+        "mixed",
+        "Notify Party Pacific Office\nPortof Loading Singapore\nPortof Discharge Sydney",
+        method="ocr",
+        ocr_confidence=0.99,
+    )
+    wrong = evidence(
+        "wrong",
+        "Consignee Meridian LLC",
+        method="ocr",
+        ocr_confidence=0.99,
+    )
+
+    verified = reading_from_evidence(
+        "port_of_loading", clean, ["clean:b1"], confidence=0.99, verified=True
+    )
+    invalid_source = reading_from_evidence(
+        "port_of_loading", mixed, ["mixed:b1"], confidence=0.99, verified=True
+    )
+    wrong_source = reading_from_evidence(
+        "shipper", wrong, ["wrong:b1"], confidence=0.99, verified=True
+    )
+
+    assert verified.normalized == "singapore"
+    assert verified.issue is None
+    assert invalid_source.normalized is None
+    assert invalid_source.issue == "ambiguous_source_fields"
+    assert wrong_source.normalized is None
+    assert wrong_source.issue == "source_field_mismatch"
 
 
 def test_native_evidence_cannot_be_replaced_by_an_ocr_transcription() -> None:
@@ -183,6 +259,12 @@ def test_structured_table_booking_label_can_match_native_text() -> None:
     assert validate_pair(si, bl) is True
 
 
+def test_bare_booking_heading_is_a_reference() -> None:
+    si = evidence("si", "Booking: BKG-12345")
+    bl = evidence("bl", "Booking No. BKG-12345")
+    assert validate_pair(si, bl) is True
+
+
 def test_human_selection_can_pair_distinct_documents_without_references() -> None:
     si = evidence("si", "Shipping Instruction")
     bl = evidence("bl", "Bill of Lading")
@@ -240,6 +322,22 @@ def test_standalone_oc_labels_still_validate_a_pair() -> None:
 
     assert shipment_references(si) == {"SIN-1000"}
     assert shipment_references(bl) == {"SIN-1000"}
+    assert validate_pair(si, bl) is True
+
+
+def test_inline_booking_number_in_a_header_validates_pairing() -> None:
+    si = evidence(
+        "si",
+        "B/L NUMBER: OOLU3584143842 BOOKING NO. PSGSE4981829",
+    )
+    bl = evidence(
+        "bl",
+        "DRAFT B/L NUMBER: OOLU3584143842 BOOKING NO PSGSE4981829",
+    )
+
+    assert shipment_references(si) == {"PSGSE4981829"}
+    assert shipment_references(bl) == {"PSGSE4981829"}
+    assert shipment_references(evidence("noise", "Rebooking No. PSGSE4981829")) == set()
     assert validate_pair(si, bl) is True
 
 

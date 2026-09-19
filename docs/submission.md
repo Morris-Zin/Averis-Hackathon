@@ -3,7 +3,7 @@
 Deadline: **22 September 2026, 12:00 noon** (plan in Malaysia time).
 [Official submission form](https://forms.gle/nnam5eXrf5cjXdf3).
 
-- [x] Team name and members: **GoodLord** — Aung Phone Khant, Ella, Pei En, Congye.
+- [x] Team name and members: **GoodLord** - Aung Phone Khant, Ella, Pei En, Congye.
 - [ ] Representative name/email/contact.
 - [ ] Project name and summary describing purpose and problem.
 - [x] Public GitHub repository with reproducible README/setup.

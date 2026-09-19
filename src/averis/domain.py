@@ -27,13 +27,14 @@ class EvidenceBlock(Model):
     text: str
     locations: list[Location]
     method: Literal["native", "ocr"] = "native"
+    ocr_confidence: float | None = PydanticField(default=None, ge=0, le=1)
 
 
 class DocumentEvidence(Model):
     document_id: str
     blocks: list[EvidenceBlock] = PydanticField(default_factory=lambda: list[EvidenceBlock]())
     issues: list[str] = PydanticField(default_factory=list)
-    parser_version: str = "evidence-v1"
+    parser_version: str = "evidence-v2"
     language: str = "eng"
 
 

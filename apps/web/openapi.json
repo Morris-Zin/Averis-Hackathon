@@ -1059,7 +1059,7 @@
           "parser_version": {
             "type": "string",
             "title": "Parser Version",
-            "default": "evidence-v1"
+            "default": "evidence-v2"
           },
           "language": {
             "type": "string",
@@ -1099,6 +1099,19 @@
             ],
             "title": "Method",
             "default": "native"
+          },
+          "ocr_confidence": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Confidence"
           }
         },
         "additionalProperties": false,

@@ -40,3 +40,9 @@ Before enabling production inference, the TypeSafe dashboard showed 13 requests 
 ## Deployed recovery acceptance
 
 On 20 September, the live Railway polling worker recovered an isolated synthetic run with an expired lease, one abandoned attempt and a persisted GENERAL classification checkpoint. It completed on substantive attempt two in 6.25 seconds, with zero AI reservations for that run. Its workspace expires after 24 hours. This deliberately seeded state verifies deployed lease recovery and checkpoint reuse; it is not an actual platform crash or a capacity test. Full interruption/resource profiling remains outstanding. CI and worker deployment succeeded for 451afc9.
+
+## Document reliability update
+
+Full local verification after evidence-v2 and extraction-v2: 149 tests passed, one Linux-only test skipped on Windows; PostgreSQL tests, Ruff, strict Pyright, module boundaries, OpenAPI/TypeScript drift, frontend types/lint and production build passed. Native PDF evidence now separates field headings while preserving multiline locations. OCR word quality is retained separately from model confidence; missing or low quality requires review. Mixed or wrong-field evidence cannot become a trustworthy reading.
+
+A Linux component check on development scan email_512 produced six unresolved fields and one match, replacing prior false port mismatches. This bypassed email classification and is a component result, not automatic end-to-end accuracy. The earlier native-PDF component email_059 produced seven matches. Holdout evaluation follows this frozen policy.

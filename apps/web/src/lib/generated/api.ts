@@ -403,7 +403,7 @@ export interface components {
             issues?: string[];
             /**
              * Parser Version
-             * @default evidence-v1
+             * @default evidence-v2
              */
             parser_version: string;
             /**
@@ -426,6 +426,8 @@ export interface components {
              * @enum {string}
              */
             method: "native" | "ocr";
+            /** Ocr Confidence */
+            ocr_confidence?: number | null;
         };
         /** Finding */
         Finding: {

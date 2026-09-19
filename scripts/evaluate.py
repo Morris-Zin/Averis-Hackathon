@@ -19,7 +19,11 @@ from averis.dataset import data_root, load_emails
 from averis.domain import CaseView
 from averis.exporting import adapt_case
 from averis.intake import import_email
-from averis.intelligence import CLASSIFICATION_POLICY_VERSION, Intelligence
+from averis.intelligence import (
+    CLASSIFICATION_POLICY_VERSION,
+    EXTRACTION_POLICY_VERSION,
+    Intelligence,
+)
 from averis.persistence import Budget, Case, Database, Outbox, Run, Workspace, utcnow
 from averis.processing import Processor
 from averis.storage import Storage
@@ -75,6 +79,7 @@ def _policy(settings: Settings, selection: str, limit: int) -> dict[str, object]
         },
         "model": settings.jev_model,
         "classification_policy": CLASSIFICATION_POLICY_VERSION,
+        "extraction_policy": EXTRACTION_POLICY_VERSION,
     }
 
 
@@ -264,6 +269,8 @@ def _validate_manifest_policy(settings: Settings, manifest: dict[str, object]) -
         raise ValueError("Jev model differs from the frozen manifest")
     if policy.get("classification_policy") != CLASSIFICATION_POLICY_VERSION:
         raise ValueError("Classification policy differs from the frozen manifest")
+    if policy.get("extraction_policy") != EXTRACTION_POLICY_VERSION:
+        raise ValueError("Extraction policy differs from the frozen manifest")
     thresholds_value = policy.get("thresholds")
     expected = {"category": settings.category_threshold, "spam": settings.spam_threshold, "field": settings.field_threshold}
     if not isinstance(thresholds_value, dict):
@@ -340,6 +347,11 @@ def run_evaluation(
         if not run_id:
             outcomes[str(record["source_id"])] = "missing_run"
             continue
+        with db.session() as session:
+            existing = session.get(Run, str(run_id))
+            if existing is not None and existing.status in {"completed", "failed", "superseded"}:
+                outcomes[str(record["source_id"])] = existing.status
+                continue
         outcomes[str(record["source_id"])] = processor.execute(str(run_id))
         save_progress()
     return save_progress()

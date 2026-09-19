@@ -28,3 +28,23 @@ A fresh run of the same 20 development members used clearer intent definitions, 
 ## Holdout provenance
 
 The 97-member deterministic holdout overlaps earlier exploratory Jev calls for three source IDs: email_001, email_002 and email_025. Email_002 also has its organizer category persisted in the earlier experiment report. The earlier scorer loaded the full truth file after inference; that does not show the model received it, but rules out a claim of formally blinded experimentation. Report the complete 97-member holdout and a separate 94-member subset excluding these three known exposed examples. Describe both as post-development evaluation with disclosed prior exposure, not an independently controlled benchmark. The Malay/Mandarin experiment used authored synthetic examples and adds no organizer-ID overlap.
+
+## Full development baseline (classification-v2, pre-PDF correction)
+
+All 423 development runs completed; one provider timeout recovered on its second substantive attempt using the same run. The 97 holdout cases remained held. No reviewer corrections were applied.
+
+| Measure | Result |
+|---|---:|
+| Suggested category agrees with organizer | 408 / 423 (96.45%) |
+| Accepted category agrees with organizer | 345 / 349 (98.85%) |
+| Category abstentions | 74 |
+| Automatically exportable rows | 337 / 423 (79.67%) |
+| All export blockers / abstentions | 86 |
+| Exact organizer row agreement among exported rows | 244 / 337 (72.40%) |
+| Representable comparable pairs with exact seven-field results | 58 / 58 |
+
+The last row covers only those 58 exportable comparisons, not all document requests. The 86 blockers comprise 74 unresolved categories, nine unresolved pairings, and three mixed mismatch/unknown reports that the official format cannot honestly represent.
+
+Among exported disagreements, 74 source emails have no attachments but the organizer expects OK. Fifteen are document-role review outcomes requiring further reader/extraction work; four are accepted-category errors. The unchanged scorer and abstention-aware diagnostics are saved separately in `outputs/evaluation-linux-v4/development-report`. The baseline precedes the isolated native-PDF/OCR corrections; do not label it final-version accuracy.
+
+Observed evaluation-container samples reached 246.7 MiB and 76.89% CPU within its one-CPU/1GiB limit. Sampling began after initial cases and is not a guaranteed peak measurement or a production capacity result.

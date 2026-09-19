@@ -85,6 +85,7 @@ class _OcrModule(Protocol):
 
 class _OcrData(TypedDict):
     text: list[object]
+    conf: list[object] | None
     block_num: list[object]
     par_num: list[object]
     line_num: list[object]
@@ -630,7 +631,10 @@ def _pdf_blocks(
     previous_bottom: float | None = None
     for line in lines:
         top = line[1][1]
-        if current and previous_bottom is not None and top - previous_bottom > 12:
+        if current and (
+            _starts_evidence_field(line[0])
+            or (previous_bottom is not None and top - previous_bottom > 12)
+        ):
             yield _make_pdf_block(current, page_number)
             current = []
         current.append(line)
@@ -699,7 +703,7 @@ def _ocr_pdf_pages(
             if not page_blocks:
                 issues.append(f"pdf_page_unreadable:{page_number}")
                 continue
-            for text, boxes in page_blocks:
+            for text, boxes, ocr_confidence in page_blocks:
                 block_number += 1
                 blocks.append(
                     EvidenceBlock(
@@ -710,6 +714,7 @@ def _ocr_pdf_pages(
                             for box in boxes
                         ],
                         method="ocr",
+                        ocr_confidence=ocr_confidence,
                     )
                 )
     finally:
@@ -730,6 +735,7 @@ def _validated_ocr_data(value: object) -> _OcrData:
 
     data = _OcrData(
         text=column("text"),
+        conf=column("conf") if mapping.get("conf") is not None else None,
         block_num=column("block_num"),
         par_num=column("par_num"),
         line_num=column("line_num"),
@@ -748,6 +754,8 @@ def _validated_ocr_data(value: object) -> _OcrData:
         data["width"],
         data["height"],
     )
+    if data["conf"] is not None:
+        columns = (*columns, data["conf"])
     if any(len(values) != expected_length for values in columns):
         raise ValueError("OCR result columns have inconsistent lengths")
     return data
@@ -793,13 +801,16 @@ def _read_image(document_id: str, content: bytes) -> DocumentEvidence:
     finally:
         image.close()
 
-    for block_number, (text, boxes) in enumerate(_ocr_blocks(data), start=1):
+    for block_number, (text, boxes, ocr_confidence) in enumerate(
+        _ocr_blocks(data), start=1
+    ):
         result.blocks.append(
             EvidenceBlock(
                 id=_block_id(document_id, block_number),
                 text=text,
                 locations=[Location(kind="image", bbox=box) for box in boxes],
                 method="ocr",
+                ocr_confidence=ocr_confidence,
             )
         )
     if not result.blocks:
@@ -810,7 +821,7 @@ def _read_image(document_id: str, content: bytes) -> DocumentEvidence:
 def _ocr_blocks(
     data: _OcrData,
     scale: float = 1.0,
-) -> list[tuple[str, list[tuple[float, float, float, float]]]]:
+) -> list[tuple[str, list[tuple[float, float, float, float]], float | None]]:
     line_groups: dict[tuple[int, int, int], list[int]] = {}
     for index, raw_text in enumerate(data["text"]):
         if not str(raw_text).strip():
@@ -824,7 +835,7 @@ def _ocr_blocks(
 
     paragraphs: dict[
         tuple[int, int],
-        list[tuple[int, str, tuple[float, float, float, float]]],
+        list[tuple[int, str, tuple[float, float, float, float], float | None]],
     ] = {}
     for (block_number, paragraph_number, line_number), raw_indices in sorted(
         line_groups.items()
@@ -848,13 +859,20 @@ def _ocr_blocks(
             / scale
         )
         paragraphs.setdefault((block_number, paragraph_number), []).append(
-            (line_number, text, (float(left), float(top), float(right), float(bottom)))
+            (
+                line_number,
+                text,
+                (float(left), float(top), float(right), float(bottom)),
+                _minimum_ocr_confidence(data, indices),
+            )
         )
 
-    blocks: list[tuple[str, list[tuple[float, float, float, float]]]] = []
+    blocks: list[tuple[str, list[tuple[float, float, float, float]], float | None]] = []
     for lines in paragraphs.values():
         lines.sort(key=lambda line: (line[0], line[2][1], line[2][0]))
-        current: list[tuple[int, str, tuple[float, float, float, float]]] = []
+        current: list[
+            tuple[int, str, tuple[float, float, float, float], float | None]
+        ] = []
         for line in lines:
             if current and _starts_evidence_field(line[1]):
                 blocks.append(_make_ocr_block(current))
@@ -867,15 +885,18 @@ def _ocr_blocks(
 
 _EVIDENCE_FIELD_LABEL = re.compile(
     r"^\s*(?:"
-    r"shipper|exporter|consignee|notify\s+party|notify|"
-    r"port\s+of\s+loading|load\s+port|pol|"
-    r"port\s+of\s+discharge|discharge\s+port|pod|"
+    r"shipper|exporter|consignee|notify\s*party|notify|"
+    r"port\s*of\s*loading|load\s+port|pol|"
+    r"port\s*of\s*discharge|discharge\s+port|pod|"
     r"number\s+of\s+containers(?:\s+or\s+packages)?|"
     r"no\.\s*of\s+containers(?:\s+or\s+packages)?|"
     r"container\s+count|containers|"
-    r"gross\s+weight(?:毛重)?(?:\s*\([^)]*\)|\s+kg)?|"
-    r"gross\s+wt(?:\s*\([^)]*\))?"
-    r")\b(?:\s*[:=|]\s*|\s+\S)",
+    r"(?:total\s+)?gross\s+weight(?:毛重)?(?:\s*\([^)]*\)|\s+kgs?)?|"
+    r"(?:total\s+)?gross\s+wt(?:\s*\([^)]*\)|\s+kgs?)?|"
+    r"b/l\s+(?:no|number)|bill\s+of\s+lading\s+(?:no|number)|"
+    r"booking(?:\s+(?:no|number|ref|reference))?|"
+    r"ocean\s+vessel|vessel|voyage|export\s+carrier|container\s+no|hs\s+code"
+    r")(?=\s*[:=|]\s*\S|\.?\s+\S)",
     re.IGNORECASE,
 )
 
@@ -887,9 +908,46 @@ def _starts_evidence_field(text: str) -> bool:
 
 
 def _make_ocr_block(
-    lines: Sequence[tuple[int, str, tuple[float, float, float, float]]],
-) -> tuple[str, list[tuple[float, float, float, float]]]:
-    return ("\n".join(line[1] for line in lines), [line[2] for line in lines])
+    lines: Sequence[tuple[int, str, tuple[float, float, float, float], float | None]],
+) -> tuple[str, list[tuple[float, float, float, float]], float | None]:
+    confidences = [line[3] for line in lines]
+    confidence = (
+        min(cast(list[float], confidences))
+        if confidences and all(value is not None for value in confidences)
+        else None
+    )
+    return (
+        "\n".join(line[1] for line in lines),
+        [line[2] for line in lines],
+        confidence,
+    )
+
+
+def _minimum_ocr_confidence(data: _OcrData, indices: Sequence[int]) -> float | None:
+    """Return the weakest meaningful word score, or unknown if any score is unsafe.
+
+    Tesseract reports confidence per word on a 0..100 scale. A block is only as
+    trustworthy as its weakest nonblank word because a single corrupted number
+    or place name can change a shipment finding. Missing, non-finite, sentinel,
+    or out-of-range scores make the aggregate unknown instead of optimistic.
+    """
+
+    raw_confidences = data["conf"]
+    if raw_confidences is None or not indices:
+        return None
+    confidences: list[float] = []
+    for index in indices:
+        raw = raw_confidences[index]
+        if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+            return None
+        try:
+            confidence = float(raw)
+        except ValueError:
+            return None
+        if not math.isfinite(confidence) or not 0 <= confidence <= 100:
+            return None
+        confidences.append(confidence / 100)
+    return min(confidences) if confidences else None
 
 
 def _read_docx(document_id: str, content: bytes) -> DocumentEvidence:
