@@ -4,11 +4,11 @@ Target duration: 4 minutes 45 seconds. Record only after the public deployment a
 
 ## 0:00–0:25 — Problem
 
-Introduce the team and project name. Explain: “Shipping staff receive many kinds of messages in one inbox. For document checks, the Shipping Instruction is the reference, and the draft Bill of Lading must agree with it before release. Averis brings classification, comparison and source evidence into one work queue.”
+Introduce GoodLord (Aung Phone Khant, Ella, Pei En and Congye) and the project, Averis. Explain: “Shipping staff receive many kinds of messages in one inbox. For document checks, the Shipping Instruction is the reference, and the draft Bill of Lading must agree with it before release. Averis brings classification, comparison and source evidence into one work queue.”
 
 ## 0:25–0:55 — Architecture
 
-Show the diagram in build-plan.md. Explain that Next.js presents the workspace, FastAPI owns the workflow, PostgreSQL persists work, private R2 stores originals, and authenticated Cloud Tasks invokes the worker. Parsing and OCR run with explicit resource limits. Jev chooses categories and source evidence; application code performs the numerical and text comparison. Show actual deployed service names only after deployment is verified.
+Show the diagram in build-plan.md. Explain that Next.js presents the workspace, FastAPI owns the workflow, PostgreSQL persists work, private R2 stores originals, and a private Railway worker claims durable PostgreSQL jobs. Parsing and OCR run with explicit resource limits. Jev chooses categories and source evidence; application code performs the numerical and text comparison. Show actual deployed service names only after deployment is verified.
 
 ## 0:55–1:30 — Inbox and uncertainty
 

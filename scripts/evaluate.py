@@ -19,7 +19,7 @@ from averis.dataset import data_root, load_emails
 from averis.domain import CaseView
 from averis.exporting import adapt_case
 from averis.intake import import_email
-from averis.intelligence import Intelligence
+from averis.intelligence import CLASSIFICATION_POLICY_VERSION, Intelligence
 from averis.persistence import Budget, Case, Database, Outbox, Run, Workspace, utcnow
 from averis.processing import Processor
 from averis.storage import Storage
@@ -74,6 +74,7 @@ def _policy(settings: Settings, selection: str, limit: int) -> dict[str, object]
             "field": settings.field_threshold,
         },
         "model": settings.jev_model,
+        "classification_policy": CLASSIFICATION_POLICY_VERSION,
     }
 
 
@@ -261,6 +262,8 @@ def _validate_manifest_policy(settings: Settings, manifest: dict[str, object]) -
         raise ValueError("Evaluation database does not match the frozen manifest")
     if policy.get("model") != settings.jev_model:
         raise ValueError("Jev model differs from the frozen manifest")
+    if policy.get("classification_policy") != CLASSIFICATION_POLICY_VERSION:
+        raise ValueError("Classification policy differs from the frozen manifest")
     thresholds_value = policy.get("thresholds")
     expected = {"category": settings.category_threshold, "spam": settings.spam_threshold, "field": settings.field_threshold}
     if not isinstance(thresholds_value, dict):

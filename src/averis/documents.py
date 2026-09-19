@@ -979,6 +979,17 @@ def _read_xlsx(document_id: str, content: bytes) -> DocumentEvidence:
             )
         for worksheet in workbook.worksheets[:MAX_XLSX_SHEETS]:
             cached_worksheet = cached_workbook[worksheet.title]
+            title_block_added = _meaningful_worksheet_title(worksheet.title)
+            if title_block_added:
+                block_number += 1
+                result.blocks.append(
+                    EvidenceBlock(
+                        id=_block_id(document_id, block_number),
+                        text=f"Worksheet: {worksheet.title}",
+                        locations=[Location(kind="xlsx", sheet=worksheet.title)],
+                    )
+                )
+            sheet_has_cell_evidence = False
             max_row = min(worksheet.max_row or 0, MAX_XLSX_ROWS_PER_SHEET)
             max_column = min(worksheet.max_column or 0, MAX_XLSX_COLUMNS)
             if (worksheet.max_row or 0) > MAX_XLSX_ROWS_PER_SHEET:
@@ -998,6 +1009,9 @@ def _read_xlsx(document_id: str, content: bytes) -> DocumentEvidence:
                 )
                 max_row = bounded_rows
             if max_row <= 0:
+                if title_block_added:
+                    result.blocks.pop()
+                    block_number -= 1
                 break
             scanned_cells += max_row * max_column
             formula_rows = worksheet.iter_rows(
@@ -1044,6 +1058,7 @@ def _read_xlsx(document_id: str, content: bytes) -> DocumentEvidence:
                 # whole row when any result is stale or absent so it cannot match.
                 if entries and not row_has_uncertain_formula:
                     block_number += 1
+                    sheet_has_cell_evidence = True
                     result.blocks.append(
                         EvidenceBlock(
                             id=_block_id(document_id, block_number),
@@ -1051,6 +1066,9 @@ def _read_xlsx(document_id: str, content: bytes) -> DocumentEvidence:
                             locations=locations,
                         )
                     )
+            if title_block_added and not sheet_has_cell_evidence:
+                result.blocks.pop()
+                block_number -= 1
     finally:
         workbook.close()
         cached_workbook.close()
@@ -1071,6 +1089,11 @@ def _usable_cached_formula(value: object, data_type: str) -> bool:
     if value is None or data_type == "e":
         return False
     return not isinstance(value, str) or bool(value.strip())
+
+
+def _meaningful_worksheet_title(title: str) -> bool:
+    normalized = re.sub(r"[\s._-]+", "", title).casefold()
+    return normalized not in {"sheet", "sheet1", "worksheet", "worksheet1"}
 
 
 def _format_spreadsheet_row(values: Sequence[str]) -> str:

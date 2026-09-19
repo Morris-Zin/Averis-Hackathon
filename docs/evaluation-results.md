@@ -16,3 +16,11 @@ The corrected run processed the first 20 development members through the real Pr
 - The unchanged official scorer ran separately against this development subset and partial predictions. It defaults absent categories to GENERAL, so its diagnostic score is not presented as automatic accuracy or an eligible full submission.
 
 Thresholds remain category 0.80, Spam 0.95 and field 0.80; model jev-1.13.0. Finish development diagnostics and freeze the final policy before holdout evaluation. No reviewer-assisted corrections were included.
+
+## Source-level disagreements
+
+Development emails 006, 016 and 018 explicitly request that a draft BL be sent for checking; their source JSON attachment arrays are empty. The organizer labels them BL_COMPARISON / OK. Averis retains BL_COMPARISON and routes to missing-attachment review because there is no SI/BL pair to verify. We do not special-case these IDs or infer a successful document check from an absent pair. Email 005 is a separate XLSX reading/inference investigation, not yet a confirmed dataset disagreement.
+
+## Classification policy v2 development check
+
+A fresh run of the same 20 development members used clearer intent definitions, prioritizing the current body over stale subjects and distinguishing supplied SI details from a draft BL check. Thresholds were unchanged. All 20 suggested categories matched the labels; all 14 accepted categories were correct; six cases abstained (70% automatic export coverage). This reused development sample informed the prompt and is not independent evidence. XLSX worksheet titles are now included as evidence, but email 005 abstained at classification in this run, so the role fix is not yet verified through live extraction. Artifacts: `outputs/evaluation-linux-v3`.

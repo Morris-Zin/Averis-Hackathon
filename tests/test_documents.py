@@ -25,6 +25,7 @@ from averis.documents import (
     read_document_bounded,
     render_preview_bounded,
 )
+from averis.domain import Location
 from averis.verification import normalize
 
 
@@ -172,16 +173,61 @@ def test_xlsx_keeps_cell_locations_and_marks_formula_values_uncertain() -> None:
 
     evidence = read_document("xlsx-1", "si.xlsx", payload.getvalue())
 
-    assert len(evidence.blocks) == 2
-    assert evidence.blocks[1].text == "Gross Weight: 1250"
+    assert len(evidence.blocks) == 3
+    assert evidence.blocks[0].text == "Worksheet: SI"
+    assert evidence.blocks[0].locations == [Location(kind="xlsx", sheet="SI")]
+    assert evidence.blocks[2].text == "Gross Weight: 1250"
     assert [
-        (location.sheet, location.cell) for location in evidence.blocks[1].locations
+        (location.sheet, location.cell) for location in evidence.blocks[2].locations
     ] == [
         ("SI", "A2"),
         ("SI", "B2"),
     ]
     assert all("=B2*2" not in block.text for block in evidence.blocks)
     assert evidence.issues == ["xlsx_formula_values_uncertain:1:SI!B3"]
+
+
+def test_xlsx_preserves_meaningful_worksheet_title_as_role_evidence() -> None:
+    workbook = Workbook()
+    worksheet = workbook.active
+    assert worksheet is not None
+    worksheet.title = "S.I."
+    worksheet.append(["BL INSTRUCTION", "3154303911"])
+    worksheet.append(["SHIPPER", "Averis Trading"])
+    payload = BytesIO()
+    workbook.save(payload)
+    workbook.close()
+
+    evidence = read_document("xlsx-role", "instruction.xlsx", payload.getvalue())
+
+    assert evidence.issues == []
+    assert [block.text for block in evidence.blocks] == [
+        "Worksheet: S.I.",
+        "BL INSTRUCTION: 3154303911",
+        "SHIPPER: Averis Trading",
+    ]
+    assert evidence.blocks[0].locations == [Location(kind="xlsx", sheet="S.I.")]
+    assert [location.cell for location in evidence.blocks[1].locations] == [
+        "A1",
+        "B1",
+    ]
+
+
+def test_xlsx_omits_generic_or_empty_worksheet_title_evidence() -> None:
+    workbook = Workbook()
+    generic = workbook.active
+    assert generic is not None
+    generic["A1"] = "Shipper"
+    empty_named = workbook.create_sheet("Shipping Instruction")
+    assert empty_named.max_row == 1
+    payload = BytesIO()
+    workbook.save(payload)
+    workbook.close()
+
+    evidence = read_document("xlsx-generic", "generic.xlsx", payload.getvalue())
+
+    assert [block.text for block in evidence.blocks] == ["Shipper"]
+    assert evidence.blocks[0].locations[0].cell == "A1"
 
 
 def test_pdf_native_text_has_page_and_bounding_box_locations() -> None:

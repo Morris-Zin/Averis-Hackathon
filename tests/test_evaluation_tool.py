@@ -121,3 +121,45 @@ def test_gated_run_uses_offline_double_and_writes_predictions(evaluation):
         "email_001", "email_002", "email_003",
     }
     assert snapshot["official_adapter"]["coverage"]["completed"] == 3
+
+
+def test_changed_classification_policy_cannot_reuse_frozen_manifest(evaluation):
+    from scripts.evaluate import _validate_manifest_policy
+
+    settings, source_root, output = evaluation
+    prepare_evaluation(settings, source_root, output, limit=1)
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    manifest["policy"]["classification_policy"] = "older-policy"
+    with pytest.raises(ValueError, match="Classification policy differs"):
+        _validate_manifest_policy(settings, manifest)
+
+
+def test_interruption_preserves_completed_evaluation_progress(evaluation, monkeypatch):
+    from scripts.evaluate import Processor
+
+    settings, source_root, output = evaluation
+    prepare_evaluation(settings, source_root, output, limit=3)
+    settings.live_enabled = True
+    settings.budget_verified = True
+    budget_url = f"sqlite:///{output.parent / 'budget.db'}"
+    budget_db = Database(budget_url)
+    Base.metadata.create_all(budget_db.engine)
+    with budget_db.session() as session, session.begin():
+        session.add(Budget(id=1, prior_spend=0, development=0, demo=0))
+    execute = Processor.execute
+    calls = 0
+
+    def interrupt_second(processor, run_id):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise KeyboardInterrupt
+        return execute(processor, run_id)
+
+    monkeypatch.setattr(Processor, "execute", interrupt_second)
+    with pytest.raises(KeyboardInterrupt):
+        run_evaluation(settings, output, split="all", budget_database_url=budget_url,
+                       intelligence_factory=lambda *_: DeterministicIntelligence())
+    snapshot = json.loads((output / "snapshot.json").read_text(encoding="utf-8"))
+    assert snapshot["official_adapter"]["coverage"]["completed"] == 1
+    assert snapshot["run_outcomes"] == {"email_001": "completed"}

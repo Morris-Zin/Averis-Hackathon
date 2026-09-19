@@ -4,6 +4,21 @@
 
 The user delegated hosting selection after Google Cloud billing blocked deployment. Railway is selected for the public container and a private background process, while Neon and R2 remain unchanged. Both services are deployed at https://averis-hackathon-production.up.railway.app/ with a private polling worker and server-side credentials. The worker reuses the existing Processor leases, checkpoints, budget authority and revision fencing. Two live comparisons passed, including automatic browser progress updates. Railway runs one replica per service and one processing slot; its trial credit is finite. The Cloud Run/Tasks configuration below remains a validated local alternative, not deployed infrastructure.
 
+## Live deployment
+
+```mermaid
+flowchart LR
+  Browser[Next.js static workspace] --> Web[Railway FastAPI web service]
+  Web --> DB[(Neon PostgreSQL: cases, runs, outbox, budget)]
+  Web --> R2[(Private R2 originals)]
+  Worker[Private Railway polling worker] --> DB
+  Worker --> R2
+  Worker --> Readers[Bounded parser and OCR subprocesses]
+  Worker --> Jev[Shared budget authority then Jev]
+```
+
+The worker has no public domain. It polls durable eligible runs and periodically reconciles missed delivery and expired leases; SQL leases and attempt tokens coordinate work. The web service serves static assets and API under one HTTPS origin.
+
 ## Original accepted architecture
 
 The accepted stack is Next.js/TypeScript static export, FastAPI/Python, PostgreSQL (Neon), private R2 Standard storage and durable Google Cloud Tasks delivery. Everything lives in one monorepo. FastAPI serves the built frontend and API from the same origin; the private Cloud Run worker uses the same Python package.
