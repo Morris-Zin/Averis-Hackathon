@@ -22,3 +22,20 @@ skills-lock.json
 docs/chatgpt-pro-review*.txt
 docs/chatgpt-pro-review*.md
 docs/pro-review-brief.md
+
+node_modules/
+.next/
+apps/web/out/
+.local/
+.coverage
+playwright-report/
+test-results/
+*.tsbuildinfo
+infra/.terraform/
+*.tfstate*
+*.tfvars
+
+# Deployment provider caches and plans
+**/.terraform/
+*.tfplan
+.railway/

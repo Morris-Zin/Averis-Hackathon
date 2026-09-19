@@ -1,0 +1,84 @@
+name: averis
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: averis
+      POSTGRES_USER: averis
+      POSTGRES_PASSWORD: averis
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U averis -d averis"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  public:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AVERIS_ROLE: web
+      AVERIS_ENV: development
+      AVERIS_DATABASE_URL: postgresql+psycopg://averis:averis@postgres:5432/averis
+      AVERIS_ORIGIN: http://localhost:8000
+      AVERIS_STORAGE_BACKEND: local
+      AVERIS_STORAGE_DIR: /data
+      AVERIS_WORKER_URL: http://worker:8080
+      AVERIS_TASKS_QUEUE: local://averis/runs
+      AVERIS_TASKS_SERVICE_ACCOUNT: local
+      AVERIS_LIVE_ENABLED: "false"
+      PORT: "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8080"
+    volumes:
+      - averis-data:/data
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AVERIS_ROLE: worker
+      AVERIS_ENV: development
+      AVERIS_DATABASE_URL: postgresql+psycopg://averis:averis@postgres:5432/averis
+      AVERIS_ORIGIN: http://public:8080
+      AVERIS_STORAGE_BACKEND: local
+      AVERIS_STORAGE_DIR: /data
+      AVERIS_WORKER_URL: http://worker:8080
+      AVERIS_TASKS_QUEUE: local://averis/runs
+      AVERIS_TASKS_SERVICE_ACCOUNT: local
+      AVERIS_LIVE_ENABLED: "false"
+      PORT: "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8001:8080"
+    volumes:
+      - averis-data:/data
+
+  # Optional S3-compatible development service. The default local profile uses
+  # AVERIS_STORAGE_BACKEND=local and does not start this container.
+  minio:
+    image: minio/minio:latest
+    profiles: [object-storage]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: averis-local
+      MINIO_ROOT_PASSWORD: averis-local-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  postgres-data:
+  averis-data:
+  minio-data:

@@ -1,38 +1,77 @@
-# Architecture and build plan
+# Averis architecture and delivery
 
-## Proposed architecture (implementation pending)
+## Deployment decision update — 20 September 2026
 
-Python/FastAPI is the starter backend because the organizer provides Python tooling and document/AI processing fits that ecosystem. Keep the UI and cloud provider replaceable until the team chooses them.
+The user delegated hosting selection after Google Cloud billing blocked deployment. Railway is selected for the public container and a private background process, while Neon and R2 remain unchanged. Its account setup and PostgreSQL-backed delivery adapter are in progress; no public deployment is claimed. The worker will reuse the existing Processor leases, checkpoints, budget authority and revision fencing. The Cloud Run/Tasks configuration below remains a validated local alternative, not deployed infrastructure.
+
+## Original accepted architecture
+
+The accepted stack is Next.js/TypeScript static export, FastAPI/Python, PostgreSQL (Neon), private R2 Standard storage and durable Google Cloud Tasks delivery. Everything lives in one monorepo. FastAPI serves the built frontend and API from the same origin; the private Cloud Run worker uses the same Python package.
+
+The review route is `/review?case=<id>`. Cases created after the frontend build are loaded through the API. Cloud Run uses request-based billing with minimum zero instances; worker maximum two instances with one request each; task concurrency two. These are resource controls, not measured enterprise capacity.
 
 ```mermaid
 flowchart LR
-  A[Inbox JSON] --> B[AI intent classification]
-  B --> C{Comparison request?}
-  C -->|No| D[Category result]
-  C -->|Yes| E[Read SI and BL]
-  E --> F[Extract seven fields with evidence]
-  F --> G[Normalize and compare]
-  E --> H[Human review queue]
-  F --> H
-  G --> I[Side by side report]
-  H --> J[Correction and retry]
-  J --> G
-  I --> K[Evaluation export]
+  UI[Next.js static UI] --> API[FastAPI: session and explicit actions]
+  API --> DB[(PostgreSQL: cases, runs, outbox, budget)]
+  API --> R2[(Private immutable originals)]
+  API --> Tasks[Cloud Tasks + OIDC]
+  Tasks --> Worker[Private Python worker]
+  Scheduler[Scheduler every 15 minutes] --> Worker
+  Worker --> DB
+  Worker --> R2
+  Worker --> Readers[Bounded parser / OCR processes]
+  Worker --> Jev[Budget authority then Jev SDK]
 ```
 
-AI should classify intent from subject AND body and extract structured fields with quoted evidence; deterministic code should compare validated values. Never infer correctness from filenames or email IDs. Preserve original text and normalized values. Do not silently treat extraction failure as a match. Treat document content as data, not agent instructions.
+## Deep modules and contracts
 
-The inference path must never load ground_truth.json or evaluation labels. Keep official scoring outside src/averis. Report source-backed disagreements with the reference rather than changing correct logic merely to raise the score.
+| Capability | Owner | Hidden decisions |
+|---|---|---|
+| Import an email | Intake | Deduplication, workspace locking, original storage, atomic case/run/outbox persistence and rollback cleanup |
+| Classify and extract candidate evidence | Intelligence | Provider SDK, prompts, distribution validation, confidence policy |
+| Read documents and render evidence | Documents | Format-specific parsers, OCR, resource bounds, coordinates |
+| Verify SI against BL | Verification | Pair references, normalization, explicit units, missing values, seven-field outcomes |
+| Apply reviewer actions | Workflow | Source-bound corrections, accepted categories/pairs, versions, optimistic conflicts |
+| Schedule and execute processing | Processing | Transactional outbox, attempts, leases, checkpoints, recovery, stale-run fencing |
+| Authorize access and store originals | API/session and storage adapters | Opaque sessions, CSRF/origin checks, workspace scope, server-controlled keys |
 
-## Ordered delivery
+Public Pydantic contracts generate frontend types through OpenAPI. The frontend presents decisions and submits explicit actions; it does not parse shipment values or compare normalized fields. Boundary checks prevent pure domain rules from depending on HTTP, persistence or inference infrastructure.
 
-1. **19 September:** choose provider/budget and deploy target; build a real AI classification + TXT extraction vertical slice. Persist outcomes and evidence. Compare seven fields; handle missing documents and values.
-2. **20 September:** usable inbox + report + review UI, corrections and retry; support PDF, DOCX, XLSX. Escalate image-only PDFs until OCR/vision is implemented. Attend workshop 12–13.
-3. **21 September:** measure classification, field matching and review reliability; add OCR/vision if the core is solid. Deploy a public demo with synthetic examples and capped AI usage. Test from an unauthenticated browser. Attend workshop 19–20.
-4. **22 September morning:** freeze working demo, record <=5-minute video, finish slides and setup docs, submit well before noon.
+Classification, technical processing, comparison findings and employee workflow are distinct. A completed review does not erase discrepancies. Missing values are unknown, never zero. Only a valid pair with all seven reliable matches and no blockers can be presented as clear.
 
-Measure latency, model cost/email, classification macro-F1, exact differing-field accuracy, and review precision/recall. Keep a small holdout split for development changes and record provenance for every run. Test missing attachments, unreadable scans, different labels, equivalent number formats, misleading subjects, wrong document types, and corrections. Do not fabricate impact metrics.
+## Evidence and revisions
 
-## Current foundation
+TXT retains line positions; PDF retains pages and regions; DOCX uses a labelled structured reading-order preview; XLSX retains sheets/cells. OCR is English-first. Original Unicode survives preparation. Formula-dependent spreadsheet values without usable cached results stay unresolved.
 
-Implemented: local dataset inspection, strict export contract, complete-ID validation, official scorer wrapper, health API, tests, locked dependencies. Not implemented: AI classification/extraction, comparison engine, persistent jobs, review UI, document parsing/OCR, authentication, cloud deployment. `/health` explicitly reports `pipeline_ready: false`.
+Native corrections copy selected evidence from the same document version. OCR transcription must reference OCR evidence and be explicitly attested; unverified text cannot clear a discrepancy. Originals cannot be overwritten. New drafts get new document IDs, previous versions stay accessible, and superseded documents cannot become current comparison sources.
+
+Source changes increment the processing-input revision. Assignment/workflow edits use the case revision without invalidating extraction. Mutations with stale expected revisions return 409. Publication checks the input revision, current run ID, attempt token, and unexpired lease.
+
+## Processing and spending
+
+A case change, run, and outbox entry commit together. Immediate dispatch is best-effort; reconciliation recovers missing dispatches and expired leases. Each delivery claims a unique attempt token. Classification, reading and extraction checkpoints avoid repeating completed work on duplicate delivery. No database transaction stays open during OCR or Jev requests.
+
+Application deadline is eight minutes; task/worker deadline ten. Persisted substantive attempts stop at three. SDK retries are disabled. Permanent unsupported input becomes review information; provider/infrastructure failures remain failures. Manual retry creates a new current run; old results cannot replace it.
+
+All paid inference uses one PostgreSQL budget authority, including operator processing/evaluation. Starting usage is verified and stored before enabling requests. The total ceiling is $7 including earlier experiments, with $5 development and $2 demo allocations. Conservative reservations are retained after uncertain outcomes. The app fails closed if its ledger or prices cannot be verified. Offline CI uses deterministic doubles.
+
+## Demo and limits
+
+A welcome action creates an opaque 24-hour server session and isolated mutable workspace. Reviewer names simulate actors, not privileges. Every API and file request enforces workspace access. Mutation requests require exact allowed Origin and session CSRF token. Synthetic scenarios clearly identify illustrative classification.
+
+Public visitors cannot submit arbitrary files. Operator import requires an additional server-side secret. Limits include 10 MB per attachment, 20 MB combined attachments per email, 21 MB transport body, 20 PDF pages, 3 OCR pages, bounded Office archives/cells and rendered pixels. Preview generation is serialized per application process. All unsupported limits produce visible issues.
+
+Review actions are capped at 1,000 per workspace; document versions at 24 per case. Ordinary JSON requests are limited to 256 KiB, with bounded correction text and evidence selections.
+
+Controlled sample retries use the same budget authority: three per session and fifty globally per day. Session creation is also bounded. Expired workspace cleanup is invoked by reconciliation; the budget ledger remains durable.
+
+## Delivery and evidence
+
+Local acceptance checks include real PostgreSQL concurrency/recovery tests, evidence/correction tests, session isolation, offline provider doubles, strict Python/TypeScript checks, generated contract drift and production static export. Browser testing uses actual UI controls against the running application.
+
+Cloud configuration is infrastructure-as-code, not evidence of deployment. Before public judging: configure Neon/R2/GCP, apply migrations, initialize the verified Jev ledger, deploy and test authenticated task delivery/recovery, measure runtime resources and latency, and verify a fresh-browser session.
+
+Use the unchanged official scorer plus requirement-aligned diagnostics. Do not ship ground truth in runtime images or send it to AI. Export blockers must remain explicit for states the official format cannot represent. Separate automatic coverage/abstention from reviewer-assisted outcomes.
+
+Preliminary submission: finish README, architecture materials and a video of at most five minutes, then submit with buffer before 22 September, noon Malaysia time. Production authentication, live mailbox connectors, multilingual quality and enterprise capacity testing remain later work.

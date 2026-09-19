@@ -1,0 +1,106 @@
+"""One offline verification entry point; never invokes a paid provider."""
+from __future__ import annotations
+
+import argparse
+import ast
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def run(*args: str, cwd: Path = ROOT) -> None:
+    print("+", " ".join(args), flush=True)
+    subprocess.run(args, cwd=cwd, check=True)
+
+
+def check_boundaries() -> None:
+    prohibited = {
+        "contracts": {"fastapi", "sqlalchemy", "averis.api", "averis.persistence", "averis.intelligence"},
+        "domain": {"fastapi", "sqlalchemy", "averis.api", "averis.persistence", "averis.intelligence"},
+        "verification": {"fastapi", "sqlalchemy", "averis.api", "averis.persistence", "averis.intelligence"},
+        "documents": {"fastapi", "averis.intelligence", "averis.processing", "averis.workflow"},
+        "intake": {"fastapi", "averis.api", "averis.worker"},
+        "workflow": {"fastapi", "averis.api", "averis.worker"},
+        "processing": {"fastapi", "averis.api", "averis.worker"},
+        "runner": {"fastapi", "averis.api", "averis.worker", "averis.intelligence"},
+    }
+    for path in (ROOT / "src/averis").glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        for node in ast.walk(tree):
+            imports = [node.module or ""] if isinstance(node, ast.ImportFrom) else (
+                [name.name for name in node.names] if isinstance(node, ast.Import) else [])
+            for name in imports:
+                if any(name == p or name.startswith(p + ".") for p in prohibited.get(path.stem, set())):
+                    raise SystemExit(f"Module boundary violation: {path.name} imports {name}")
+                if path.stem not in {"cli", "dataset"} and name in {"averis.dataset", "averis.cli"}:
+                    raise SystemExit(f"Runtime cannot import evaluation data: {path.name}")
+    print("Module boundaries passed", flush=True)
+
+
+def check_contracts(pnpm: str) -> None:
+    from averis.api import create_app
+    from averis.config import Settings
+
+    schema = create_app(Settings()).openapi()
+    expected = json.loads((ROOT / "apps/web/openapi.json").read_text(encoding="utf-8-sig"))
+    if schema != expected:
+        raise SystemExit("OpenAPI drift. Export app.openapi() and run pnpm generate:api.")
+    with tempfile.TemporaryDirectory(prefix="averis-contract-") as directory:
+        output = Path(directory) / "api.ts"
+        run(pnpm, "exec", "openapi-typescript", "openapi.json", "-o", str(output), cwd=ROOT / "apps/web")
+        current = (ROOT / "apps/web/src/lib/generated/api.ts").read_text(encoding="utf-8")
+        if output.read_text(encoding="utf-8") != current:
+            raise SystemExit("Generated frontend types drift. Run pnpm generate:api.")
+
+
+def check_test_database() -> None:
+    """Fail promptly when the explicitly configured integration database is offline."""
+    url = os.environ.get("AVERIS_TEST_DATABASE_URL")
+    if not url:
+        return
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.exc import SQLAlchemyError
+
+    if make_url(url).get_backend_name() != "postgresql":
+        raise SystemExit("AVERIS_TEST_DATABASE_URL must point to PostgreSQL.")
+    engine = create_engine(url, connect_args={"connect_timeout": 5})
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        raise SystemExit(
+            "The configured PostgreSQL test database is unavailable. "
+            "Start the database and rerun verification."
+        ) from None
+    finally:
+        engine.dispose()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend-only", action="store_true")
+    options = parser.parse_args()
+    check_boundaries()
+    run(sys.executable, "-m", "ruff", "check", "src", "tests", "scripts", "migrations")
+    run(sys.executable, "-m", "pyright")
+    check_test_database()
+    run(sys.executable, "-m", "pytest", "-q")
+    if not options.backend_only:
+        pnpm = shutil.which("pnpm")
+        if pnpm is None:
+            raise SystemExit("Install pnpm 10.26.2 to check the frontend")
+        check_contracts(pnpm)
+        for command in ("typecheck", "lint", "build"):
+            run(pnpm, command, cwd=ROOT / "apps/web")
+    print("Verification passed; paid inference was not enabled.", flush=True)
+
+
+if __name__ == "__main__":
+    main()

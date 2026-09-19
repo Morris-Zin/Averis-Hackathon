@@ -1,0 +1,14 @@
+project_id   = "replace-with-your-gcp-project"
+region       = "asia-southeast1"
+service_name = "averis"
+
+# Push this image to Artifact Registry before applying the Cloud Run services.
+image = "asia-southeast1-docker.pkg.dev/replace-with-your-gcp-project/averis/averis:sha-replace-me"
+
+# Use the final custom origin when possible. This value is injected into both
+# services as AVERIS_ORIGIN and must not contain a trailing slash.
+public_origin = "https://averis.example.com"
+
+r2_endpoint   = "https://replace-with-account-id.r2.cloudflarestorage.com"
+
+r2_bucket     = "averis-documents"
