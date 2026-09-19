@@ -34,7 +34,7 @@ jobs:
       AVERIS_TEST_DATABASE_URL: postgresql+psycopg://averis:averis@localhost:5432/averis
       AVERIS_ORIGIN: http://localhost:8000
       AVERIS_STORAGE_BACKEND: local
-      AVERIS_STORAGE_DIR: ${{ runner.temp }}/averis-data
+      AVERIS_STORAGE_DIR: .local/ci-data
       AVERIS_TASKS_QUEUE: ""
       AVERIS_WORKER_URL: http://localhost:8001
       AVERIS_TASKS_SERVICE_ACCOUNT: ci@test.iam.gserviceaccount.com
