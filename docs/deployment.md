@@ -2,13 +2,13 @@
 
 This document describes the accepted deployment shape. It is configuration and an operator runbook; it does not provision a cloud account, buy services, or contain credentials.
 
-## Railway deployment in progress
+## Railway deployment
 
-Railway is the selected hosting target after the user delegated provider selection. The public service uses the root Dockerfile and `/infra/railway/web.json`: one replica, `/health` startup check, and `alembic upgrade head` as its pre-deploy command. Set `AVERIS_ROLE=web`, the exact Railway HTTPS origin, production mode, Neon PostgreSQL and private R2 credentials as server-side variables. Never commit secret values.
+Railway is the selected hosting target. Configure the public service with the root Dockerfile, one replica, `/health` startup check, and `alembic upgrade head` as its pre-deploy command. Set `AVERIS_ROLE=web`, the exact Railway HTTPS origin, production mode, Neon PostgreSQL and private R2 credentials as server-side variables. Never commit secret values. The dashboard no longer permits new services to opt into legacy Config as Code; the JSON files under `infra/railway` record the intended settings but are not automatically applied to this deployment. Set these values in the service dashboard.
 
-The background service uses `/infra/railway/worker.json` and `python -m averis.runner`, with one replica and one concurrent run by default. It consumes durable PostgreSQL runs through the existing Processor, with periodic recovery in the same process. Do not generate a public domain or expose the IAM-dependent `averis.worker` HTTP service for this service. Deploy the public service and its migrations before starting the worker. Its local delivery/recovery checks pass; deployed acceptance remains pending integration. Leave Google task settings empty for this target. Live inference remains disabled until the shared budget ledger and current account usage have been verified.
+The background service runs `python -m averis.runner`, with one replica and one concurrent run by default. It consumes durable PostgreSQL runs through the existing Processor, with periodic recovery in the same process. Do not generate a public domain or expose the IAM-dependent `averis.worker` HTTP service for this service. Deploy the public service and its migrations before starting the worker. Local delivery/recovery checks pass. A real deployed Jev run completed through this worker in one attempt. Leave Google task settings empty for this target. Live inference is enabled after verifying account usage and initializing the shared budget ledger. Disabled live processing holds queued work without consuming attempts.
 
-The configuration is preparation, not evidence that Railway is deployed. Account agreements, runtime credentials, container deployment and fresh-browser acceptance remain required. The sections below document the retained Cloud Run alternative.
+The public app is live at https://averis-hackathon-production.up.railway.app/. Fresh-browser demo entry, persisted workflow changes, private document access and a live comparison have passed. Railway runs on the initial trial credit; this is not a promise of permanently free hosting. The sections below document the retained, undeployed Cloud Run alternative.
 
 ## Cloud Run runtime shape
 

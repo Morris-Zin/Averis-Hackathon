@@ -2,7 +2,9 @@
 
 A Jira-inspired shipping operations workspace. It classifies incoming messages, compares draft Bills of Lading against Shipping Instructions, and links each finding to source evidence. English is the first supported language.
 
-**Implementation status:** the local application, durable processing code, format readers and deployment configuration are implemented. Public cloud deployment and paid end-to-end evaluation remain pending service configuration. See [measured validation and remaining work](docs/validation.md). Demo classification is explicitly illustrative; its seven-field comparisons run the actual deterministic rules.
+**Live demo:** https://averis-hackathon-production.up.railway.app/
+
+The app and private worker run on Railway with Neon PostgreSQL and private R2 storage. Live Jev processing is enabled under the shared budget guard; a deployed comparison completed with the expected two mismatches. Saved demo classifications are illustrative until a live check is run. Full pipeline evaluation and submission materials remain in progress. See [measured validation and remaining work](docs/validation.md).
 
 ## Run locally
 

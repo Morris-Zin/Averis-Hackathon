@@ -1,10 +1,10 @@
 # Validation record — 20 September 2026
 
-This records local evidence, not a deployment or enterprise-capacity claim.
+This records local and deployed evidence, not an enterprise-capacity claim.
 
 ## Verified locally
 
-- Latest full verification passed 126 tests with real PostgreSQL enabled (one Linux-only process cleanup test skipped on Windows), including concurrent budget reservation/settlement, stale-run rejection, shared demo cleanup, portable delivery and evaluation preparation.
+- Full application verification passed 126 tests with real PostgreSQL enabled (one Linux-only process cleanup test skipped on Windows), including concurrent budget reservation/settlement, stale-run rejection, shared demo cleanup, portable delivery and evaluation preparation.
 - Checks passed: Ruff, strict Pyright, module boundaries, tests, OpenAPI/generated TypeScript drift, frontend types/lint and production Next.js static export. PostgreSQL migration head is a83d6f9e2741.
 - Built image `averis:test` runs as UID 10001, includes Tesseract 5.5.0 and the static frontend/migrations.
 - The image processed all supplied PDFs with networking disabled and limits of one CPU/1 GiB. After the multiline OCR fix, all six scanned SI/BL documents (512–514) returned 5–8 evidence blocks each, retaining image coordinates with no reader issues. Malformed BL PDFs 511 and 515 returned explicit unreadable errors. This proves reading/location support, not field-selection accuracy.
@@ -16,17 +16,23 @@ This records local evidence, not a deployment or enterprise-capacity claim.
 - Two independent browser sessions deliberately shared a local synthetic workspace. A stale workflow edit was rejected, the first edit remained intact, and both mismatches remained visible. Fixed and browser-retested the conflict explanation so it survives the automatic refresh and explicitly says the second change was not saved.
 - The portable PostgreSQL worker passed 17 focused processing/runner tests, including eligible work behind 256 delayed rows and recovery from transient claim failures without logging sensitive error bodies.
 
+Latest backend verification after the worker safeguards passed 130 tests with one platform skip, plus Ruff, strict Pyright and module boundaries. Operator cases retain their development budget purpose across retries; disabled processing leaves queued work untouched.
+
 ## Still required
 
 - Browser retest of active processing polling.
-- Railway deployment and recovery checks; Cloud Run remains an undeployed alternative.
+- Deployed interruption/recovery and resource measurements; Cloud Run remains an undeployed alternative.
 - Actual bounded pipeline evaluation, threshold freeze, independent holdout reporting and resource measurements. Existing tiny Jev experiments are not full-pipeline accuracy evidence.
-- Fresh-browser public demo checks, submission materials and five-minute video.
+- Submission materials and five-minute video.
 
-## Cloud setup state
+## Deployed acceptance
 
-GCP project `averis-hackathon-509115` exists without linked billing. Railway deployment is now selected after the user delegated the hosting choice; account setup and worker delivery adaptation are in progress, not deployed. Neon free project `noisy-union-19187328` / database `averis` exists in Singapore. Cloudflare R2 is activated; bucket `averis-hackathon-documents` was created with Standard storage and public access disabled. Runtime storage credentials are not configured yet. The user approved scoped Terraform corrections; deployed infrastructure remains unverified.
+Public URL: https://averis-hackathon-production.up.railway.app/
+
+Railway web and private polling worker are online, one replica each, using Neon PostgreSQL and private R2. Fresh-browser entry created eight cases covering all five categories. Workflow changes persisted after refresh. An authenticated document request returned 200; another workspace received 404 and an anonymous request received 401. Session cookies use Secure, HttpOnly and SameSite protections.
+
+A real Jev run completed in one attempt and published the expected port and container-count mismatches with source evidence. This is a smoke test, not a dataset accuracy result. GitHub CI passed for b3b5f24.
 
 ## Spending evidence
 
-The TypeSafe usage dashboard and ten saved experiment responses agree on 73,856 total tokens: 59,061 input and 14,795 output. At the displayed input price of $0.042 per million and free output, estimated prior cost is $0.002480562 (dashboard $0.0025). This is usage-derived estimated spending, not an invoice. No new paid calls were made during these implementation checks.
+Before enabling production inference, the TypeSafe dashboard showed 13 requests and 74,941 total tokens, with displayed estimated cost $0.0025. The ledger conservatively accounts $0.003148 for prior use by treating all those tokens as paid input at $0.042 per million, rounded upward. The first deployed comparison settled $0.000214 in the demo bucket. Shared accounted total at that checkpoint: $0.003362 of the $7 ceiling. These are usage estimates and ledger reservations, not an invoice.

@@ -71,6 +71,12 @@ class DurableRunner:
             self.options.retry_max_seconds,
         )
 
+    def _processing_enabled(self) -> bool:
+        return (
+            self.processor.settings.live_enabled
+            and self.processor.settings.budget_verified
+        )
+
     def _reconcile_if_due(self) -> None:
         current = monotonic()
         if current < self._next_reconcile:
@@ -142,6 +148,8 @@ class DurableRunner:
 
     def run_available(self) -> dict[str, str]:
         """Execute one bounded batch; useful for operators and acceptance tests."""
+        if not self._processing_enabled():
+            return {}
         self._reconcile_if_due()
         run_ids = self._claim_safely(self.options.concurrency)
         if not run_ids:
@@ -190,6 +198,10 @@ class DurableRunner:
                 if stop.is_set():
                     if active:
                         wait(active, timeout=self.options.poll_seconds, return_when=FIRST_COMPLETED)
+                    continue
+
+                if not self._processing_enabled():
+                    stop.wait(self.options.poll_seconds)
                     continue
 
                 self._reconcile_if_due()

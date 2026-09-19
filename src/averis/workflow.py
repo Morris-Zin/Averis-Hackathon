@@ -34,7 +34,14 @@ def take_quota(session: Session, key: str, limit: int) -> None:
         raise ValueError("Demo limit reached. Saved results remain available.")
 
 
-def enqueue(session: Session, case: Case, purpose: str = "demo") -> str:
+def enqueue(session: Session, case: Case, purpose: str | None = None) -> str:
+    if purpose is None and case.active_run_id:
+        previous = session.get(Run, case.active_run_id)
+        if previous is not None:
+            purpose = previous.purpose
+    purpose = purpose or "demo"
+    if purpose not in {"demo", "development"}:
+        raise ValueError("Unknown processing purpose")
     run = Run(id=uid(), case_id=case.id, input_revision=case.input_revision, purpose=purpose)
     session.add(run)
     session.add(Outbox(run_id=run.id))

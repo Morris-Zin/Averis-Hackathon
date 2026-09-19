@@ -45,7 +45,8 @@ def postgres_db(tmp_path):
         storage_backend="local",
         storage_dir=str(tmp_path / "objects"),
         origin="http://localhost:8000",
-        live_enabled=False,
+        live_enabled=True,
+        budget_verified=True,
     )
     try:
         yield db, settings, Storage(settings)
@@ -169,6 +170,23 @@ def test_runner_processes_durable_outbox_without_cloud_tasks(postgres_db):
         assert run.status == "completed"
         assert run.attempts == 1
         assert outbox.dispatched_at is not None
+
+
+@pytest.mark.parametrize("disabled_setting", ["live_enabled", "budget_verified"])
+def test_disabled_processing_holds_queued_work(postgres_db, disabled_setting):
+    db, settings, storage = postgres_db
+    _case_id, run_id = add_run(db, f"disabled-{disabled_setting}")
+    setattr(settings, disabled_setting, False)
+    worker = runner(db, settings, storage, GeneralIntelligence())
+
+    assert worker.run_available() == {}
+    with db.session() as session:
+        run = session.get(Run, run_id)
+        outbox = session.get(Outbox, run_id)
+        assert run is not None and outbox is not None
+        assert run.status == "queued"
+        assert run.attempts == 0
+        assert outbox.dispatched_at is None
 
 
 def test_periodic_reconcile_repairs_missing_outbox(postgres_db):
