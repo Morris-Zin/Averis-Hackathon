@@ -215,6 +215,47 @@ def test_compare_preserves_mismatch_beside_an_unresolved_field() -> None:
     assert len(report.findings) == 7
 
 
+@pytest.mark.parametrize("bl_count", ["3", "4"])
+def test_organizer_example_flags_only_the_changed_container_count(
+    bl_count: str,
+) -> None:
+    """Equal 22,000 kg weights must not become a second discrepancy."""
+    source_values: dict[Field, str] = {
+        "shipper": "Shipper: Meridian Paper",
+        "consignee": "Consignee: Pacific Distribution",
+        "notify_party": "Notify Party: Pacific Distribution",
+        "port_of_loading": "Port of Loading: Port Klang",
+        "port_of_discharge": "Port of Discharge: Singapore",
+        "container_count": "Container Count: 3",
+        "gross_weight_kg": "Gross Weight: 22,000 kg",
+    }
+    draft_values = dict(source_values)
+    draft_values["container_count"] = f"Total Containers: {bl_count}"
+    draft_values["gross_weight_kg"] = "Gross Weight: 22 MT"
+    si = {
+        field: reading(field, "si", normalize(field, value))
+        for field, value in source_values.items()
+    }
+    bl = {
+        field: reading(field, "bl", normalize(field, value))
+        for field, value in draft_values.items()
+    }
+
+    report = compare(si, bl, revision=1, pair_valid=True)
+    outcomes = {finding.field: finding.outcome for finding in report.findings}
+
+    assert len(outcomes) == 7
+    assert outcomes == {
+        field: "mismatch" if field == "container_count" and bl_count == "4" else "match"
+        for field in source_values
+    }
+    count = next(f for f in report.findings if f.field == "container_count")
+    assert count.si.normalized == "3"
+    assert count.bl.normalized == bl_count
+    weight = next(f for f in report.findings if f.field == "gross_weight_kg")
+    assert weight.si.normalized == weight.bl.normalized == "22000"
+
+
 def test_invalid_pair_never_emits_partial_findings() -> None:
     readings = {
         field: reading(field, "doc", f"same-{field}") for field in _TYPED_FIELDS

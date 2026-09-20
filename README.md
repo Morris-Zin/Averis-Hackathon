@@ -58,6 +58,8 @@ For browser acceptance, use the built app through its real API: enter a workspac
 
 Read [architecture](docs/build-plan.md), [module contracts](docs/module-contracts.md), [organizer brief](docs/hackathon-brief.md), and [submission checklist](docs/submission.md). Agent-specific instructions and skills are local-only.
 
+See the [expected results and advanced requirements checklist](docs/requirements-checklist.md) for verified feature support, fresh document-reader checks and supported limits.
+
 ## Data and evaluation
 
 Official kits belong under ignored `resources/official/bundle` and `resources/official/docker`. Download them from the [organizer folder](https://drive.google.com/drive/folders/1ouOrFF6GMKvJDaX_asN8R6v467W7P8Df). Ground truth is evaluation-only and excluded from runtime images.
