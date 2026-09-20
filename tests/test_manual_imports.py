@@ -1,4 +1,4 @@
-"""Public manual intake stays isolated, bounded and shares the live-run allowance."""
+"""Public manual intake preserves isolation and durability without usage quotas."""
 
 import json
 
@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from averis.api import create_app
 from averis.config import Settings
-from averis.persistence import Counter, Outbox, Run, utcnow
+from averis.persistence import Outbox, Run
 
 
 @pytest.fixture
@@ -60,11 +60,11 @@ def test_import_without_attachments_is_durable_and_deduplicated(manual_client):
         assert session.get(Outbox, runs[0].id) is not None
     assert submit(client, headers, "Second").status_code == 200
     assert submit(client, headers, "Third").status_code == 200
-    assert submit(client, headers, "Fourth").status_code == 422
-    assert client.get("/api/cases").json()["total"] == 11
+    assert submit(client, headers, "Fourth").status_code == 200
+    assert client.get("/api/cases").json()["total"] == 12
 
 
-def test_public_upload_and_retry_share_allowance(manual_client):
+def test_public_upload_and_retries_do_not_block_later_imports(manual_client):
     client, headers, _ = manual_client
     response = submit(
         client,
@@ -83,7 +83,7 @@ def test_public_upload_and_retry_share_allowance(manual_client):
     assert response.status_code == 200
     case = response.json()
     assert len(case["attachments"]) == 1
-    for _ in range(2):
+    for _ in range(4):
         response = client.post(
             f"/api/cases/{case['id']}/actions",
             headers=headers,
@@ -91,21 +91,24 @@ def test_public_upload_and_retry_share_allowance(manual_client):
         )
         assert response.status_code == 200
         case = response.json()
-    assert submit(client, headers, "One too many").status_code == 422
+    assert submit(client, headers, "Another email").status_code == 200
 
 
-def test_global_limit_rolls_back_import(manual_client):
+def test_imports_continue_beyond_former_daily_and_workspace_limits(manual_client):
     client, headers, db = manual_client
-    with db.session() as session, session.begin():
-        session.add(Counter(key=f"live:day:{utcnow().date()}", value=50))
-    assert submit(client, headers).status_code == 422
-    assert client.get("/api/cases").json()["total"] == 8
+    for number in range(101):
+        assert submit(client, headers, f"Email {number}").status_code == 200
     with db.session() as session:
-        assert session.scalar(select(Run)) is None
-        assert (
-            session.scalar(select(Counter).where(Counter.key.like("live:session:%")))
-            is None
+        assert len(session.scalars(select(Run)).all()) == 101
+
+
+def test_session_creation_continues_beyond_former_hourly_limit(manual_client):
+    client, headers, _ = manual_client
+    for _ in range(11):
+        response = client.post(
+            "/api/demo/session", headers={"origin": headers["origin"]}
         )
+        assert response.status_code == 200
 
 
 def test_manual_import_requires_session_origin_csrf_and_enabled_processing(

@@ -112,12 +112,6 @@ class Outbox(Base):
     generation: Mapped[int] = mapped_column(Integer, default=0)
 
 
-class Counter(Base):
-    __tablename__ = "counters"
-    key: Mapped[str] = mapped_column(String(120), primary_key=True)
-    value: Mapped[int] = mapped_column(Integer, default=0)
-
-
 class Budget(Base):
     __tablename__ = "budget"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)

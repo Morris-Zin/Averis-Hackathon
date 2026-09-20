@@ -50,6 +50,7 @@ export function DocumentsPanel({
             value={pairSi}
             label="Shipping instruction document"
             onValueChange={setPairSi}
+            disabled={pending}
           >
             {currentAttachments.map((attachment) => (
               <SelectItem key={attachment.id} value={attachment.id}>
@@ -64,6 +65,7 @@ export function DocumentsPanel({
             value={pairBl}
             label="Draft bill of lading document"
             onValueChange={setPairBl}
+            disabled={pending}
           >
             {currentAttachments.map((attachment) => (
               <SelectItem key={attachment.id} value={attachment.id}>

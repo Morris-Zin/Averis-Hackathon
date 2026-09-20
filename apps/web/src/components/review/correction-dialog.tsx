@@ -43,6 +43,9 @@ export function CorrectionDialog({
   const selectedAreOcr =
     selectedCorrectionBlocks.length > 0 &&
     selectedCorrectionBlocks.every((block) => block.method === "ocr");
+  const selectedIncludeOcr = selectedCorrectionBlocks.some(
+    (block) => block.method === "ocr",
+  );
   async function saveCorrection() {
     if (
       !correctionReading ||
@@ -51,7 +54,11 @@ export function CorrectionDialog({
       !reason.trim()
     )
       return;
-    if (selectedAreOcr && (!transcription.trim() || !verified)) return;
+    if (
+      (selectedAreOcr && !transcription.trim()) ||
+      (selectedIncludeOcr && !verified)
+    )
+      return;
     const saved = await act(
       {
         kind: "correct",
@@ -59,7 +66,7 @@ export function CorrectionDialog({
         document_id: correctionAttachment.id,
         transcription: selectedAreOcr ? transcription.trim() : undefined,
         evidence_ids: evidenceIds,
-        verified: selectedAreOcr ? verified : true,
+        verified: selectedIncludeOcr ? verified : true,
         reason: reason.trim(),
       },
       "Reading corrected and comparison recomputed.",
@@ -70,7 +77,7 @@ export function CorrectionDialog({
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open && !pending) onClose();
       }}
       title={`Correct ${FIELD_LABELS[activeField].toLocaleLowerCase()} reading`}
       description="This changes Averis's reading of the source. It does not alter the original document or hide a real discrepancy."
@@ -83,6 +90,7 @@ export function CorrectionDialog({
               value={transcription}
               onChange={(event) => setTranscription(event.target.value)}
               rows={3}
+              disabled={pending}
             />
           </label>
         ) : (
@@ -108,13 +116,15 @@ export function CorrectionDialog({
               <input
                 type="checkbox"
                 checked={evidenceIds.includes(block.id)}
-                onChange={(event) =>
+                disabled={pending}
+                onChange={(event) => {
+                  setVerified(false);
                   setEvidenceIds((values) =>
                     event.target.checked
                       ? [...values, block.id]
                       : values.filter((idValue) => idValue !== block.id),
-                  )
-                }
+                  );
+                }}
               />
               <span>
                 <strong>{locationLabel(block)}</strong>
@@ -123,11 +133,12 @@ export function CorrectionDialog({
             </label>
           ))}
         </fieldset>
-        {selectedAreOcr ? (
+        {selectedIncludeOcr ? (
           <label className="verify-check">
             <input
               type="checkbox"
               checked={verified}
+              disabled={pending}
               onChange={(event) => setVerified(event.target.checked)}
             />
             <span>
@@ -141,10 +152,13 @@ export function CorrectionDialog({
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             placeholder="What evidence selection or reading was wrong?"
+            disabled={pending}
           />
         </label>
         <div className="dialog-actions">
-          <Button onClick={() => onClose()}>Cancel</Button>
+          <Button onClick={() => onClose()} disabled={pending}>
+            Cancel
+          </Button>
           <Button
             variant="primary"
             onClick={() => void saveCorrection()}
@@ -152,7 +166,8 @@ export function CorrectionDialog({
               !evidenceIds.length ||
               !reason.trim() ||
               pending ||
-              (selectedAreOcr && (!transcription.trim() || !verified))
+              (selectedAreOcr && !transcription.trim()) ||
+              (selectedIncludeOcr && !verified)
             }
           >
             {pending ? (

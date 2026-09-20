@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -56,7 +56,9 @@ function relativeDate(value: string) {
 
 export function InboxView() {
   const [importOpen, setImportOpen] = useState(false);
+  const [importPending, setImportPending] = useState(false);
   const { api, session } = useSession();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedView = searchParams.get("view");
   const initialView = QUEUES.includes(requestedView as QueueView)
@@ -158,9 +160,11 @@ export function InboxView() {
   return (
     <AppShell
       activeView={view}
+      contentBusy={importPending}
       onViewChange={(next) => {
         setView(next);
         setPage(1);
+        if (next !== view) router.push(`/?view=${next}`);
       }}
     >
       <div className="page-header">
@@ -192,7 +196,10 @@ export function InboxView() {
         </div>
       </div>
       {importOpen ? (
-        <ImportEmailDialog onClose={() => setImportOpen(false)} />
+        <ImportEmailDialog
+          onClose={() => setImportOpen(false)}
+          onPendingChange={setImportPending}
+        />
       ) : null}
       {!session?.live_enabled ? (
         <div className="demo-banner">

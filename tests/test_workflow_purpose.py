@@ -49,7 +49,6 @@ def test_imported_case_retry_keeps_development_budget_purpose(tmp_path):
         "Operator",
         Action(kind="retry", expected_revision=imported.view.revision),
         live_enabled=True,
-        session_key="operator-session",
     )
 
     assert view.processing_run_id == retry_run_id
@@ -102,7 +101,6 @@ def test_demo_case_without_prior_run_uses_demo_budget_purpose(tmp_path):
         "John Tan",
         Action(kind="retry", expected_revision=view.revision),
         live_enabled=True,
-        session_key="demo-session",
     )
 
     with db.session() as session:

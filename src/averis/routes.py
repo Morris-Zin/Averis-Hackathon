@@ -20,6 +20,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
+from starlette.concurrency import run_in_threadpool
 
 from averis.demo import seed
 from averis.domain import REVIEWERS, Action, CasePage, CaseView, SessionView
@@ -34,7 +35,8 @@ from averis.http_context import (
 from averis.intake import import_email as persist_import
 from averis.persistence import BrowserSession, Case, Document, Workspace, uid, utcnow
 from averis.responses import CasePageResponse, CaseResponse
-from averis.workflow import take_quota, view_of
+from averis.storage import MAX_CONTENT_BYTES
+from averis.workflow import view_of
 
 router = APIRouter()
 
@@ -78,14 +80,7 @@ def start(services: Services, request: Request, response: Response) -> SessionVi
         raise HTTPException(403, "Origin not allowed")
     raw, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
     expires = utcnow() + timedelta(hours=24)
-    client = sha256(
-        (request.client.host if request.client else "unknown").encode()
-    ).hexdigest()[:24]
     with services.db.session() as session, session.begin():
-        take_quota(session, f"sessions:day:{utcnow().date()}", 100)
-        take_quota(
-            session, f"sessions:hour:{utcnow().strftime('%Y%m%d%H')}:{client}", 10
-        )
         workspace = Workspace(id=uid(), expires_at=expires)
         session.add(workspace)
         actor = BrowserSession(
@@ -217,7 +212,6 @@ def action(
         actor.actor,
         payload,
         services.config.live_enabled and services.config.budget_verified,
-        actor.token_hash,
     )
     if run_id:
         services.processor.dispatch(run_id)
@@ -266,6 +260,40 @@ def preview(
     return Response(rendered, media_type="image/png")
 
 
+async def _read_attachments(files: list[UploadFile]) -> list[tuple[str, bytes]]:
+    """Apply the same filename, count and byte limits to imports and revisions."""
+    if len(files) > 8:
+        raise HTTPException(422, "At most eight attachments per email")
+    attachments: list[tuple[str, bytes]] = []
+    total_bytes = 0
+    for file in files:
+        chunks: list[bytes] = []
+        size = 0
+        while chunk := await file.read(64 * 1024):
+            size += len(chunk)
+            total_bytes += len(chunk)
+            if total_bytes > 20 * 1024 * 1024:
+                raise HTTPException(
+                    413, "Email attachments exceed the combined 20 MB limit"
+                )
+            if size > MAX_CONTENT_BYTES:
+                raise HTTPException(413, "Attachment exceeds 10 MB")
+            chunks.append(chunk)
+        name = Path(file.filename or "attachment").name
+        if Path(name).suffix.lower() not in {
+            ".txt",
+            ".pdf",
+            ".docx",
+            ".xlsx",
+            ".png",
+            ".jpg",
+            ".jpeg",
+        }:
+            raise HTTPException(422, "Unsupported attachment type")
+        attachments.append((name, b"".join(chunks)))
+    return attachments
+
+
 @router.post("/api/imports", response_model=CaseResponse)
 @router.post("/api/manual-imports", response_model=CaseResponse)
 async def import_email(
@@ -284,37 +312,9 @@ async def import_email(
     ):
         raise HTTPException(403, "Arbitrary uploads require operator authorization")
     payload = ImportEmail.model_validate_json(email)
-    files = files or []
-    if len(files) > 8:
-        raise HTTPException(422, "At most eight attachments per email")
-    attachments: list[tuple[str, bytes]] = []
-    total_bytes = 0
-    for file in files:
-        chunks: list[bytes] = []
-        size = 0
-        while chunk := await file.read(64 * 1024):
-            size += len(chunk)
-            total_bytes += len(chunk)
-            if total_bytes > 20 * 1024 * 1024:
-                raise HTTPException(
-                    413, "Email attachments exceed the combined 20 MB limit"
-                )
-            if size > 10 * 1024 * 1024:
-                raise HTTPException(413, "Attachment exceeds 10 MB")
-            chunks.append(chunk)
-        name = Path(file.filename or "attachment").name
-        if Path(name).suffix.lower() not in {
-            ".txt",
-            ".pdf",
-            ".docx",
-            ".xlsx",
-            ".png",
-            ".jpg",
-            ".jpeg",
-        }:
-            raise HTTPException(422, "Unsupported attachment type")
-        attachments.append((name, b"".join(chunks)))
-    result = persist_import(
+    attachments = await _read_attachments(files or [])
+    result = await run_in_threadpool(
+        persist_import,
         services.db,
         services.storage,
         actor.workspace_id,
@@ -323,10 +323,10 @@ async def import_email(
         payload.sender,
         payload.body,
         attachments,
-        public_session_key=actor.token_hash if public_import else None,
+        purpose="demo" if public_import else "development",
     )
     if result.run_id:
-        services.processor.dispatch(result.run_id)
+        await run_in_threadpool(services.processor.dispatch, result.run_id)
     return result.view
 
 
@@ -345,31 +345,17 @@ async def revision_upload(
         request.headers.get("x-operator-token", ""), services.config.operator_token
     ):
         raise HTTPException(403, "Arbitrary revisions require operator authorization")
-    data = bytearray()
-    while chunk := await file.read(64 * 1024):
-        data.extend(chunk)
-        if len(data) > 10 * 1024 * 1024:
-            raise HTTPException(413, "Attachment exceeds 10 MB")
-    filename = Path(file.filename or "attachment").name
-    if Path(filename).suffix.lower() not in {
-        ".txt",
-        ".pdf",
-        ".docx",
-        ".xlsx",
-        ".png",
-        ".jpg",
-        ".jpeg",
-    }:
-        raise HTTPException(422, "Unsupported attachment type")
-    view, run_id = services.workflow.attach_revision(
+    [(filename, data)] = await _read_attachments([file])
+    view, run_id = await run_in_threadpool(
+        services.workflow.attach_revision,
         actor.workspace_id,
         case_id,
         actor.actor,
         expected_revision,
         document_id,
         filename,
-        bytes(data),
+        data,
         reason,
     )
-    services.processor.dispatch(run_id)
+    await run_in_threadpool(services.processor.dispatch, run_id)
     return view

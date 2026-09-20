@@ -10,7 +10,7 @@ type Side = "si" | "bl";
 type Tab = "comparison" | "documents" | "activity";
 
 export function useReviewWorkspace(id: string) {
-  const { status, session, api } = useSession();
+  const { status, session, api, sessionActionPending } = useSession();
   const [item, setItem] = useState<CaseView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -127,7 +127,7 @@ export function useReviewWorkspace(id: string) {
 
   const act = useCallback(
     async (action: ActionDraft, success: string) => {
-      if (!item || !session) return false;
+      if (!item || !session || sessionActionPending) return false;
       requestVersion.current += 1;
       requestController.current?.abort();
       requestController.current = null;
@@ -192,7 +192,7 @@ export function useReviewWorkspace(id: string) {
         if (mutationVersion === requestVersion.current) setPending(false);
       }
     },
-    [api, item, load, session],
+    [api, item, load, session, sessionActionPending],
   );
 
   const processingActive =
@@ -206,6 +206,7 @@ export function useReviewWorkspace(id: string) {
       Boolean(item) &&
       processingActive &&
       !pending &&
+      !sessionActionPending &&
       !loading,
     poll,
   );
@@ -269,7 +270,7 @@ export function useReviewWorkspace(id: string) {
     loading,
     error,
     notice,
-    pending,
+    pending: pending || sessionActionPending,
     act,
     navigation: { tab, setTab, activeField, setActiveField },
     category: { categoryDraft, setCategoryDraft, classificationConfidence },

@@ -52,7 +52,7 @@ def aware(value: datetime) -> datetime:
     return value.replace(tzinfo=utcnow().tzinfo) if value.tzinfo is None else value
 
 
-DeliveryOutcome = Literal["missing", "busy", "completed", "retry"]
+DeliveryOutcome = Literal["missing", "busy", "held", "completed", "retry"]
 LEASE_SECONDS = 90
 HEARTBEAT_SECONDS = 25
 MAX_ATTEMPTS = 3
@@ -123,8 +123,12 @@ class Processor:
             self.settings, BudgetAuthority(self.db, self.settings), run_id, purpose
         )
 
+    def processing_enabled(self) -> bool:
+        """Return whether a delivery may start paid processing work."""
+        return self.settings.live_enabled and self.settings.budget_verified
+
     def dispatch(self, run_id: str) -> bool:
-        if not self.settings.tasks_queue:
+        if not self.settings.tasks_queue or not self.processing_enabled():
             return False
         with self.db.session() as session:
             outbox = session.get(Outbox, run_id)
@@ -294,6 +298,8 @@ class Processor:
             ):
                 run.status = "superseded"
                 return "completed"
+            if not self.processing_enabled():
+                return "held"
             token = uid()
             run.token, run.status = token, "running"
             run.lease_until = utcnow() + timedelta(seconds=LEASE_SECONDS)
@@ -497,7 +503,13 @@ class Processor:
         return count
 
     def reconcile(self) -> int:
-        self.expire_workspaces()
+        try:
+            self.expire_workspaces()
+        except Exception as exc:  # noqa: BLE001 - cleanup must not block run recovery
+            log.warning(
+                "workspace_expiry_failed error_type=%s",
+                type(exc).__name__,
+            )
         pending: list[str] = []
         with self.db.session() as session, session.begin():
             runs = session.scalars(

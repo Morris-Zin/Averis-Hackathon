@@ -120,8 +120,16 @@ class Storage:
             response = self.client.get_object(
                 Bucket=self.settings.r2_bucket, Key=resolved_key
             )
-            return response["Body"].read(MAX_CONTENT_BYTES + 1)
-        return self._local_target(resolved_key).read_bytes()
+            body = response["Body"]
+            try:
+                content = body.read(MAX_CONTENT_BYTES + 1)
+            finally:
+                body.close()
+        else:
+            with self._local_target(resolved_key).open("rb") as file:
+                content = file.read(MAX_CONTENT_BYTES + 1)
+        self._validate_content(content)
+        return content
 
     def delete(self, key: str) -> None:
         if key.startswith(SEED_PREFIX):

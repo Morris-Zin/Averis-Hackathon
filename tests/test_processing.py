@@ -47,7 +47,8 @@ def postgres_db(tmp_path):
         storage_dir=str(tmp_path / "objects"),
         tasks_queue="",
         origin="http://localhost:8000",
-        live_enabled=False,
+        live_enabled=True,
+        budget_verified=True,
     )
     storage = Storage(settings)
     try:
@@ -193,6 +194,60 @@ class FlakyIntelligence:
             )
         }
         return ExtractionResult(role=role, role_confidence=1, fields=fields)
+
+
+@pytest.mark.parametrize("disabled_setting", ["live_enabled", "budget_verified"])
+def test_disabled_processing_holds_run_before_claim(postgres_db, disabled_setting):
+    db, settings, storage = postgres_db
+    case_id, run_id = add_case_and_run(db)
+    setattr(settings, disabled_setting, False)
+    settings.tasks_queue = "projects/test/locations/test/queues/averis"
+    processor = Processor(
+        db,
+        settings,
+        storage,
+        factory=lambda *_: (_ for _ in ()).throw(AssertionError("provider called")),
+    )
+
+    assert processor.execute(run_id) == "held"
+    assert processor.dispatch(run_id) is False
+    with db.session() as session:
+        run = session.get(Run, run_id)
+        row = session.get(Case, case_id)
+        assert run is not None and row is not None
+        assert run.status == "queued"
+        assert run.attempts == 0
+        assert row.state["processing"] == "queued"
+
+
+def test_cleanup_failure_does_not_block_run_reconciliation(
+    postgres_db, monkeypatch, caplog
+):
+    db, settings, storage = postgres_db
+    _case_id, run_id = add_case_and_run(db)
+    processor = Processor(db, settings, storage)
+
+    def fail_cleanup() -> int:
+        raise RuntimeError("sensitive-storage-detail")
+
+    monkeypatch.setattr(processor, "expire_workspaces", fail_cleanup)
+    with caplog.at_level("WARNING", logger="averis.processing"):
+        assert processor.reconcile() == 0
+
+    with db.session() as session:
+        assert session.get(Outbox, run_id) is not None
+    assert "workspace_expiry_failed error_type=RuntimeError" in caplog.text
+    assert "sensitive-storage-detail" not in caplog.text
+
+
+def test_disabled_processing_still_acknowledges_terminal_and_missing_runs(postgres_db):
+    db, settings, storage = postgres_db
+    _case_id, run_id = add_case_and_run(db, run_status="completed", attempts=1)
+    settings.live_enabled = False
+    processor = Processor(db, settings, storage)
+
+    assert processor.execute(run_id) == "completed"
+    assert processor.execute("missing-run") == "missing"
 
 
 def test_duplicate_completed_delivery_is_idempotent(postgres_db):

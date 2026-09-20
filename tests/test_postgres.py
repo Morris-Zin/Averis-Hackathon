@@ -126,7 +126,6 @@ def test_workflow_concurrent_edits_have_one_winner(postgres_db):
                 assignee,
                 Action(expected_revision=1, kind="assign", assignee=assignee),
                 live_enabled=False,
-                session_key=f"session-{assignee}",
             )
         except Conflict as exc:  # assertions below classify the result
             return exc

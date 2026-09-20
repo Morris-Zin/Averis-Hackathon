@@ -22,7 +22,7 @@ uv run uvicorn averis.api:app --host 127.0.0.1 --port 8000
 
 Open **http://localhost:8000** and choose **Enter demo workspace**. The browser and API share one origin. Every session gets an isolated 24-hour workspace; reviewer names are simulated identities. No mailbox connection is required.
 
-Choose **Add email** in the queue to paste a subject, sender and message and attach documents. Manual intake requires enabled live processing. Visitors share the existing three-runs-per-session and 50-runs-per-day limits with retries; imports use the demonstration budget. Identical submissions in the same workspace reuse the existing case. Attachments support TXT, PDF, DOCX, XLSX, PNG and JPEG, up to eight files, 10 MB each and 20 MB combined. Arbitrary revised-document uploads remain operator-only.
+Choose **Add email** in the queue to paste a subject, sender and message and attach documents. Manual intake requires enabled live processing. Imports use the demonstration budget; there are no per-session or daily run quotas. Identical submissions in the same workspace reuse the existing case. Attachments support TXT, PDF, DOCX, XLSX, PNG and JPEG, up to eight files, 10 MB each and 20 MB combined. Arbitrary revised-document uploads remain operator-only.
 
 The backend also has a SQLite convenience default for quick UI development. PostgreSQL is required for concurrency tests and deployment. Settings load environment variables and an optional ignored `.env`; see [.env.example](.env.example).
 
@@ -74,4 +74,4 @@ The supplied sample submission is a placeholder, **not model output**. The exist
 
 ## Cost controls
 
-Live AI defaults off. Verify earlier project spending and provider prices, initialize the shared budget ledger, and only then enable it. The combined Jev ceiling is $7 including earlier experiments: at most $5 development and $2 demonstrations. Reservations are atomic; uncertain charged outcomes retain their reservation. Public sessions also have processing quotas. Cloud budget alerts are notifications, not a guaranteed spending cap.
+Live AI defaults off. Verify earlier project spending and provider prices, initialize the shared budget ledger, and only then enable it. The combined Jev ceiling is $7 including earlier experiments: at most $5 development and $2 demonstrations. Reservations are atomic; uncertain charged outcomes retain their reservation. Cloud budget alerts are notifications, not a guaranteed spending cap.

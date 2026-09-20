@@ -6,11 +6,15 @@ The application remains one Python backend package and a static Next.js frontend
 | --- | --- | --- |
 | `ShipmentPipeline.process` | Classification, independent document preparation, extraction checkpoints, reading overrides and comparison | Returns only processing-owned fields. Does not change assignments or employee workflow. Invalid saved stages raise `InvalidCheckpoint`; missing originals raise `MissingDocument`; exhausted execution time raises `TimeoutError`. |
 | `Processor.execute` | Run claims, renewable leases, attempt limits, transactions, stale publication checks and recovery | A duplicate delivery cannot publish stale results. Completed stages are reused. Object reads, parsing and inference happen without holding the processing thread's database connection. Delivery outcomes are a finite typed set. |
-| `review_case` | Category acceptance, pair selection, source-bound corrections and reviewer transitions | Operates on a private copy and returns explicit changes. Invalid actions raise `ValueError`; the workflow adapter owns revision conflicts, quotas and persistence. |
+| `review_case` | Category acceptance, pair selection, source-bound corrections and reviewer transitions | Operates on a private copy and returns explicit changes. Invalid actions raise `ValueError`; the workflow adapter owns revision conflicts and persistence. |
 | `Workflow.apply` | Locked revision checks, durable action history and enqueueing work | Case changes and new runs commit together. Reviewer-only changes do not invalidate extraction inputs. |
 | `summarize_case` | Report completeness and result labels | A clear result requires current inputs, a valid pair and all seven matching fields. Known mismatches remain visible beside unresolved findings. Both frontend views consume the same summary. |
+| `import_email` | Workspace deduplication, original storage, metadata and durable run creation | Returns the saved case and optional new run. Repeated identical imports reuse the case. The caller supplies an explicit spending purpose, not a browser-session token. |
+| `Storage.read` | Local/R2 stream handling and original-content bounds | Returns bounded bytes or raises on invalid content; closes remote response bodies even when reading fails. |
 | `CaseResponse` | Computed public summary | Adds a read-only projection; persisted `CaseView` remains unchanged and round-trippable. |
 | `useReviewWorkspace` | Request cancellation, stale response rejection, polling and review drafts | Panels submit explicit actions and display server outcomes. Correction form state stays inside the dialog. |
+
+The HTTP upload adapter shares attachment preparation between new emails and revisions. Blocking persistence, storage and dispatch calls run outside the async event loop.
 
 The API composes dependencies once. Its routes translate HTTP requests, enforce access and pass explicit commands to application operations. The document reader still owns format handling and limits; the Jev adapter still owns provider calls and the shared spending guard. No provider policy or deterministic shipment comparison moved into React.
 

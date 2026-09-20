@@ -23,7 +23,7 @@ Preparation refuses to replace an existing manifest. Use `--overwrite` only when
 
 The split is deterministic: SHA-256 of `email_id` is assigned to one holdout bucket out of five, with the other four buckets assigned to development. The policy records the split algorithm, model name, thresholds, purpose, and limits so later artifacts can be interpreted against the exact preparation settings. Ground truth is never read or passed to intake, processing, or Jev.
 
-Each workspace accepts at most 100 imports because that is the application quota. Larger bounded selections are divided into deterministic workspace chunks. `--limit` is required to remain between 1 and 1,000; increase it deliberately when preparing more source emails.
+Evaluation selections retain deterministic groups of 100 imports per workspace for compatibility with existing manifests. This grouping is not an application intake limit. `--limit` is required to remain between 1 and 1,000; increase it deliberately when preparing more source emails.
 
 An explicit run requires a prepared manifest and a verified live budget. It processes only the selected split sequentially through `Processor`, sharing one `BudgetAuthority` over the database ledger:
 

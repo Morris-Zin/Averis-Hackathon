@@ -138,13 +138,16 @@ def reading_from_evidence(
     """Create one reading while retaining selected source evidence and uncertainty."""
 
     blocks = {block.id: block for block in document.blocks}
-    if not ids or any(evidence_id not in blocks for evidence_id in ids):
+    evidence_ids = list(dict.fromkeys(ids))
+    if not evidence_ids or any(
+        evidence_id not in blocks for evidence_id in evidence_ids
+    ):
         return Reading(
             field=field,
             document_id=document.document_id,
             issue="missing_value",
         )
-    selected = [blocks[evidence_id] for evidence_id in ids]
+    selected = [blocks[evidence_id] for evidence_id in evidence_ids]
     if transcription is not None and not all(
         block.method == "ocr" for block in selected
     ):
@@ -183,7 +186,7 @@ def reading_from_evidence(
     return Reading(
         field=field,
         document_id=document.document_id,
-        evidence_ids=list(ids),
+        evidence_ids=evidence_ids,
         text=text,
         normalized=normalized,
         confidence=confidence,
@@ -261,9 +264,9 @@ def _references_by_kind(document: DocumentEvidence) -> dict[str, set[str]]:
     """Keep identifier namespaces separate; a shared booking cannot mask a conflict."""
     text = "\n".join(block.text for block in document.blocks)
     labels = {
-        "shipment": r"shipment\s*(?:id|ref(?:erence)?\.?)",
-        "booking": r"booking\b(?:\s*(?:no\.?|number|ref(?:erence)?\.?))?",
-        "oc": r"OC\b(?:\s*(?:no\.?|number|ref(?:erence)?\.?))?",
+        "shipment": r"(?>shipment[ \t]*(?:id|ref(?:erence)?\.?))",
+        "booking": r"(?>booking\b(?:[ \t]*(?:no\.?|number|ref(?:erence)?\.?))?)",
+        "oc": r"(?>OC\b(?:[ \t]*(?:no\.?|number|ref(?:erence)?\.?))?)",
     }
     return {
         kind: {
@@ -271,7 +274,9 @@ def _references_by_kind(document: DocumentEvidence) -> dict[str, set[str]]:
             for match in re.findall(
                 r"(?<![A-Za-z0-9])"
                 + label
-                + r"\s*[:#|=]?\s*([A-Za-z0-9][A-Za-z0-9/-]{3,})(?=\s|$)",
+                + r"[ \t]*[:#|=]?[ \t]*"
+                + r"([A-Za-z0-9][A-Za-z0-9/-]{3,})"
+                + r"(?=\s|$|[,;:|)\]}]|[.](?=\s|$))",
                 text,
                 re.IGNORECASE,
             )

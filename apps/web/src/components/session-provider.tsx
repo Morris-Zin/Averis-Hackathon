@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -18,6 +19,8 @@ type SessionState = {
   api: AppApi;
   unavailableMessage: string;
   sessionMessage: string;
+  sessionActionPending: boolean;
+  sessionActionError: string;
   enterDemo: () => Promise<void>;
   setActor: (actor: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -30,11 +33,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SessionView | null>(null);
   const [unavailableMessage, setUnavailableMessage] = useState("");
   const [sessionMessage, setSessionMessage] = useState("");
+  const [sessionActionPending, setSessionActionPending] = useState(false);
+  const [sessionActionError, setSessionActionError] = useState("");
+  const sessionActionInFlight = useRef(false);
 
   const expireSession = useCallback(() => {
     setSession(null);
     setStatus("signed-out");
     setUnavailableMessage("");
+    setSessionActionError("");
     setSessionMessage(
       "Your workspace session expired. Its saved cases are no longer shown. Enter a new demo workspace to continue.",
     );
@@ -106,24 +113,51 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const setActor = useCallback(
     async (actor: string) => {
-      if (!session) return;
-      const value = await api.actor(actor, session.csrf_token);
-      setSession(value);
+      if (!session || sessionActionInFlight.current) return;
+      sessionActionInFlight.current = true;
+      setSessionActionPending(true);
+      setSessionActionError("");
+      try {
+        const value = await api.actor(actor, session.csrf_token);
+        setSession(value);
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 401))
+          setSessionActionError(
+            error instanceof Error
+              ? error.message
+              : "The reviewer change could not be saved.",
+          );
+      } finally {
+        sessionActionInFlight.current = false;
+        setSessionActionPending(false);
+      }
     },
     [api, session],
   );
 
   const logout = useCallback(async () => {
-    if (!session) return;
+    if (!session || sessionActionInFlight.current) return;
+    sessionActionInFlight.current = true;
+    setSessionActionPending(true);
+    setSessionActionError("");
     try {
-      await api.logout(session.csrf_token);
+      try {
+        await api.logout(session.csrf_token);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) return;
+        throw error;
+      }
+      setSession(null);
+      setStatus("signed-out");
+      setSessionMessage("");
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) return;
-      throw error;
+      setSessionActionError(
+        error instanceof Error ? error.message : "Could not log out.",
+      );
+    } finally {
+      sessionActionInFlight.current = false;
+      setSessionActionPending(false);
     }
-    setSession(null);
-    setStatus("signed-out");
-    setSessionMessage("");
   }, [api, session]);
 
   const value = useMemo<SessionState>(
@@ -133,6 +167,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       api,
       unavailableMessage,
       sessionMessage,
+      sessionActionPending,
+      sessionActionError,
       enterDemo,
       setActor,
       logout,
@@ -143,6 +179,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       api,
       unavailableMessage,
       sessionMessage,
+      sessionActionPending,
+      sessionActionError,
       enterDemo,
       setActor,
       logout,

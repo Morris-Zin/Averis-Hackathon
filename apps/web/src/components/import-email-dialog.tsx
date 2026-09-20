@@ -9,8 +9,14 @@ import { useSession } from "./session-provider";
 const ACCEPTED = ".txt,.pdf,.docx,.xlsx,.png,.jpg,.jpeg";
 const MB = 1024 * 1024;
 
-export function ImportEmailDialog({ onClose }: { onClose: () => void }) {
-  const { api, session } = useSession();
+export function ImportEmailDialog({
+  onClose,
+  onPendingChange,
+}: {
+  onClose: () => void;
+  onPendingChange?: (pending: boolean) => void;
+}) {
+  const { api, session, sessionActionPending } = useSession();
   const router = useRouter();
   const [subject, setSubject] = useState("");
   const [sender, setSender] = useState("");
@@ -42,9 +48,10 @@ export function ImportEmailDialog({ onClose }: { onClose: () => void }) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!session || submitting.current) return;
+    if (!session || submitting.current || sessionActionPending) return;
     submitting.current = true;
     setPending(true);
+    onPendingChange?.(true);
     setError("");
     try {
       const result = await api.importEmail(
@@ -63,6 +70,7 @@ export function ImportEmailDialog({ onClose }: { onClose: () => void }) {
     } finally {
       submitting.current = false;
       setPending(false);
+      onPendingChange?.(false);
     }
   }
 
@@ -162,8 +170,7 @@ export function ImportEmailDialog({ onClose }: { onClose: () => void }) {
         </div>
         <p className="import-hint">
           Submitting sends the email and extracted document text for AI
-          processing. Use test data you’re allowed to share. Each session allows
-          three live runs, shared with retries.
+          processing. Use test data you’re allowed to share.
         </p>
         {!session?.live_enabled ? (
           <p role="status">Live processing is currently unavailable.</p>
@@ -180,7 +187,12 @@ export function ImportEmailDialog({ onClose }: { onClose: () => void }) {
           <Button
             type="submit"
             variant="primary"
-            disabled={pending || !subject.trim() || !session?.live_enabled}
+            disabled={
+              pending ||
+              sessionActionPending ||
+              !subject.trim() ||
+              !session?.live_enabled
+            }
           >
             {pending ? "Adding email…" : "Add and process"}
           </Button>

@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from averis.api import COOKIE, create_app
 from averis.config import Settings
 from averis.domain import AttachmentView, CaseView
-from averis.persistence import BrowserSession, Case, Counter, Database, Document, utcnow
+from averis.persistence import BrowserSession, Case, Database, Document, utcnow
 
 
 @pytest.fixture
@@ -583,41 +583,6 @@ def test_non_comparison_category_rejects_pair_correction_and_revisions_without_m
     assert {
         path for path in Path(settings.storage_dir).rglob("*") if path.is_file()
     } == files_before
-
-
-def test_reviewer_action_limit_preserves_case_revision_and_history(workspace):
-    client, headers, db, _ = workspace
-    item = client.get("/api/cases").json()["items"][0]
-    with db.session() as session, session.begin():
-        row = session.get(Case, item["id"])
-        assert row is not None
-        counter_key = f"actions:{row.workspace_id}"
-        session.add(Counter(key=counter_key, value=1000))
-
-    baseline = client.get(f"/api/cases/{item['id']}").json()
-    response = client.post(
-        f"/api/cases/{item['id']}/actions",
-        headers=headers,
-        json={
-            "kind": "assign",
-            "expected_revision": baseline["revision"],
-            "assignee": "Mei Lin",
-            "reason": "Attempt an action beyond the workspace limit",
-        },
-    )
-    assert response.status_code == 422
-    assert (
-        response.json()["detail"]
-        == "Demo limit reached. Saved results remain available."
-    )
-    latest = client.get(f"/api/cases/{item['id']}").json()
-    assert latest == baseline
-    assert latest["revision"] == baseline["revision"]
-    assert latest["history"] == baseline["history"]
-    with db.session() as session:
-        counter = session.get(Counter, counter_key)
-        assert counter is not None
-        assert counter.value == 1000
 
 
 def test_successive_category_corrections_preserve_each_transition_and_model_output(

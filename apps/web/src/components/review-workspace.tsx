@@ -62,7 +62,7 @@ export function ReviewWorkspace() {
   if (status !== "ready") return <Welcome />;
 
   return (
-    <AppShell>
+    <AppShell contentBusy={pending}>
       <div className="review-page">
         <div className="review-breadcrumbs">
           <Link href="/">
@@ -256,59 +256,83 @@ export function ReviewWorkspace() {
                 </section>
                 <div className="content-tabs" role="tablist">
                   <button
+                    id="comparison-tab"
                     type="button"
                     role="tab"
                     aria-selected={tab === "comparison"}
+                    aria-controls="comparison-panel"
                     onClick={() => setTab("comparison")}
                   >
                     Comparison
                   </button>
                   <button
+                    id="documents-tab"
                     type="button"
                     role="tab"
                     aria-selected={tab === "documents"}
+                    aria-controls="documents-panel"
                     onClick={() => setTab("documents")}
                   >
                     Source documents
                   </button>
                   <button
+                    id="activity-tab"
                     type="button"
                     role="tab"
                     aria-selected={tab === "activity"}
+                    aria-controls="activity-panel"
                     onClick={() => setTab("activity")}
                   >
                     Activity
                   </button>
                 </div>
                 {tab === "comparison" ? (
-                  <ComparisonPanel
-                    report={item.report}
-                    activeField={activeField}
-                    setActiveField={setActiveField}
-                    activeFinding={activeFinding}
-                    siAttachment={siAttachment}
-                    blAttachment={blAttachment}
-                    openCorrection={openCorrection}
-                  />
+                  <div
+                    id="comparison-panel"
+                    role="tabpanel"
+                    aria-labelledby="comparison-tab"
+                  >
+                    <ComparisonPanel
+                      report={item.report}
+                      activeField={activeField}
+                      setActiveField={setActiveField}
+                      activeFinding={activeFinding}
+                      siAttachment={siAttachment}
+                      blAttachment={blAttachment}
+                      openCorrection={openCorrection}
+                    />
+                  </div>
                 ) : null}
                 {tab === "documents" ? (
-                  <DocumentsPanel
-                    attachments={item.attachments}
-                    selection={{
-                      pairSi,
-                      pairBl,
-                      pairChanged,
-                      setPairSi,
-                      setPairBl,
-                      currentAttachments,
-                    }}
-                    controlled={controlled}
-                    pending={pending}
-                    act={act}
-                  />
+                  <div
+                    id="documents-panel"
+                    role="tabpanel"
+                    aria-labelledby="documents-tab"
+                  >
+                    <DocumentsPanel
+                      attachments={item.attachments}
+                      selection={{
+                        pairSi,
+                        pairBl,
+                        pairChanged,
+                        setPairSi,
+                        setPairBl,
+                        currentAttachments,
+                      }}
+                      controlled={controlled}
+                      pending={pending}
+                      act={act}
+                    />
+                  </div>
                 ) : null}
                 {tab === "activity" ? (
-                  <ActivityPanel history={item.history} />
+                  <div
+                    id="activity-panel"
+                    role="tabpanel"
+                    aria-labelledby="activity-tab"
+                  >
+                    <ActivityPanel history={item.history} />
+                  </div>
                 ) : null}
               </div>
               <aside className="issue-details">

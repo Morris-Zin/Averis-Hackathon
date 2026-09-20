@@ -22,7 +22,7 @@ app = FastAPI(title="Averis private processor", docs_url=None, openapi_url=None)
 @app.post("/internal/runs/{run_id}")
 def execute(run_id: str) -> dict[str, str]:
     result = processor.execute(run_id)
-    if result in {"busy", "retry"}:
+    if result in {"busy", "held", "retry"}:
         raise HTTPException(503, "Task not terminal; retry delivery")
     return {"status": result}
 

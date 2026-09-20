@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  AlertCircle,
   Bell,
   Boxes,
   CircleHelp,
@@ -29,12 +30,20 @@ export function AppShell({
   children,
   activeView = "all",
   onViewChange,
+  contentBusy = false,
 }: {
   children: ReactNode;
   activeView?: QueueView;
   onViewChange?: (view: QueueView) => void;
+  contentBusy?: boolean;
 }) {
-  const { session, setActor, logout } = useSession();
+  const {
+    session,
+    setActor,
+    logout,
+    sessionActionPending,
+    sessionActionError,
+  } = useSession();
   const pathname = usePathname();
   const [mobileNav, setMobileNav] = useState(false);
   const initials =
@@ -52,6 +61,8 @@ export function AppShell({
           variant="ghost"
           size="sm"
           aria-label="Toggle navigation"
+          aria-controls="project-navigation"
+          aria-expanded={mobileNav}
           onClick={() => setMobileNav((value) => !value)}
         >
           {mobileNav ? <X size={20} /> : <Menu size={20} />}
@@ -73,6 +84,7 @@ export function AppShell({
               value={session?.actor ?? ""}
               label="Acting reviewer"
               onValueChange={(actor) => void setActor(actor)}
+              disabled={sessionActionPending || contentBusy}
             >
               {(session?.reviewers ?? []).map((reviewer) => (
                 <SelectItem key={reviewer} value={reviewer}>
@@ -88,14 +100,24 @@ export function AppShell({
             className="logout-button"
             variant="ghost"
             size="sm"
+            disabled={sessionActionPending || contentBusy}
             onClick={() => void logout()}
           >
             Log out
           </Button>
         </div>
       </header>
+      {sessionActionError ? (
+        <div className="shell-message" role="alert">
+          <AlertCircle size={16} />
+          {sessionActionError}
+        </div>
+      ) : null}
       <div className="app-body">
-        <aside className={mobileNav ? "sidebar sidebar-open" : "sidebar"}>
+        <aside
+          id="project-navigation"
+          className={mobileNav ? "sidebar sidebar-open" : "sidebar"}
+        >
           <div className="project-identity">
             <span className="project-icon">
               <Boxes size={21} />
@@ -141,6 +163,7 @@ export function AppShell({
                   key={value}
                   className="sidebar-link queue-link"
                   href={`/?view=${value}`}
+                  onClick={() => setMobileNav(false)}
                 >
                   <Icon size={16} />
                   <span>{label}</span>

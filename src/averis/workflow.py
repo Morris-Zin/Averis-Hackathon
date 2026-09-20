@@ -1,12 +1,11 @@
 """Authoritative case actions. Persistence and HTTP cannot bypass these rules."""
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from averis.domain import Action, AttachmentView, AuditEntry, CaseView
 from averis.persistence import (
     Case,
-    Counter,
     Database,
     Document,
     Outbox,
@@ -20,27 +19,6 @@ from averis.storage import Storage
 
 class Conflict(ValueError):
     pass
-
-
-def take_quota(session: Session, key: str, limit: int) -> None:
-    bind = session.get_bind()
-    if bind.dialect.name == "postgresql":
-        from sqlalchemy.dialects.postgresql import insert
-    else:
-        from sqlalchemy.dialects.sqlite import insert
-    session.execute(
-        insert(Counter)
-        .values(key=key, value=0)
-        .on_conflict_do_nothing(index_elements=["key"])
-    )
-    result = session.scalar(
-        update(Counter)
-        .where(Counter.key == key, Counter.value < limit)
-        .values(value=Counter.value + 1)
-        .returning(Counter.value)
-    )
-    if result is None:
-        raise ValueError("Demo limit reached. Saved results remain available.")
 
 
 def enqueue(session: Session, case: Case, purpose: str | None = None) -> str:
@@ -66,12 +44,6 @@ def enqueue(session: Session, case: Case, purpose: str | None = None) -> str:
     return run.id
 
 
-def reserve_public_run(session: Session, session_key: str) -> None:
-    """Imports and retries share one atomic session/day allowance."""
-    take_quota(session, f"live:session:{session_key}", 3)
-    take_quota(session, f"live:day:{utcnow().date()}", 50)
-
-
 def view_of(case: Case) -> CaseView:
     return CaseView.model_validate(case.state)
 
@@ -87,7 +59,6 @@ class Workflow:
         actor: str,
         action: Action,
         live_enabled: bool,
-        session_key: str,
     ) -> tuple[CaseView, str | None]:
         with self.db.session() as session, session.begin():
             row = session.scalar(
@@ -102,7 +73,6 @@ class Workflow:
                     "This case changed. Refresh before applying your action."
                 )
             view = view_of(row)
-            take_quota(session, f"actions:{workspace}", 1000)
             run_id = None
             needs_processing = False
             controlled = any(
@@ -116,8 +86,10 @@ class Workflow:
             else:
                 decision = review_case(view, action, controlled=controlled)
                 needs_processing = decision.needs_processing
-                if needs_processing:
-                    self._require_run(session, session_key, live_enabled)
+                if needs_processing and not live_enabled:
+                    raise ValueError(
+                        "Live processing is disabled until the AI budget is verified"
+                    )
                 view = decision.view
                 input_changed = decision.input_changed
                 history_detail = decision.history_detail
@@ -259,11 +231,3 @@ class Workflow:
         row.accepted_pair = None
         replay_saved_comparison(view)
         return view
-
-    @staticmethod
-    def _require_run(session: Session, session_key: str, enabled: bool) -> None:
-        if not enabled:
-            raise ValueError(
-                "Live processing is disabled until the AI budget is verified"
-            )
-        reserve_public_run(session, session_key)

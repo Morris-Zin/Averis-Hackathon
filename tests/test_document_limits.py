@@ -268,7 +268,8 @@ def test_unsupported_document_completes_with_visible_review_issue(tmp_path) -> N
         storage_backend="local",
         storage_dir=str(tmp_path / "objects"),
         tasks_queue="",
-        live_enabled=False,
+        live_enabled=True,
+        budget_verified=True,
     )
     database = Database(settings.database_url)
     Base.metadata.create_all(database.engine)

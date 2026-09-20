@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -86,7 +87,7 @@ async def security_headers(
                 content={"detail": "Uploads require operator authorization"},
             )
         try:
-            actor = identity(request)
+            actor = await run_in_threadpool(identity, request)
             mutation(request, actor)
         except HTTPException as exc:
             return JSONResponse(

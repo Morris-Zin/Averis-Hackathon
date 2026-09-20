@@ -1,7 +1,7 @@
 """Source-bound review decisions, independent of HTTP and persistence.
 
 Each action operates on a private copy and returns explicit persistence changes.
-The workflow adapter owns transactions, quotas, versions and job scheduling.
+The workflow adapter owns transactions, versions and job scheduling.
 """
 
 from dataclasses import dataclass
@@ -120,13 +120,52 @@ def _correct_reading(view: CaseView, action: Action) -> tuple[str, Reading]:
     if (
         not view.report
         or not view.report.pair_valid
+        or view.report.input_revision != view.input_revision
         or not action.field
         or not action.reason.strip()
     ):
-        raise ValueError("A valid comparison, field and correction reason are required")
+        raise ValueError(
+            "A current valid comparison, field and correction reason are required"
+        )
+    si_attachment = next(
+        (
+            item
+            for item in view.attachments
+            if item.role == "SI" and not item.superseded
+        ),
+        None,
+    )
+    bl_attachment = next(
+        (
+            item
+            for item in view.attachments
+            if item.role == "BL" and not item.superseded
+        ),
+        None,
+    )
+    if (
+        si_attachment is None
+        or bl_attachment is None
+        or any(
+            finding.si.document_id != si_attachment.id
+            or finding.bl.document_id != bl_attachment.id
+            for finding in view.report.findings
+        )
+    ):
+        raise ValueError("Comparison evidence does not match the current document pair")
     attachment = next((a for a in view.attachments if a.id == action.document_id), None)
     if attachment is None or attachment.superseded or attachment.evidence is None:
         raise ValueError("Evidence does not belong to this case")
+    selected_blocks = {
+        block.id: block
+        for block in attachment.evidence.blocks
+        if block.id in action.evidence_ids
+    }
+    if (
+        any(block.method == "ocr" for block in selected_blocks.values())
+        and not action.verified
+    ):
+        raise ValueError("Verify OCR evidence against the original before saving")
     if action.transcription is not None and not action.verified:
         raise ValueError(
             "Verify the transcription against the original image before saving"
@@ -149,14 +188,20 @@ def _correct_reading(view: CaseView, action: Action) -> tuple[str, Reading]:
         raise ValueError("Document is not in the accepted pair")
     target[action.field] = replacement
     view.report = compare(si, bl, view.input_revision + 1, True, view.report.issues)
-    view.review_reasons = sorted(
-        set(view.report.issues)
-        | {
-            f.si.issue or f.bl.issue or "Unresolved field"
-            for f in view.report.findings
-            if f.outcome == "unresolved"
-        }
-    )
+    unresolved = [
+        finding for finding in view.report.findings if finding.outcome == "unresolved"
+    ]
+    unresolved_issues = {
+        issue
+        for finding in unresolved
+        for issue in (finding.si.issue, finding.bl.issue)
+        if issue
+    }
+    if any(not finding.si.issue and not finding.bl.issue for finding in unresolved):
+        unresolved_issues.add("Unresolved field")
+    view.review_reasons = sorted(set(view.report.issues) | unresolved_issues)
+    view.processing, view.stage = "completed", "reading_corrected"
+    view.processing_error = None
     return f"{attachment.id}:{action.field}", replacement
 
 

@@ -51,7 +51,7 @@ A Linux component check on development scan email_512 produced six unresolved fi
 
 ## Completion-audit checks
 
-The expanded full verification passed **165 tests**, with one Linux-only process-limit test skipped on Windows, plus Python/frontend strict checks, lint, API contract drift and production build. Added real-PostgreSQL checks prove exactly three concurrent live admissions per session, fifty globally per day, quota rollback without a new run, and no partial workspace after session-creation rejection. Fake-clock checks reject late processing publication; parser/provider callback checks observe no checked-out database connection on the processing thread (the independent lease heartbeat is excluded).
+The expanded full verification passed **165 tests**, with one Linux-only process-limit test skipped on Windows, plus Python/frontend strict checks, lint, API contract drift and production build. At that revision, PostgreSQL checks covered the former usage quotas. Those quotas and their rejection tests were subsequently removed at the user's request; they are not current behavior. Fake-clock checks reject late processing publication; parser/provider callback checks observe no checked-out database connection on the processing thread (the independent lease heartbeat is excluded).
 
 Document boundary tests cover PDF/OCR page caps, expanded archives, XLSX limits, reader/preview deadlines and visible unsupported-format processing outcomes. See [supplied-format evidence](format-validation.md).
 
@@ -74,3 +74,8 @@ The default regression performs the same OS kill and explicitly advances lease e
 Railway CLI observations on 20 September reported $0.004773 current workspace usage, approximately 114 MB current web memory and 104 MB worker memory, against 1 GiB per-service limits. These are point-in-time measurements under light demo traffic, not throughput or sustained-load results. The billing estimate field was lower than current usage and was not used for forecasting.
 
 Railway rejected an attempted spending email alert: the minimum is $5, and usage limits require an active subscription. The trial has no configured spending alert; no paid subscription was purchased. This is an external account limitation. It does not weaken the separate atomic Jev $7 application ledger. Recheck trial availability before judging.
+
+
+## Local balanced code-quality audit (20 September)
+
+After the local quota removal, a parallel domain/processing/frontend audit and integration fixes passed full verification: **213 passed, 2 expected skips**, all strict/lint/boundary/contract/build gates. Browser control verified queue URL/refresh/back, reviewer attribution and failed switch handling, plus source-bound correction retaining real mismatches. See [audit details and limits](code-quality-audit.md). Publication was subsequently authorized. These are local acceptance results; previous deployed measurements remain historical.
