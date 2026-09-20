@@ -39,10 +39,13 @@ outside runtime imports and images.
 
 ## Release verification
 
-Full offline verification with real PostgreSQL passed: 236 Python tests, two
+Full offline verification with real PostgreSQL passed: 240 Python tests, two
 intentional platform/opt-in skips, five frontend tests, strict Python/TypeScript
 checks, formatting, lint, import boundaries, generated API contracts and static
 production build. Offline tests use provider doubles, not live paid inference.
+Resume regression tests verify that changed model/policy profiles reclassify,
+unchanged profiles reuse completed classification without another provider call,
+and human category decisions take precedence over saved model results.
 
 Browser control exercised a fresh local workspace: automatic mismatch filtering,
 source-bound correction with mismatch retention, reload persistence, assignment,

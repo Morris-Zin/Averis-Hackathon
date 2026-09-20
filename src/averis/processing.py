@@ -42,6 +42,7 @@ from averis.pipeline import (
     ShipmentPipeline,
 )
 from averis.storage import Storage
+from averis.versions import CLASSIFICATION_POLICY_VERSION
 
 log = logging.getLogger(__name__)
 
@@ -129,6 +130,11 @@ class Processor:
         self.storage = storage
         self.factory: Callable[[str, str], Intelligence] = factory or self._jev
         self.reader: DocumentReader = reader or read_document_bounded
+        self.classification_profile = (
+            (settings.jev_model, CLASSIFICATION_POLICY_VERSION)
+            if factory is None
+            else None
+        )
 
     def _jev(self, run_id: str, purpose: str) -> Intelligence:
         return Jev(
@@ -370,6 +376,7 @@ class Processor:
                 self._load_document,
                 self.reader,
                 lambda: deadline - time.monotonic(),
+                classification_profile=self.classification_profile,
             )
             result = pipeline.process(claim.inputs)
             if time.monotonic() >= deadline:

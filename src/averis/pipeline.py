@@ -136,12 +136,14 @@ class ShipmentPipeline:
         load_document: Callable[[str], bytes],
         reader: DocumentReader,
         remaining_seconds: Callable[[], float],
+        classification_profile: tuple[str, str] | None = None,
     ):
         self._intelligence = intelligence
         self._checkpoints = checkpoints
         self._load_document = load_document
         self._reader = reader
         self._remaining = remaining_seconds
+        self._classification_profile = classification_profile
 
     def process(self, inputs: ProcessingInput) -> ProcessingResult:
         """Run classification, preparation and comparison without mutating inputs.
@@ -179,14 +181,16 @@ class ShipmentPipeline:
         return ProcessingResult(classification, updated, report, all_issues)
 
     def _classify(self, case: CaseView) -> Classification:
-        saved = self._checkpoints.load("classification", Classification)
-        if saved is not None:
-            # Classification reuse preserves the accepted policy version in the
-            # saved value; acceptance reinterpretation without a new provider
-            # call is handled by the caller comparing policy versions.
-            return saved
         if case.classification is not None and case.classification.source == "human":
             return case.classification
+        saved = self._checkpoints.load("classification", Classification)
+        if saved is not None and (
+            self._classification_profile is None
+            or (saved.model, saved.policy_version) == self._classification_profile
+        ):
+            return saved
+        # A changed provider profile invalidates only classification. Compatible
+        # document checkpoints remain available, and human decisions take priority.
         classification = self._intelligence.classify(case.subject, case.body)
         self._checkpoints.save("classification", classification)
         return classification
