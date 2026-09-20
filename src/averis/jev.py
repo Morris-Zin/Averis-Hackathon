@@ -39,6 +39,7 @@ from averis.intelligence import (
     validate_extraction_proposal,
 )
 from averis.jev_classification import CLASSIFICATION_QUESTION, prepare_email
+from averis.source_regions import complete_party_selection
 from averis.verification import reading_from_evidence
 from averis.versions import (
     ACCEPTANCE_PROFILE,
@@ -267,7 +268,7 @@ class Jev:
             readings[name] = reading_from_evidence(
                 name,
                 document,
-                [] if selected == "NONE" else [selected],
+                complete_party_selection(document, name, selected),
                 confidence,
                 self.settings.field_threshold,
             )

@@ -64,6 +64,7 @@ FIELD_ALIASES: Final[dict[Field, tuple[str, ...]]] = {
         "装运港",
         "裝運港",
         "pelabuhan muatan",
+        "pelabuhan muat",
     ),
     "port_of_discharge": (
         "port of discharge",
@@ -123,3 +124,31 @@ FIELD_MEANINGS: Final[dict[Field, str]] = {
         "container's weight, net weight, or tare weight; retain the source unit"
     ),
 }
+
+# Non-comparison headings still delimit source regions. Keep their meaning in
+# one place so readers and complete-candidate construction agree on boundaries.
+DOCUMENT_BOUNDARY_LABELS: Final[tuple[str, ...]] = (
+    "b/l no",
+    "b/l number",
+    "bill of lading no",
+    "bill of lading number",
+    "booking",
+    "shipment id",
+    "shipment reference",
+    "ocean vessel",
+    "vessel",
+    "voyage",
+    "export carrier",
+    "container no",
+    "container number",
+    "hs code",
+    "notes",
+    "remarks",
+    "instructions",
+    "date",
+    "航次",
+    "船名",
+    "备注",
+    "catatan",
+    "kapal",
+)

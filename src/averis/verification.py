@@ -18,6 +18,7 @@ from averis.domain import (
     Report,
 )
 from averis.fields import FIELD_ALIASES
+from averis.source_regions import has_omitted_continuation
 
 LABELS: Final[dict[Field, tuple[str, ...]]] = dict(FIELD_ALIASES)
 
@@ -31,6 +32,19 @@ _SIMPLE_NUMBER = re.compile(
 _CONTAINER_WITH_EQUIPMENT = re.compile(
     r"([0-9]+(?:,[0-9]{3})*)\s*[x×]\s*"
     r"[0-9]+(?:\.[0-9]+)?\s*(?:ft|')?\s*[a-z0-9/-]*",
+    re.IGNORECASE,
+)
+_INLINE_FIELD_LABELS = re.compile(
+    r"(?<!\w)(?:"
+    + "|".join(
+        re.escape(label)
+        for label in sorted(
+            {label for aliases in LABELS.values() for label in aliases},
+            key=len,
+            reverse=True,
+        )
+    )
+    + r")\s*[:=]",
     re.IGNORECASE,
 )
 
@@ -70,6 +84,14 @@ def normalize(field: Field, text: str) -> str | None:
         "not available",
         "n.a",
         "n.a.",
+    }:
+        return None
+    if field in {"port_of_loading", "port_of_discharge"} and missing_marker in {
+        "tba",
+        "tbd",
+        "to be advised",
+        "to be confirmed",
+        "to be determined",
     }:
         return None
     if field not in {"container_count", "gross_weight_kg"}:
@@ -155,6 +177,10 @@ def reading_from_evidence(
     ):
         raise ValueError("Transcription is available only for OCR evidence")
     source_issue = _source_field_issue(field, selected)
+    if field in {"shipper", "consignee", "notify_party"} and has_omitted_continuation(
+        document, evidence_ids
+    ):
+        source_issue = source_issue or "incomplete_party_evidence"
     text = (
         transcription
         if transcription is not None
@@ -212,15 +238,18 @@ def _source_field_issue(field: Field, selected: Sequence[EvidenceBlock]) -> str 
             for candidate in _TYPED_FIELDS:
                 if source_value(candidate, stripped) != stripped:
                     detected.add(candidate)
-                # Adjacent PDF columns can land on one text line. Explicit
-                # inline labels must not be mistaken for part of an address.
-                for label in LABELS[candidate]:
-                    if re.search(
-                        r"(?<!\w)" + re.escape(label) + r"\s*[:=]",
-                        unicodedata.normalize("NFKC", stripped),
-                        re.IGNORECASE,
-                    ):
-                        detected.add(candidate)
+            # Consume the longest complete label before looking for another.
+            # "Notify Party/Intermediate Consignee:" is one notify-party label,
+            # while "Notify Party: A Consignee: B" still names two fields.
+            for match in _INLINE_FIELD_LABELS.finditer(
+                unicodedata.normalize("NFKC", stripped)
+            ):
+                label = match[0].rstrip(":= ").casefold()
+                detected.update(
+                    candidate
+                    for candidate, aliases in LABELS.items()
+                    if label in aliases
+                )
     wrong = detected - {field}
     if not wrong:
         return None

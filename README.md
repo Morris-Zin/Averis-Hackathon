@@ -64,6 +64,9 @@ See the [expected results and advanced requirements checklist](docs/requirements
 
 ## Data and evaluation
 
+See the [21 September evidence-reading comparison](docs/accuracy-improvement-2026-09-21.md)
+for the latest frozen before/after results, rejected experiments and remaining limits.
+
 Official kits belong under ignored `resources/official/bundle` and `resources/official/docker`. Download them from the [organizer folder](https://drive.google.com/drive/folders/1ouOrFF6GMKvJDaX_asN8R6v467W7P8Df). Ground truth is evaluation-only and excluded from runtime images.
 
 ```powershell

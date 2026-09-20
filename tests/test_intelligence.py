@@ -29,6 +29,55 @@ def jev() -> Jev:
     return Jev(settings, cast(BudgetAuthority, object()), "run-1", "development")
 
 
+def test_party_source_completion_preserves_the_existing_ai_questions(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    client = jev()
+    document = DocumentEvidence(
+        document_id="source",
+        blocks=[
+            EvidenceBlock(
+                id="name",
+                text="Shipper: QUAY",
+                locations=[Location(kind="xlsx", sheet="S", cell="A1")],
+            ),
+            EvidenceBlock(
+                id="address",
+                text="12 Dock Road",
+                locations=[Location(kind="xlsx", sheet="S", cell="A2")],
+            ),
+            EvidenceBlock(
+                id="port",
+                text="Port of Loading: KLANG",
+                locations=[Location(kind="xlsx", sheet="S", cell="A3")],
+            ),
+        ],
+    )
+
+    def ask(state, questions):
+        assert state["blocks"]["address"] == "12 Dock Road"
+        for field in FIELDS:
+            assert set(questions[field].criteria) == {"name", "address", "port", "NONE"}
+        answers = {}
+        for field, question in questions.items():
+            selected = {
+                "shipper": "name",
+                "port_of_loading": "port",
+                "role": "SI",
+            }.get(field, "NONE")
+            answers[field] = category_answer(
+                selected, 1, {key: float(key == selected) for key in question.criteria}
+            )
+        return response(answers)
+
+    monkeypatch.setattr(client, "_ask", ask)
+    result = client.extract(document)
+    assert result.fields["shipper"].evidence_ids == ["name", "address"]
+    assert result.fields["shipper"].normalized == "quay 12 dock road"
+    assert result.fields["shipper"].issue is None
+    assert result.fields["port_of_loading"].normalized == "klang"
+
+
 def category_answer(
     choice: str, confidence: float, probabilities: dict[str, float]
 ) -> ChoiceAnswer:

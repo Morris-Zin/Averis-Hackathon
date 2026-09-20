@@ -29,6 +29,7 @@ from PIL import Image as Pillow
 from PIL.Image import Image as PillowImage
 
 from averis.domain import DocumentEvidence, EvidenceBlock, Location
+from averis.fields import DOCUMENT_BOUNDARY_LABELS
 from averis.fields import FIELD_ALIASES as _SHARED_FIELD_ALIASES
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
@@ -675,6 +676,10 @@ def _read_pdf(document_id: str, content: bytes) -> DocumentEvidence:
                 y_tolerance=3,
                 keep_blank_chars=False,
                 use_text_flow=False,
+                # Preserve font runs before spatial grouping. A bold form label
+                # may overlap its regular-text value; merging their characters
+                # first can corrupt both the label and a company name.
+                extra_attrs=["fontname"],
             )
             line_groups = _pdf_lines(words)
             readable = sum(len(line[0].strip()) for line in line_groups)
@@ -735,7 +740,7 @@ def _pdf_lines(
     lines: list[tuple[str, tuple[float, float, float, float]]] = []
     for row in rows:
         row.sort(key=lambda word: float(word["x0"]))
-        text = " ".join(str(word["text"]) for word in row).strip()
+        text = _pdf_line_text(row)
         if not text:
             continue
         lines.append(
@@ -750,6 +755,24 @@ def _pdf_lines(
             )
         )
     return lines
+
+
+def _pdf_line_text(words: Sequence[dict[str, Any]]) -> str:
+    """Rejoin touching font fragments, never overlapping label/value runs."""
+    parts: list[str] = []
+    previous: dict[str, Any] | None = None
+    for word in words:
+        text = str(word["text"])
+        touching_font_change = (
+            previous is not None
+            and previous.get("fontname") != word.get("fontname")
+            and -0.25 <= float(word["x0"]) - float(previous["x1"]) <= 0.5
+            and str(previous["text"])[-1:].isalnum()
+            and text[:1].isalnum()
+        )
+        parts.append(("" if touching_font_change or not parts else " ") + text)
+        previous = word
+    return "".join(parts).strip()
 
 
 def _pdf_blocks(
@@ -1053,7 +1076,19 @@ def _starts_evidence_field(text: str) -> bool:
     return (
         _EVIDENCE_FIELD_LABEL.match(normalized) is not None
         or _SHARED_FIELD_LABEL.match(normalized) is not None
+        or _DOCUMENT_BOUNDARY_LABEL.match(normalized) is not None
     )
+
+
+_DOCUMENT_BOUNDARY_LABEL = re.compile(
+    r"^\s*(?:"
+    + "|".join(
+        re.escape(label)
+        for label in sorted(DOCUMENT_BOUNDARY_LABELS, key=len, reverse=True)
+    )
+    + r")(?=\s|[:=|]|$)",
+    re.IGNORECASE,
+)
 
 
 _SHARED_FIELD_LABEL = re.compile(
