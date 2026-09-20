@@ -88,33 +88,46 @@ def test_individual_attachment_http_boundary(endpoint_client, extra, status):
     assert client.get("/api/cases").json()["total"] == before + (status == 200)
 
 
-def test_preview_slot_rejects_overlap_and_releases_after_failure(
+def test_preview_slot_serializes_companion_and_releases_after_failure(
     endpoint_client, monkeypatch
 ):
     client, _ = endpoint_client
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
     url = f"/api/documents/{item['attachments'][0]['id']}/preview"
-    started, release = Event(), Event()
+    started, release, waiting = Event(), Event(), Event()
+    slot = client.app.state.services.preview_slot
+    original_acquire = slot.acquire
+    calls = []
 
-    def failing_preview(*args, **kwargs):
-        started.set()
-        assert release.wait(5), "test failed to release preview"
-        raise DocumentPreviewError("fixture render failure")
+    def acquire(**kwargs):
+        assert kwargs == {"timeout": 20}
+        if started.is_set():
+            waiting.set()
+        return original_acquire(**kwargs)
 
-    monkeypatch.setattr("averis.documents.render_preview_bounded", failing_preview)
-    with ThreadPoolExecutor(max_workers=1) as executor:
+    def renderer(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            started.set()
+            assert release.wait(5)
+            raise DocumentPreviewError("fixture render failure")
+        return b"fixture-png"
+
+    monkeypatch.setattr(slot, "acquire", acquire)
+    monkeypatch.setattr("averis.documents.render_preview_bounded", renderer)
+    with ThreadPoolExecutor(max_workers=2) as executor:
         first = executor.submit(client.get, url)
+        assert started.wait(5)
+        second = executor.submit(client.get, url)
         try:
-            assert started.wait(5)
-            assert client.get(url).status_code == 429
+            assert waiting.wait(5)
+            assert not second.done()
         finally:
             release.set()
         assert first.result(timeout=5).status_code == 422
-    monkeypatch.setattr(
-        "averis.documents.render_preview_bounded",
-        lambda *args, **kwargs: b"fixture-png",
-    )
-    response = client.get(url)
+        response = second.result(timeout=5)
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
     assert response.content == b"fixture-png"
+    monkeypatch.setattr(slot, "acquire", lambda **kwargs: False)
+    assert client.get(url).status_code == 429

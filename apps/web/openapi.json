@@ -1957,9 +1957,70 @@
             "title": "Normalized"
           },
           "confidence": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Confidence",
             "default": 0
+          },
+          "acceptance_basis": {
+            "type": "string",
+            "enum": [
+              "probability",
+              "explicit_source"
+            ],
+            "title": "Acceptance Basis",
+            "default": "probability"
+          },
+          "selection_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Model"
+          },
+          "selection_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Request Id"
+          },
+          "alternative_selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assistance_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistance Error"
           },
           "provenance": {
             "type": "string",
@@ -2163,6 +2224,42 @@
           "live_enabled"
         ],
         "title": "SessionView"
+      },
+      "SourceSelection": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Evidence Ids"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "model",
+          "evidence_ids"
+        ],
+        "title": "SourceSelection",
+        "description": "A competing machine selection, retained for source-based review."
       },
       "ValidationError": {
         "properties": {

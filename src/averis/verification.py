@@ -154,10 +154,12 @@ def reading_from_evidence(
     field: Field,
     document: DocumentEvidence,
     ids: Sequence[str],
-    confidence: float = 1,
+    confidence: float | None = 1,
     threshold: float = 0.8,
     transcription: str | None = None,
     verified: bool = False,
+    acceptance_basis: Literal["probability", "explicit_source"] = "probability",
+    selection_model: str | None = None,
 ) -> Reading:
     """Create one reading while retaining selected source evidence and uncertainty."""
 
@@ -209,7 +211,9 @@ def reading_from_evidence(
         for block in ocr_blocks
     ):
         issue = "low_ocr_confidence"
-    elif confidence < threshold:
+    elif acceptance_basis == "probability" and (
+        confidence is None or confidence < threshold
+    ):
         issue = "low_field_confidence"
     return Reading(
         field=field,
@@ -218,6 +222,8 @@ def reading_from_evidence(
         text=text,
         normalized=normalized,
         confidence=confidence,
+        acceptance_basis=acceptance_basis,
+        selection_model=selection_model,
         provenance=provenance,
         issue=issue,
     )

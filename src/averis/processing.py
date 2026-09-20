@@ -138,13 +138,29 @@ class Processor:
         )
 
     def _jev(self, run_id: str, purpose: str) -> Intelligence:
-        return Jev(
-            self.settings, BudgetAuthority(self.db, self.settings), run_id, purpose
+        budget = BudgetAuthority(self.db, self.settings)
+        primary = Jev(self.settings, budget, run_id, purpose)
+        if not self.settings.deepseek_fields_enabled:
+            return primary
+        from averis.deepseek import AssistedIntelligence
+
+        return AssistedIntelligence(
+            primary,
+            self.settings.deepseek_api_key.get_secret_value(),
+            budget,
+            run_id,
+            purpose,
         )
 
     def processing_enabled(self) -> bool:
         """Return whether a delivery may start paid processing work."""
         return self.settings.live_enabled and self.settings.budget_verified
+
+    def _acceptance_profile(self) -> str:
+        from averis.deepseek import PROFILE
+        from averis.versions import ACCEPTANCE_PROFILE
+
+        return PROFILE if self.settings.deepseek_fields_enabled else ACCEPTANCE_PROFILE
 
     def dispatch(self, run_id: str) -> bool:
         if not self.settings.tasks_queue or not self.processing_enabled():
@@ -399,6 +415,10 @@ class Processor:
                 self.reader,
                 lambda: deadline - time.monotonic(),
                 classification_profile=self.classification_profile,
+                acceptance_profile=self._acceptance_profile(),
+                provider_time_reserve=140
+                if self.settings.deepseek_fields_enabled
+                else 45,
             )
             result = pipeline.process(claim.inputs)
             if time.monotonic() >= deadline:

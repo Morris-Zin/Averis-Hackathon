@@ -33,7 +33,13 @@ class BudgetAuthority:
         return self.reserve_estimate(run_id, purpose, input_bound, output_bound)
 
     def reserve_estimate(
-        self, run_id: str, purpose: str, input_bound: int, output_bound: int
+        self,
+        run_id: str,
+        purpose: str,
+        input_bound: int,
+        output_bound: int,
+        *,
+        pricing: tuple[str, str] | None = None,
     ) -> str:
         """Reserve a validated conservative estimate supplied by the adapter."""
 
@@ -42,7 +48,11 @@ class BudgetAuthority:
             raise BudgetUnavailable(
                 "Live AI disabled until starting usage and billing are verified"
             )
-        input_rate, output_rate = self._verified_rates()
+        input_rate, output_rate = (
+            self._parse_rates(*pricing)
+            if pricing is not None
+            else self._verified_rates()
+        )
         if (
             type(input_bound) is not int
             or type(output_bound) is not int
@@ -92,7 +102,7 @@ class BudgetAuthority:
                 or row.demo + row.development + prior + amount > 7_000_000
             ):
                 raise BudgetUnavailable(
-                    "Jev allowance exhausted; saved results remain available"
+                    "AI allowance exhausted; saved results remain available"
                 )
             if purpose == "demo":
                 row.demo += amount

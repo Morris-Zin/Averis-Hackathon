@@ -139,6 +139,8 @@ class ShipmentPipeline:
         reader: DocumentReader,
         remaining_seconds: Callable[[], float],
         classification_profile: tuple[str, str] | None = None,
+        acceptance_profile: str = ACCEPTANCE_PROFILE,
+        provider_time_reserve: float = PROVIDER_TIME_RESERVE_SECONDS,
     ):
         self._intelligence = intelligence
         self._checkpoints = checkpoints
@@ -146,6 +148,8 @@ class ShipmentPipeline:
         self._reader = reader
         self._remaining = remaining_seconds
         self._classification_profile = classification_profile
+        self._acceptance_profile = acceptance_profile
+        self._provider_time_reserve = provider_time_reserve
 
     def process(self, inputs: ProcessingInput) -> ProcessingResult:
         """Run classification, preparation and comparison without mutating inputs.
@@ -240,7 +244,7 @@ class ShipmentPipeline:
                 attachment.evidence.evidence_fingerprint = fingerprint
             return attachment.evidence
         content = self._load_document(attachment.id)
-        available = self._remaining() - PROVIDER_TIME_RESERVE_SECONDS
+        available = self._remaining() - self._provider_time_reserve
         if available <= 0:
             raise TimeoutError("application_deadline")
         evidence = self._reader(
@@ -271,7 +275,7 @@ class ShipmentPipeline:
         if saved is not None:
             if (
                 saved.version != CHECKPOINT_VERSION
-                or saved.acceptance_profile != ACCEPTANCE_PROFILE
+                or saved.acceptance_profile != self._acceptance_profile
                 or saved.extraction_policy != EXTRACTION_POLICY_VERSION
                 or saved.normalization_profile != NORMALIZATION_PROFILE
             ):
@@ -307,11 +311,16 @@ class ShipmentPipeline:
                 evidence,
                 proposal.evidence_ids,
                 confidence=proposal.confidence,
+                acceptance_basis=proposal.acceptance_basis,
+                selection_model=proposal.selection_model,
             )
             # A provider may apply a stricter confidence policy. Rebinding
             # evidence must not clear that uncertainty or its review reason.
             if reading.issue is None and proposal.issue is not None:
                 reading.issue = proposal.issue
+            reading.selection_request_id = proposal.selection_request_id
+            reading.alternative_selection = proposal.alternative_selection
+            reading.assistance_error = proposal.assistance_error
             fields[name] = reading
         try:
             fingerprint = evidence_fingerprint(evidence)
@@ -325,7 +334,7 @@ class ShipmentPipeline:
             # and normalization. A replacement adapter cannot fabricate values.
             fields=fields,
             evidence_fingerprint=fingerprint,
-            acceptance_profile=ACCEPTANCE_PROFILE,
+            acceptance_profile=self._acceptance_profile,
             extraction_policy=EXTRACTION_POLICY_VERSION,
             normalization_profile=NORMALIZATION_PROFILE,
         )
@@ -340,7 +349,7 @@ class ShipmentPipeline:
     ) -> _PreparedDocument:
         """Return a new attachment, readings and issues; never mutate `source`."""
 
-        if self._remaining() <= PROVIDER_TIME_RESERVE_SECONDS:
+        if self._remaining() <= self._provider_time_reserve:
             raise TimeoutError("application_deadline")
         attachment = source.model_copy(deep=True)
         evidence = self._read(attachment)

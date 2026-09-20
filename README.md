@@ -4,6 +4,8 @@ A Jira-inspired shipping operations workspace. It classifies incoming messages, 
 
 Native text also recognises common Chinese and Malay shipment labels and units; see [multilingual validation and limits](docs/multilingual-validation.md). OCR remains English-only.
 
+Optional DeepSeek field assistance supplements unresolved Jev readings without replacing classification, document roles, or deterministic comparison. See the [measured comparison, safeguards and setup](docs/deepseek-evaluation-2026-09-21.md). Vision extraction remains experimental and is not enabled.
+
 **Live demo:** https://averis-hackathon-production.up.railway.app/
 
 The app and private worker run on Railway with Neon PostgreSQL and private R2 storage. Live Jev processing is enabled under the shared budget guard; a deployed comparison completed with the expected two mismatches. Saved demo classifications are illustrative until a live check is run. Development evaluation and the disclosed reused-validation results are recorded; final submission materials remain in progress. See [measured validation and remaining work](docs/validation.md).

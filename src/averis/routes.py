@@ -291,7 +291,10 @@ def preview(
     row = document(services, doc_id, actor)
     from averis.documents import DocumentPreviewError, render_preview_bounded
 
-    if not services.preview_slot.acquire(blocking=False):
+    # The comparison opens SI and BL together. Keep rendering serial, but let
+    # the companion request wait for the bounded renderer instead of failing
+    # every ordinary two-document review immediately.
+    if not services.preview_slot.acquire(timeout=20):
         raise HTTPException(429, "A preview is being prepared. Try again shortly.")
     try:
         rendered = render_preview_bounded(

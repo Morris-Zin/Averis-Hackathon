@@ -752,7 +752,20 @@ export interface components {
              * Confidence
              * @default 0
              */
-            confidence: number;
+            confidence: number | null;
+            /**
+             * Acceptance Basis
+             * @default probability
+             * @enum {string}
+             */
+            acceptance_basis: "probability" | "explicit_source";
+            /** Selection Model */
+            selection_model?: string | null;
+            /** Selection Request Id */
+            selection_request_id?: string | null;
+            alternative_selection?: components["schemas"]["SourceSelection"] | null;
+            /** Assistance Error */
+            assistance_error?: string | null;
             /**
              * Provenance
              * @default machine
@@ -838,6 +851,18 @@ export interface components {
              *     ]
              */
             reviewers: string[];
+        };
+        /**
+         * SourceSelection
+         * @description A competing machine selection, retained for source-based review.
+         */
+        SourceSelection: {
+            /** Model */
+            model: string;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Request Id */
+            request_id?: string | null;
         };
         /** ValidationError */
         ValidationError: {

@@ -28,12 +28,21 @@ class Settings(BaseSettings):
         default=SecretStr(""), validation_alias="TYPESAFE_API_KEY"
     )
     jev_model: str = "jev-1.13.0"
+    deepseek_fields_enabled: bool = False
+    deepseek_api_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="DEEPSEEK_API_KEY"
+    )
     category_threshold: float = Field(default=0.80, ge=0, le=1)
     spam_threshold: float = Field(default=0.95, ge=0, le=1)
     field_threshold: float = Field(default=0.80, ge=0, le=1)
     frontend_dir: str = "apps/web/out"
 
     def validate_deployment(self) -> None:
+        if (
+            self.deepseek_fields_enabled
+            and not self.deepseek_api_key.get_secret_value()
+        ):
+            raise ValueError("DeepSeek field assistance requires its server-side key")
         if self.env == "production":
             if not self.database_url.startswith("postgresql"):
                 raise ValueError("Production requires PostgreSQL")

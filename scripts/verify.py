@@ -100,9 +100,11 @@ def check_boundaries() -> None:
         }
     # Domain and pipeline must not load Jev or parser libraries.
     prohibited["jev_classification"] = set(prohibited["jev"])
+    prohibited["deepseek"] = set(prohibited["jev"])
     for forbidden in prohibited.values():
         if "averis.jev" in forbidden:
             forbidden.add("averis.jev_classification")
+            forbidden.add("averis.deepseek")
     parser_libraries = {
         "pdfplumber",
         "pypdfium2",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confidenceDisplay } from "./presentation";
+import { confidenceDisplay, readingProvenanceLabel } from "./presentation";
 
 function classification(source: "model" | "human" | "fixture") {
   return {
@@ -37,4 +37,20 @@ describe("confidenceDisplay", () => {
     expect(display?.kind).toBe("demo");
     expect(display?.detail).toContain("Illustrative demo value");
   });
+});
+
+it("does not turn absent DeepSeek confidence into a percentage", () => {
+  const reading = {
+    field: "shipper" as const,
+    document_id: "source",
+    confidence: null,
+    provenance: "machine" as const,
+    acceptance_basis: "explicit_source" as const,
+  };
+  expect(readingProvenanceLabel(reading)).toBe(
+    "Selected by DeepSeek · source checks passed",
+  );
+  expect(
+    readingProvenanceLabel({ ...reading, assistance_error: "unavailable" }),
+  ).toContain("unavailable");
 });

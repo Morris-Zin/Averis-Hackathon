@@ -45,6 +45,12 @@ export function readingProvenanceLabel(reading?: Finding["si"]) {
   if (!reading) return "Not read";
   if (reading.provenance === "human_verified") return "Human verified";
   if (reading.provenance === "human_transcribed") return "Human transcription";
+  if (reading.assistance_error)
+    return "Additional AI unavailable; review the source";
+  if (reading.acceptance_basis === "explicit_source")
+    return "Selected by DeepSeek · source checks passed";
+  if (reading.confidence == null)
+    return "Machine reading · confidence unavailable";
   return Math.round(reading.confidence * 100) + "% field confidence";
 }
 

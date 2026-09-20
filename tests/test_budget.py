@@ -70,6 +70,20 @@ def test_successful_settlement_is_idempotent() -> None:
     assert second.actual_amount == 10
 
 
+def test_supplemental_provider_uses_its_reserved_prices_not_jev_rates() -> None:
+    db, budget = authority(input_rate="0.042", output_rate="0")
+    identifier = budget.reserve_estimate(
+        "run", "development", 1000, 100, pricing=("0.30", "1.20")
+    )
+    assert reservation(db, identifier).amount == 420
+    assert budget.settle_success(identifier, 100, 20, "deepseek-request")
+    row = reservation(db, identifier)
+    assert row.actual_amount == 54
+    assert row.output_usd_per_million == "1.20"
+    with db.session() as session:
+        assert session.get(Budget, 1).development == 54
+
+
 def test_missing_usage_retains_full_reservation_for_reconciliation() -> None:
     db, budget = authority()
     reservation_id = budget.reserve("run-1", "development", 1, 1)

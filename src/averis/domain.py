@@ -127,6 +127,16 @@ class Classification(Model):
     policy_version: str = "classification-v1"
 
 
+class SourceSelection(Model):
+    """A competing machine selection, retained for source-based review."""
+
+    model: str
+    evidence_ids: list[Annotated[str, PydanticField(max_length=256)]] = PydanticField(
+        max_length=100
+    )
+    request_id: str | None = None
+
+
 class Reading(Model):
     field: Field
     document_id: str
@@ -135,7 +145,12 @@ class Reading(Model):
     )
     text: str | None = None
     normalized: str | None = None
-    confidence: float = 0
+    confidence: float | None = PydanticField(default=0, ge=0, le=1)
+    acceptance_basis: Literal["probability", "explicit_source"] = "probability"
+    selection_model: str | None = None
+    selection_request_id: str | None = None
+    alternative_selection: SourceSelection | None = None
+    assistance_error: str | None = None
     provenance: Literal["machine", "human_transcribed", "human_verified"] = "machine"
     issue: str | None = None
     evidence_fingerprint: str | None = None
