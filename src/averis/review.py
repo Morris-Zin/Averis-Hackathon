@@ -17,6 +17,7 @@ from averis.domain import (
     CorrectAction,
     PairAction,
     Reading,
+    ReadingCorrection,
     WorkflowAction,
 )
 from averis.verification import compare, reading_from_evidence, validate_pair
@@ -33,6 +34,7 @@ class ReviewDecision:
     history_detail: str
     accepted_pair: list[str] | None = None
     reading_override: tuple[str, Reading] | None = None
+    correction: ReadingCorrection | None = None
 
     @property
     def needs_processing(self) -> bool:
@@ -51,6 +53,7 @@ def review_case(
     detail = action.reason.strip() or f"Updated {action.kind}"
     pair = None
     override = None
+    correction = None
     match action.kind:
         case "assign":
             assert isinstance(action, AssignAction)
@@ -69,6 +72,20 @@ def review_case(
         case "correct":
             assert isinstance(action, CorrectAction)
             override = _correct_reading(view, action, next_input)
+            assert original.report is not None
+            before = next(
+                reading
+                for finding in original.report.findings
+                for reading in (finding.si, finding.bl)
+                if reading.field == action.field
+                and reading.document_id == action.document_id
+            )
+            correction = ReadingCorrection(
+                before=before.model_copy(deep=True),
+                after=override[1].model_copy(deep=True),
+                input_revision=next_input,
+            )
+            detail = f"Corrected {action.field}: {before.text!r} → {override[1].text!r}. {detail}"
         case "retry":
             view.processing = "queued"
             view.stage = "retry_requested"
@@ -87,6 +104,7 @@ def review_case(
         history_detail=detail,
         accepted_pair=pair,
         reading_override=override,
+        correction=correction,
     )
 
 

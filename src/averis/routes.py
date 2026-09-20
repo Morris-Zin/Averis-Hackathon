@@ -19,7 +19,7 @@ from fastapi import (
     UploadFile,
 )
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from starlette.concurrency import run_in_threadpool
 
 from averis.bulk_ingest import (
@@ -206,7 +206,10 @@ def cases(
         if view == "mismatches":
             query = query.where(Case.has_mismatch.is_(True))
         elif view == "review":
-            query = query.where(Case.needs_review.is_(True))
+            query = query.where(
+                or_(Case.needs_review.is_(True), Case.has_mismatch.is_(True)),
+                Case.workflow == "open",
+            )
         elif view in {"waiting", "completed"}:
             query = query.where(Case.workflow == view)
         elif view != "all":

@@ -167,11 +167,18 @@ class AttachmentView(Model):
     role_confidence: float | None = PydanticField(default=None, ge=0, le=1)
 
 
+class ReadingCorrection(Model):
+    before: Reading
+    after: Reading
+    input_revision: int
+
+
 class AuditEntry(Model):
     at: str
     actor: str
     action: str
     detail: str
+    correction: ReadingCorrection | None = None
 
 
 class CaseView(Model):

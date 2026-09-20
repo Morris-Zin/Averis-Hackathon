@@ -1,7 +1,11 @@
 import type { AttachmentView, CaseView, Field, Finding } from "@/lib/contracts";
 import { FIELD_LABELS, FIELDS } from "@/lib/contracts";
 import { EvidencePane } from "./evidence-pane";
-import { outcomeLabel, readingProvenanceLabel } from "./presentation";
+import {
+  issueLabel,
+  outcomeLabel,
+  readingProvenanceLabel,
+} from "./presentation";
 
 type Props = {
   summaryKind: CaseView["summary"]["kind"];
@@ -54,6 +58,13 @@ export function ComparisonPanel({
           <span>{checkedFields} of 7 fields checked</span>
         </div>
         <div className="comparison-table-wrap">
+          {report?.issues?.length ? (
+            <ul aria-label="Document review reasons">
+              {report.issues.map((issue, index) => (
+                <li key={index}>{issueLabel(issue)}</li>
+              ))}
+            </ul>
+          ) : null}
           <table className="comparison-table">
             <thead>
               <tr>
@@ -87,12 +98,22 @@ export function ComparisonPanel({
                         {finding?.si.text || "Not found"}
                       </span>
                       <small>{readingProvenanceLabel(finding?.si)}</small>
+                      {finding?.si.issue ? (
+                        <small>
+                          Needs review: {finding.si.issue.replaceAll("_", " ")}
+                        </small>
+                      ) : null}
                     </td>
                     <td>
                       <span className={!finding?.bl.text ? "empty-value" : ""}>
                         {finding?.bl.text || "Not found"}
                       </span>
                       <small>{readingProvenanceLabel(finding?.bl)}</small>
+                      {finding?.bl.issue ? (
+                        <small>
+                          Needs review: {finding.bl.issue.replaceAll("_", " ")}
+                        </small>
+                      ) : null}
                     </td>
                     <td>
                       <span

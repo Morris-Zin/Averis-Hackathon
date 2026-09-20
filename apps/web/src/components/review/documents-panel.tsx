@@ -1,4 +1,5 @@
 import { Download, FileText, RefreshCw } from "lucide-react";
+import { useState } from "react";
 import type { ActionDraft, AttachmentView } from "@/lib/contracts";
 import { Button, Select, SelectItem } from "../ui";
 
@@ -28,6 +29,7 @@ export function DocumentsPanel({
   pending,
   act,
 }: Props) {
+  const [pairReason, setPairReason] = useState("");
   const {
     pairSi,
     pairBl,
@@ -101,6 +103,16 @@ export function DocumentsPanel({
             ))}
           </Select>
         </label>
+        <label>
+          <span>Why do these documents belong together?</span>
+          <input
+            value={pairReason}
+            onChange={(event) => setPairReason(event.target.value)}
+            maxLength={1000}
+            disabled={pending}
+            placeholder="For example, same booking and customer"
+          />
+        </label>
         <Button
           variant="primary"
           disabled={
@@ -108,6 +120,7 @@ export function DocumentsPanel({
             !pairSi ||
             !pairBl ||
             pairSi === pairBl ||
+            !pairReason.trim() ||
             pending
           }
           onClick={() =>
@@ -116,8 +129,7 @@ export function DocumentsPanel({
                 kind: "pair",
                 si_id: pairSi,
                 bl_id: pairBl,
-                reason:
-                  "Reviewer confirmed these SI and BL documents belong to the same shipment",
+                reason: pairReason.trim(),
               },
               "Document pair updated.",
             )

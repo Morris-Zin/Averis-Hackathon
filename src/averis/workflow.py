@@ -108,6 +108,7 @@ class Workflow:
                 for entry in view.history
             )
             run_id: str | None = None
+            correction = None
             if action.kind == "revision":
                 view = self._controlled_revision(session, row, view, action, controlled)
                 history_detail = action.reason.strip()
@@ -120,6 +121,7 @@ class Workflow:
                     )
                 view = decision.view
                 history_detail = decision.history_detail
+                correction = decision.correction
                 processing_intent = decision.processing_intent
                 if decision.accepted_pair is not None:
                     row.accepted_pair = decision.accepted_pair
@@ -136,6 +138,7 @@ class Workflow:
                     actor=actor,
                     action=action.kind,
                     detail=history_detail,
+                    correction=correction,
                 )
             )
             if processing_intent == "queue":

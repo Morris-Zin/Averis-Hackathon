@@ -1,6 +1,15 @@
 import type { CaseView, Finding } from "@/lib/contracts";
 import { CATEGORY_LABELS } from "@/lib/contracts";
 
+export function issueLabel(
+  issue: NonNullable<NonNullable<CaseView["report"]>["issues"]>[number],
+) {
+  if (typeof issue === "string") return issue.replaceAll("_", " ");
+  const scope =
+    issue.scope === "unused_attachment" ? "Unused attachment: " : "";
+  return `${scope}${issue.code.replaceAll("_", " ")}${issue.detail ? `: ${issue.detail}` : ""}`;
+}
+
 export function confidenceDisplay(classification: CaseView["classification"]) {
   if (!classification) return null;
   const percent = Math.round(classification.confidence * 100);
@@ -118,7 +127,7 @@ export function resultSummary(item: CaseView) {
           item.report?.pair_valid === false
             ? "Document pairing needs confirmation. Open Source documents, check the selected SI and draft BL, then confirm the pair."
             : item.review_reasons.join(" · ") ||
-              item.report?.issues?.join(" · ") ||
+              item.report?.issues?.map(issueLabel).join(" · ") ||
               "The report is incomplete or contains uncertain evidence.",
       };
   }

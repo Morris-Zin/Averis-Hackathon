@@ -317,6 +317,7 @@ export interface components {
             action: string;
             /** Detail */
             detail: string;
+            correction?: components["schemas"]["ReadingCorrection"] | null;
         };
         /** Body_bulk_import_api_bulk_imports_post */
         Body_bulk_import_api_bulk_imports_post: {
@@ -762,6 +763,13 @@ export interface components {
             issue?: string | null;
             /** Evidence Fingerprint */
             evidence_fingerprint?: string | null;
+        };
+        /** ReadingCorrection */
+        ReadingCorrection: {
+            before: components["schemas"]["Reading"];
+            after: components["schemas"]["Reading"];
+            /** Input Revision */
+            input_revision: number;
         };
         /** Report */
         Report: {

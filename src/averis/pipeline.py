@@ -16,12 +16,14 @@ from averis.domain import (
     CaseView,
     Classification,
     DocumentEvidence,
+    Issue,
     Reading,
     Report,
     evidence_fingerprint,
+    normalize_issue,
 )
 from averis.intelligence import Intelligence
-from averis.verification import compare, validate_pair
+from averis.verification import compare, reading_from_evidence, validate_pair
 from averis.versions import (
     ACCEPTANCE_PROFILE,
     CHECKPOINT_VERSION,
@@ -125,7 +127,7 @@ class ProcessingResult:
 class _PreparedDocument:
     attachment: AttachmentView
     fields: dict[str, Reading] | None
-    issues: list[str]
+    issues: list[str | Issue]
 
 
 class ShipmentPipeline:
@@ -173,12 +175,17 @@ class ShipmentPipeline:
         # original order; superseded originals are preserved untouched.
         by_id = {doc.attachment.id: doc.attachment for doc in prepared}
         updated = [by_id.get(item.id, item) for item in attachments]
-        base_issues: list[str] = []
-        for document in prepared:
-            base_issues.extend(document.issues)
-        report, extra_issues = self._compare(prepared, inputs, base_issues)
-        all_issues = sorted({*base_issues, *extra_issues})
-        return ProcessingResult(classification, updated, report, all_issues)
+        report, extra_issues = self._compare(prepared, inputs)
+        if report is None:
+            extra_issues.extend(
+                issue if isinstance(issue, str) else issue.code
+                for document in prepared
+                for issue in document.issues
+                if normalize_issue(issue).blocking
+            )
+        return ProcessingResult(
+            classification, updated, report, sorted(set(extra_issues))
+        )
 
     def _classify(self, case: CaseView) -> Classification:
         if case.classification is not None and case.classification.source == "human":
@@ -218,7 +225,11 @@ class ShipmentPipeline:
             if saved.evidence.document_id != attachment.id:
                 raise InvalidCheckpoint("Saved document reading has wrong identity")
             return saved.evidence
-        if attachment.evidence is not None:
+        if (
+            attachment.evidence is not None
+            and attachment.evidence.reader_version == READER_VERSION
+            and attachment.evidence.ocr_profile == OCR_PROFILE
+        ):
             # Legacy evidence without a fingerprint is fingerprinted from its
             # stored contents without claiming a newer parser produced it.
             try:
@@ -287,6 +298,21 @@ class ShipmentPipeline:
             # Capacity limitations become visible unsupported-input review
             # outcomes; other provider failures remain processing failures.
             return None
+        fields: dict[str, Reading] = {}
+        for name, proposal in extracted.fields.items():
+            if name != proposal.field:
+                raise ValueError("Provider field selection has inconsistent identity")
+            reading = reading_from_evidence(
+                proposal.field,
+                evidence,
+                proposal.evidence_ids,
+                confidence=proposal.confidence,
+            )
+            # A provider may apply a stricter confidence policy. Rebinding
+            # evidence must not clear that uncertainty or its review reason.
+            if reading.issue is None and proposal.issue is not None:
+                reading.issue = proposal.issue
+            fields[name] = reading
         try:
             fingerprint = evidence_fingerprint(evidence)
         except Exception:  # noqa: BLE001 - fingerprint never blocks saving
@@ -295,7 +321,9 @@ class ShipmentPipeline:
             version=CHECKPOINT_VERSION,
             role=extracted.role,  # type: ignore[arg-type]
             role_confidence=extracted.role_confidence,
-            fields=extracted.fields,
+            # Providers select evidence; the core owns source text, provenance
+            # and normalization. A replacement adapter cannot fabricate values.
+            fields=fields,
             evidence_fingerprint=fingerprint,
             acceptance_profile=ACCEPTANCE_PROFILE,
             extraction_policy=EXTRACTION_POLICY_VERSION,
@@ -317,17 +345,14 @@ class ShipmentPipeline:
         attachment = source.model_copy(deep=True)
         evidence = self._read(attachment)
         attachment.evidence = evidence
-        issues: list[str | object] = list(evidence.issues)
+        issues: list[str | Issue] = list(evidence.issues)
         extracted = self._extract(evidence)
         if extracted is None:
             issues.append("Document cannot be reliably extracted")
             return _PreparedDocument(
                 attachment,
                 None,
-                [
-                    str(i) if isinstance(i, str) else getattr(i, "code", "unknown")
-                    for i in issues
-                ],
+                issues,
             )
         attachment.role_confidence = extracted.role_confidence
         attachment.role = extracted.role  # type: ignore[assignment]
@@ -357,24 +382,20 @@ class ShipmentPipeline:
         return _PreparedDocument(
             attachment,
             fields,
-            [
-                i if isinstance(i, str) else getattr(i, "code", "unknown")
-                for i in issues
-            ],
+            issues,
         )
 
     @staticmethod
     def _compare(
         documents: list[_PreparedDocument],
         inputs: ProcessingInput,
-        base_issues: list[str],
     ) -> tuple[Report | None, list[str]]:
         """Pure comparison: return the report and additional issues."""
 
         sis = [document for document in documents if document.attachment.role == "SI"]
         bls = [document for document in documents if document.attachment.role == "BL"]
         if len(sis) != 1 or len(bls) != 1:
-            return None, [*base_issues, "Select the correct SI and draft BL"]
+            return None, ["Select the correct SI and draft BL"]
         si, bl = sis[0], bls[0]
         if (
             si.fields is None
@@ -382,18 +403,31 @@ class ShipmentPipeline:
             or si.attachment.evidence is None
             or bl.attachment.evidence is None
         ):
-            return None, [*base_issues, "Unreadable comparison documents"]
+            return None, ["Unreadable comparison documents"]
         manually_paired = inputs.accepted_pair == [si.attachment.id, bl.attachment.id]
         valid = validate_pair(
             si.attachment.evidence, bl.attachment.evidence, manually_paired
         )
+        scoped_issues: list[str | Issue] = []
+        for document in documents:
+            selected = document is si or document is bl
+            for issue in document.issues:
+                scoped_issues.append(
+                    normalize_issue(issue).model_copy(
+                        update={
+                            "document_id": document.attachment.id,
+                            "scope": "selected_pair"
+                            if selected
+                            else "unused_attachment",
+                        }
+                    )
+                )
         report = compare(
-            si.fields, bl.fields, inputs.case.input_revision, valid, base_issues
+            si.fields, bl.fields, inputs.case.input_revision, valid, scoped_issues
         )
-        extra: list[str] = [
-            i if isinstance(i, str) else getattr(i, "code", "unknown")
-            for i in report.issues
-        ]
+        # Detailed issues stay typed in the report. Assessment decides whether
+        # they block the selected comparison; do not duplicate them as strings.
+        extra: list[str] = []
         if any(finding.outcome == "unresolved" for finding in report.findings):
             extra.append("Some fields need review")
         return report, extra

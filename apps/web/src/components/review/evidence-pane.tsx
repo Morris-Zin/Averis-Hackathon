@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { useState } from "react";
 import { Download, FileText } from "lucide-react";
 import type { AttachmentView, EvidenceBlock } from "@/lib/contracts";
 import { Button } from "../ui";
@@ -77,12 +78,11 @@ export function EvidencePane({
               Rendered{" "}
               {previewLocation.kind === "pdf" ? `page ${previewPage}` : "image"}
             </span>
-            <Image
-              unoptimized
-              src={`/api/documents/${encodeURIComponent(attachment.id)}/preview?page=${previewPage}`}
-              alt={`Rendered source preview for ${attachment.filename}`}
-              width={900}
-              height={1200}
+            <SourceImage
+              key={`${attachment.id}:${previewPage}`}
+              documentId={attachment.id}
+              filename={attachment.filename}
+              page={previewPage}
             />
           </div>
         ) : null}
@@ -125,5 +125,55 @@ export function EvidencePane({
         </span>
       </footer>
     </section>
+  );
+}
+
+function SourceImage({
+  documentId,
+  filename,
+  page,
+}: {
+  documentId: string;
+  filename: string;
+  page: number;
+}) {
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<"loading" | "loaded" | "failed">(
+    "loading",
+  );
+  return (
+    <>
+      {state === "loading" ? (
+        <p role="status">Loading source preview...</p>
+      ) : null}
+      {state === "failed" ? (
+        <div role="status">
+          <p>
+            Source preview could not load. Try again or open the original
+            document above.
+          </p>
+          <Button
+            size="sm"
+            onClick={() => {
+              setAttempt(attempt + 1);
+              setState("loading");
+            }}
+          >
+            Retry preview
+          </Button>
+        </div>
+      ) : (
+        <Image
+          key={attempt}
+          unoptimized
+          src={`/api/documents/${encodeURIComponent(documentId)}/preview?page=${page}&attempt=${attempt}`}
+          alt={`Rendered source preview for ${filename}`}
+          width={900}
+          height={1200}
+          onLoad={() => setState("loaded")}
+          onError={() => setState("failed")}
+        />
+      )}
+    </>
   );
 }

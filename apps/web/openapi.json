@@ -729,6 +729,16 @@
           "detail": {
             "type": "string",
             "title": "Detail"
+          },
+          "correction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadingCorrection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -1991,6 +2001,28 @@
           "document_id"
         ],
         "title": "Reading"
+      },
+      "ReadingCorrection": {
+        "properties": {
+          "before": {
+            "$ref": "#/components/schemas/Reading"
+          },
+          "after": {
+            "$ref": "#/components/schemas/Reading"
+          },
+          "input_revision": {
+            "type": "integer",
+            "title": "Input Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "before",
+          "after",
+          "input_revision"
+        ],
+        "title": "ReadingCorrection"
       },
       "Report": {
         "properties": {

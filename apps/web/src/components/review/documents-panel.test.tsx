@@ -37,11 +37,23 @@ it("lets a reviewer confirm the unchanged proposed pair when pairing was unresol
   const button = screen.getByRole("button", {
     name: "Confirm pair and compare",
   });
+  expect((button as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(
+    screen.getByRole("textbox", {
+      name: "Why do these documents belong together?",
+    }),
+    { target: { value: "Same booking and customer" } },
+  );
   expect((button as HTMLButtonElement).disabled).toBe(false);
   fireEvent.click(button);
   await waitFor(() =>
     expect(act).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "pair", si_id: "si", bl_id: "bl" }),
+      expect.objectContaining({
+        kind: "pair",
+        si_id: "si",
+        bl_id: "bl",
+        reason: "Same booking and customer",
+      }),
       expect.any(String),
     ),
   );

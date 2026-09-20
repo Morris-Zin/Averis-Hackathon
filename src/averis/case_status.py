@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from pydantic import Field as PydanticField
 
 from averis.contracts import FIELDS, Category, Field
-from averis.domain import AttachmentView, CaseView, normalize_issue
+from averis.domain import AttachmentView, CaseView, Issue, normalize_issue
 
 
 class Assessment(BaseModel):
@@ -53,19 +53,18 @@ def _explicit_pair(current: list[AttachmentView]) -> list[str] | None:
     return None
 
 
-def _evidence_texts(attachments: list[AttachmentView]) -> list[str]:
-    texts: list[str] = []
+def _evidence_texts(attachments: list[AttachmentView]) -> list[str | Issue]:
+    texts: list[str | Issue] = []
     for attachment in attachments:
         if attachment.evidence is None:
             continue
-        for issue in attachment.evidence.issues or []:
-            texts.append(_issue_text(issue))
+        texts.extend(attachment.evidence.issues)
     return texts
 
 
 def _split_selected_unused(
     current: list[AttachmentView], selected_pair: list[str] | None
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str | Issue], list[str | Issue]]:
     if selected_pair is None:
         # Conservative: without an explicit SI/BL selection every readable
         # problem blocks until a reviewer selects the comparison pair.
@@ -76,7 +75,7 @@ def _split_selected_unused(
     return _evidence_texts(selected), _evidence_texts(unused)
 
 
-def _report_facts(case: CaseView, assessment: Assessment) -> list[str]:
+def _report_facts(case: CaseView, assessment: Assessment) -> list[str | Issue]:
     report = case.report
     assessment.report_present = report is not None
     if report is None:
@@ -99,7 +98,7 @@ def _report_facts(case: CaseView, assessment: Assessment) -> list[str]:
     assessment.fields_complete_unique = (
         not duplicate and seen == set(FIELDS) and len(report.findings) == len(FIELDS)
     )
-    return [_issue_text(issue) for issue in report.issues]
+    return list(report.issues)
 
 
 def assess_case(case: CaseView) -> Assessment:
@@ -123,7 +122,7 @@ def assess_case(case: CaseView) -> Assessment:
     current = _current_attachments(case)
     assessment.selected_pair = _explicit_pair(current)
     selected_texts, unused = _split_selected_unused(current, assessment.selected_pair)
-    assessment.unused_warnings = unused
+    assessment.unused_warnings = [_issue_text(issue) for issue in unused]
     report_texts = _report_facts(case, assessment)
 
     # Blocking issues: selected evidence + report issues + explicit review
@@ -132,8 +131,10 @@ def assess_case(case: CaseView) -> Assessment:
     blocking: list[str] = []
     for text in [*selected_texts, *report_texts]:
         parsed = normalize_issue(text)
-        if parsed.blocking:
-            blocking.append(text)
+        if parsed.scope == "unused_attachment":
+            assessment.unused_warnings.append(_issue_text(text))
+        elif parsed.blocking:
+            blocking.append(_issue_text(text))
     # Unexplained review reasons always block a clear outcome; export retains
     # additional official-schema restrictions on top of this assessment.
     for reason in case.review_reasons:
@@ -171,6 +172,7 @@ def assess_case(case: CaseView) -> Assessment:
             or not assessment.fields_complete_unique
             or not assessment.pair_valid
             or bool(assessment.unresolved)
+            or assessment.has_mismatch
             or assessment.classification_accepted is None
         )
     return assessment

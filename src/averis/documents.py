@@ -678,7 +678,15 @@ def _read_pdf(document_id: str, content: bytes) -> DocumentEvidence:
             )
             line_groups = _pdf_lines(words)
             readable = sum(len(line[0].strip()) for line in line_groups)
-            if readable < 4:
+            # A selectable heading does not make the scanned body readable.
+            # Large page images with sparse native text need the OCR path too.
+            large_image = any(
+                abs(float(image["x1"]) - float(image["x0"]))
+                * abs(float(image["bottom"]) - float(image["top"]))
+                > float(page.width) * float(page.height) * 0.25
+                for image in page.images
+            )
+            if readable < 4 or (large_image and readable < 200):
                 ocr_candidates.append(page_number)
                 continue
             for text, locations in _pdf_blocks(line_groups, page_number):
@@ -1114,9 +1122,29 @@ def _read_docx(document_id: str, content: bytes) -> DocumentEvidence:
     document = Document(BytesIO(content))
     block_number = 0
     paragraph_number = 0
+    party_paragraphs: list[EvidenceBlock] = []
+
+    def flush_party() -> None:
+        if not party_paragraphs:
+            return
+        first = party_paragraphs[0]
+        result.blocks.append(
+            first.model_copy(
+                update={
+                    "text": "\n".join(block.text for block in party_paragraphs),
+                    "locations": [
+                        location
+                        for block in party_paragraphs
+                        for location in block.locations
+                    ],
+                }
+            )
+        )
+        party_paragraphs.clear()
 
     for item in document.iter_inner_content():
         if isinstance(item, Table):
+            flush_party()
             for row in item.rows:
                 cell_texts: list[str] = []
                 locations: list[Location] = []
@@ -1144,13 +1172,37 @@ def _read_docx(document_id: str, content: bytes) -> DocumentEvidence:
             paragraph_number += 1
             if item.text.strip():
                 block_number += 1
-                result.blocks.append(
-                    EvidenceBlock(
-                        id=_block_id(document_id, block_number),
-                        text=item.text,
-                        locations=[Location(kind="docx", paragraph=paragraph_number)],
-                    )
+                block = EvidenceBlock(
+                    id=_block_id(document_id, block_number),
+                    text=item.text,
+                    locations=[Location(kind="docx", paragraph=paragraph_number)],
                 )
+                label_only = any(
+                    re.fullmatch(
+                        r"\s*" + re.escape(label) + r"\s*:?[ \t]*",
+                        item.text,
+                        re.IGNORECASE,
+                    )
+                    for aliases in _SHARED_FIELD_ALIASES.values()
+                    for label in aliases
+                )
+                if _starts_text_field(item.text) or label_only:
+                    flush_party()
+                party_label = any(
+                    re.match(
+                        r"^\s*" + re.escape(label) + r"\s*(?::|$)",
+                        item.text,
+                        re.IGNORECASE,
+                    )
+                    for field in ("shipper", "consignee", "notify_party")
+                    for label in _SHARED_FIELD_ALIASES[field]
+                )
+                if party_label or party_paragraphs:
+                    party_paragraphs.append(block)
+                else:
+                    result.blocks.append(block)
+
+    flush_party()
 
     if not result.blocks:
         result.issues.append("document_has_no_readable_text")

@@ -60,15 +60,23 @@ def normalize(field: Field, text: str) -> str | None:
 
     normalized_source = unicodedata.normalize("NFKC", text)
     value = source_value(field, normalized_source).strip()
-    if not value or value.casefold() in {
+    missing_marker = value.casefold().strip(" .:;!?")
+    if not value or missing_marker in {
         "n/a",
         "none",
         "unknown",
         "-",
         "not provided",
+        "not available",
+        "n.a",
+        "n.a.",
     }:
         return None
     if field not in {"container_count", "gross_weight_kg"}:
+        if field in {"shipper", "consignee", "notify_party"}:
+            # Table-cell and address-line separators are layout, not content.
+            # Preserve punctuation inside names, numbers and postcodes.
+            value = re.sub(r"\s+[|]\s+|;(?=\s)", "\n", value)
         return " ".join(value.casefold().split())
 
     if field == "container_count":
@@ -112,7 +120,8 @@ def normalize(field: Field, text: str) -> str | None:
             "公斤",
             "千克",
         } and not (
-            unit == "" and re.search(r"\bkg\b|kilogram|公斤|千克", text, re.IGNORECASE)
+            unit == ""
+            and re.search(r"\bkgs?\b|kilogram|公斤|千克", text, re.IGNORECASE)
         ):
             # The value must establish kilograms; an arbitrary bare number is unsafe.
             return None
@@ -203,6 +212,15 @@ def _source_field_issue(field: Field, selected: Sequence[EvidenceBlock]) -> str 
             for candidate in _TYPED_FIELDS:
                 if source_value(candidate, stripped) != stripped:
                     detected.add(candidate)
+                # Adjacent PDF columns can land on one text line. Explicit
+                # inline labels must not be mistaken for part of an address.
+                for label in LABELS[candidate]:
+                    if re.search(
+                        r"(?<!\w)" + re.escape(label) + r"\s*[:=]",
+                        unicodedata.normalize("NFKC", stripped),
+                        re.IGNORECASE,
+                    ):
+                        detected.add(candidate)
     wrong = detected - {field}
     if not wrong:
         return None
