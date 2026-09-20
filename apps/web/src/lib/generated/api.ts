@@ -229,48 +229,28 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** Action */
-        Action: {
+        /** ActorInput */
+        ActorInput: {
+            /** Actor */
+            actor: string;
+        };
+        /** AssignAction */
+        AssignAction: {
             /** Expected Revision */
             expected_revision: number;
             /**
              * Kind
-             * @enum {string}
+             * @default assign
+             * @constant
              */
-            kind: "category" | "pair" | "correct" | "assign" | "workflow" | "retry" | "revision";
-            /** Category */
-            category?: ("BL_COMPARISON" | "SI_REQUEST" | "INVOICE_QUERY" | "GENERAL" | "SPAM") | null;
-            /** Si Id */
-            si_id?: string | null;
-            /** Bl Id */
-            bl_id?: string | null;
-            /** Field */
-            field?: ("shipper" | "consignee" | "notify_party" | "port_of_loading" | "port_of_discharge" | "container_count" | "gross_weight_kg") | null;
-            /** Document Id */
-            document_id?: string | null;
-            /** Evidence Ids */
-            evidence_ids?: string[];
-            /** Transcription */
-            transcription?: string | null;
-            /**
-             * Verified
-             * @default false
-             */
-            verified: boolean;
+            kind: "assign";
+            /** Assignee */
+            assignee: string;
             /**
              * Reason
              * @default
              */
             reason: string;
-            /** Assignee */
-            assignee?: string | null;
-            /** Workflow */
-            workflow?: ("open" | "waiting" | "completed") | null;
-        };
-        /** ActorInput */
-        ActorInput: {
-            /** Actor */
-            actor: string;
         };
         /** AttachmentView */
         AttachmentView: {
@@ -402,6 +382,27 @@ export interface components {
              */
             mismatches: number;
         };
+        /** CategoryAction */
+        CategoryAction: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Kind
+             * @default category
+             * @constant
+             */
+            kind: "category";
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "BL_COMPARISON" | "SI_REQUEST" | "INVOICE_QUERY" | "GENERAL" | "SPAM";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
         /** Classification */
         Classification: {
             /**
@@ -431,6 +432,38 @@ export interface components {
              */
             policy_version: string;
         };
+        /** CorrectAction */
+        CorrectAction: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Kind
+             * @default correct
+             * @constant
+             */
+            kind: "correct";
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "shipper" | "consignee" | "notify_party" | "port_of_loading" | "port_of_discharge" | "container_count" | "gross_weight_kg";
+            /** Document Id */
+            document_id: string;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Transcription */
+            transcription?: string | null;
+            /**
+             * Verified
+             * @default false
+             */
+            verified: boolean;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
         /** DocumentEvidence */
         DocumentEvidence: {
             /** Document Id */
@@ -438,7 +471,7 @@ export interface components {
             /** Blocks */
             blocks?: components["schemas"]["EvidenceBlock"][];
             /** Issues */
-            issues?: string[];
+            issues?: (string | components["schemas"]["Issue"])[];
             /**
              * Parser Version
              * @default evidence-v2
@@ -449,6 +482,20 @@ export interface components {
              * @default eng
              */
             language: string;
+            /**
+             * Reader Version
+             * @default reader-v1
+             */
+            reader_version: string;
+            /**
+             * Ocr Profile
+             * @default eng-psm6
+             */
+            ocr_profile: string;
+            /** Source Sha256 */
+            source_sha256?: string | null;
+            /** Evidence Fingerprint */
+            evidence_fingerprint?: string | null;
         };
         /** EvidenceBlock */
         EvidenceBlock: {
@@ -487,6 +534,38 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * Issue
+         * @description One scoped, blocking-aware problem; technical failures stay separate.
+         *
+         *     Legacy persisted issues are plain strings. They are interpreted as
+         *     unknown-scope blocking issues until their scope can be established and are
+         *     never silently discarded.
+         */
+        Issue: {
+            /** Code */
+            code: string;
+            /**
+             * Scope
+             * @default unknown
+             * @enum {string}
+             */
+            scope: "selected_pair" | "unused_attachment" | "case" | "document" | "field" | "unknown";
+            /** Document Id */
+            document_id?: string | null;
+            /** Field */
+            field?: ("shipper" | "consignee" | "notify_party" | "port_of_loading" | "port_of_discharge" | "container_count" | "gross_weight_kg") | null;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /**
+             * Blocking
+             * @default true
+             */
+            blocking: boolean;
+        };
         /** Location */
         Location: {
             /**
@@ -513,6 +592,26 @@ export interface components {
                 number,
                 number
             ] | null;
+        };
+        /** PairAction */
+        PairAction: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Kind
+             * @default pair
+             * @constant
+             */
+            kind: "pair";
+            /** Si Id */
+            si_id: string;
+            /** Bl Id */
+            bl_id: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
         };
         /** Reading */
         Reading: {
@@ -542,6 +641,8 @@ export interface components {
             provenance: "machine" | "human_transcribed" | "human_verified";
             /** Issue */
             issue?: string | null;
+            /** Evidence Fingerprint */
+            evidence_fingerprint?: string | null;
         };
         /** Report */
         Report: {
@@ -552,12 +653,44 @@ export interface components {
             /** Findings */
             findings?: components["schemas"]["Finding"][];
             /** Issues */
-            issues?: string[];
+            issues?: (string | components["schemas"]["Issue"])[];
             /**
              * Policy Version
              * @default comparison-v1
              */
             policy_version: string;
+        };
+        /** RetryAction */
+        RetryAction: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Kind
+             * @default retry
+             * @constant
+             */
+            kind: "retry";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /** RevisionAction */
+        RevisionAction: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Kind
+             * @default revision
+             * @constant
+             */
+            kind: "revision";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
         };
         /** SessionView */
         SessionView: {
@@ -591,6 +724,27 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WorkflowAction */
+        WorkflowAction: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Kind
+             * @default workflow
+             * @constant
+             */
+            kind: "workflow";
+            /**
+             * Workflow
+             * @enum {string}
+             */
+            workflow: "open" | "waiting" | "completed";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
         };
     };
     responses: never;
@@ -796,7 +950,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Action"];
+                "application/json": components["schemas"]["CategoryAction"] | components["schemas"]["PairAction"] | components["schemas"]["CorrectAction"] | components["schemas"]["AssignAction"] | components["schemas"]["WorkflowAction"] | components["schemas"]["RetryAction"] | components["schemas"]["RevisionAction"];
             };
         };
         responses: {

@@ -3,7 +3,7 @@
 import pytest
 from test_case_status import complete_case
 
-from averis.domain import Action, Classification
+from averis.domain import Classification, PairAction
 from averis.pipeline import Checkpoints, InvalidCheckpoint, ProcessingResult
 from averis.review import review_case
 
@@ -48,9 +48,8 @@ def test_same_document_cannot_fill_both_roles():
     with pytest.raises(ValueError, match="different SI and BL"):
         review_case(
             original,
-            Action(
+            PairAction(
                 expected_revision=1,
-                kind="pair",
                 si_id="same",
                 bl_id="same",
                 reason="Reviewed",

@@ -9,43 +9,17 @@ from decimal import Decimal, InvalidOperation
 from typing import Final, Literal, cast
 
 from averis.contracts import FIELDS, Field
-from averis.domain import DocumentEvidence, EvidenceBlock, Finding, Reading, Report
+from averis.domain import (
+    DocumentEvidence,
+    EvidenceBlock,
+    Finding,
+    Issue,
+    Reading,
+    Report,
+)
+from averis.fields import FIELD_ALIASES
 
-LABELS: Final[dict[Field, tuple[str, ...]]] = {
-    "shipper": ("shipper/exporter", "shipper", "exporter"),
-    "consignee": ("to the order of", "consignee"),
-    "notify_party": ("notify party/intermediate consignee", "notify party", "notify"),
-    "port_of_loading": ("port of loading", "portof loading", "load port", "pol"),
-    "port_of_discharge": (
-        "port of discharge",
-        "portof discharge",
-        "discharge port",
-        "pod",
-    ),
-    "container_count": (
-        "number of containers or packages",
-        "no. of containers or packages",
-        "number of containers",
-        "no. of containers",
-        "container count",
-        "total containers",
-        "containers",
-    ),
-    "gross_weight_kg": (
-        "total gross weight (kg)",
-        "total gross weight kg",
-        "total gross weight",
-        "total gross wt (kgs)",
-        "total gross wt kgs",
-        "total gross wt",
-        "gross weight毛重(kgs)",
-        "gross weight (kg)",
-        "gross wt (kgs)",
-        "gross weight kg",
-        "gross weight",
-        "gross wt",
-    ),
-}
+LABELS: Final[dict[Field, tuple[str, ...]]] = dict(FIELD_ALIASES)
 
 _TYPED_FIELDS = cast(tuple[Field, ...], FIELDS)
 OCR_CONFIDENCE_THRESHOLD: Final = 0.8
@@ -221,7 +195,7 @@ def compare(
     bl: Mapping[str, Reading],
     revision: int,
     pair_valid: bool,
-    issues: Sequence[str] | None = None,
+    issues: Sequence[str | Issue] | None = None,
 ) -> Report:
     """Compare all seven fields and preserve known results beside unknown ones."""
 

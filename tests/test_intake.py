@@ -62,7 +62,7 @@ def test_import_failure_cleans_objects_and_metadata(intake_fixture, monkeypatch)
     def fail_enqueue(*_args, **_kwargs):
         raise RuntimeError("synthetic transaction failure")
 
-    monkeypatch.setattr("averis.intake.enqueue", fail_enqueue)
+    monkeypatch.setattr("averis.intake.create_processing_run", fail_enqueue)
     with pytest.raises(RuntimeError, match="transaction failure"):
         call_import(db, storage)
 

@@ -5,7 +5,7 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from averis.config import Settings
-from averis.domain import Action, AuditEntry, CaseView
+from averis.domain import AuditEntry, CaseView, RetryAction
 from averis.intake import import_email
 from averis.persistence import Base, Case, Database, Run, Workspace, utcnow
 from averis.storage import Storage
@@ -47,7 +47,7 @@ def test_imported_case_retry_keeps_development_budget_purpose(tmp_path):
         "workspace-1",
         imported.view.id,
         "Operator",
-        Action(kind="retry", expected_revision=imported.view.revision),
+        RetryAction(expected_revision=imported.view.revision),
         live_enabled=True,
     )
 
@@ -99,7 +99,7 @@ def test_demo_case_without_prior_run_uses_demo_budget_purpose(tmp_path):
         "workspace-1",
         view.id,
         "John Tan",
-        Action(kind="retry", expected_revision=view.revision),
+        RetryAction(expected_revision=view.revision),
         live_enabled=True,
     )
 

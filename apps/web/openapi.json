@@ -270,7 +270,30 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Action"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CategoryAction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PairAction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CorrectAction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AssignAction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/WorkflowAction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RetryAction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RevisionAction"
+                  }
+                ],
+                "title": "Payload"
               }
             }
           }
@@ -511,165 +534,6 @@
   },
   "components": {
     "schemas": {
-      "Action": {
-        "properties": {
-          "expected_revision": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Expected Revision"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "category",
-              "pair",
-              "correct",
-              "assign",
-              "workflow",
-              "retry",
-              "revision"
-            ],
-            "title": "Kind"
-          },
-          "category": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "BL_COMPARISON",
-                  "SI_REQUEST",
-                  "INVOICE_QUERY",
-                  "GENERAL",
-                  "SPAM"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category"
-          },
-          "si_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Si Id"
-          },
-          "bl_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bl Id"
-          },
-          "field": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "shipper",
-                  "consignee",
-                  "notify_party",
-                  "port_of_loading",
-                  "port_of_discharge",
-                  "container_count",
-                  "gross_weight_kg"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Field"
-          },
-          "document_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Document Id"
-          },
-          "evidence_ids": {
-            "items": {
-              "type": "string",
-              "maxLength": 256
-            },
-            "type": "array",
-            "maxItems": 100,
-            "title": "Evidence Ids"
-          },
-          "transcription": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 16000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Transcription"
-          },
-          "verified": {
-            "type": "boolean",
-            "title": "Verified",
-            "default": false
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 4000,
-            "title": "Reason",
-            "default": ""
-          },
-          "assignee": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assignee"
-          },
-          "workflow": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "open",
-                  "waiting",
-                  "completed"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Workflow"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "expected_revision",
-          "kind"
-        ],
-        "title": "Action"
-      },
       "ActorInput": {
         "properties": {
           "actor": {
@@ -682,6 +546,40 @@
           "actor"
         ],
         "title": "ActorInput"
+      },
+      "AssignAction": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "kind": {
+            "type": "string",
+            "const": "assign",
+            "title": "Kind",
+            "default": "assign"
+          },
+          "assignee": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Assignee"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "assignee"
+        ],
+        "title": "AssignAction"
       },
       "AttachmentView": {
         "properties": {
@@ -1067,6 +965,45 @@
         ],
         "title": "CaseSummary"
       },
+      "CategoryAction": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "kind": {
+            "type": "string",
+            "const": "category",
+            "title": "Kind",
+            "default": "category"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "BL_COMPARISON",
+              "SI_REQUEST",
+              "INVOICE_QUERY",
+              "GENERAL",
+              "SPAM"
+            ],
+            "title": "Category"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "category"
+        ],
+        "title": "CategoryAction"
+      },
       "Classification": {
         "properties": {
           "suggested": {
@@ -1141,6 +1078,81 @@
         ],
         "title": "Classification"
       },
+      "CorrectAction": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "kind": {
+            "type": "string",
+            "const": "correct",
+            "title": "Kind",
+            "default": "correct"
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "shipper",
+              "consignee",
+              "notify_party",
+              "port_of_loading",
+              "port_of_discharge",
+              "container_count",
+              "gross_weight_kg"
+            ],
+            "title": "Field"
+          },
+          "document_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Document Id"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Evidence Ids"
+          },
+          "transcription": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcription"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "default": false
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "field",
+          "document_id",
+          "evidence_ids"
+        ],
+        "title": "CorrectAction"
+      },
       "DocumentEvidence": {
         "properties": {
           "document_id": {
@@ -1156,7 +1168,14 @@
           },
           "issues": {
             "items": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              ]
             },
             "type": "array",
             "title": "Issues"
@@ -1170,6 +1189,38 @@
             "type": "string",
             "title": "Language",
             "default": "eng"
+          },
+          "reader_version": {
+            "type": "string",
+            "title": "Reader Version",
+            "default": "reader-v1"
+          },
+          "ocr_profile": {
+            "type": "string",
+            "title": "Ocr Profile",
+            "default": "eng-psm6"
+          },
+          "source_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sha256"
+          },
+          "evidence_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Fingerprint"
           }
         },
         "additionalProperties": false,
@@ -1281,6 +1332,77 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Issue": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Code"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "selected_pair",
+              "unused_attachment",
+              "case",
+              "document",
+              "field",
+              "unknown"
+            ],
+            "title": "Scope",
+            "default": "unknown"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "shipper",
+                  "consignee",
+                  "notify_party",
+                  "port_of_loading",
+                  "port_of_discharge",
+                  "container_count",
+                  "gross_weight_kg"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Detail",
+            "default": ""
+          },
+          "blocking": {
+            "type": "boolean",
+            "title": "Blocking",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "Issue",
+        "description": "One scoped, blocking-aware problem; technical failures stay separate.\n\nLegacy persisted issues are plain strings. They are interpreted as\nunknown-scope blocking issues until their scope can be established and are\nnever silently discarded."
       },
       "Location": {
         "properties": {
@@ -1396,6 +1518,47 @@
         ],
         "title": "Location"
       },
+      "PairAction": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "kind": {
+            "type": "string",
+            "const": "pair",
+            "title": "Kind",
+            "default": "pair"
+          },
+          "si_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Si Id"
+          },
+          "bl_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Bl Id"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "si_id",
+          "bl_id"
+        ],
+        "title": "PairAction"
+      },
       "Reading": {
         "properties": {
           "field": {
@@ -1471,6 +1634,17 @@
               }
             ],
             "title": "Issue"
+          },
+          "evidence_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Fingerprint"
           }
         },
         "additionalProperties": false,
@@ -1500,7 +1674,14 @@
           },
           "issues": {
             "items": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              ]
             },
             "type": "array",
             "title": "Issues"
@@ -1518,6 +1699,60 @@
           "pair_valid"
         ],
         "title": "Report"
+      },
+      "RetryAction": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "kind": {
+            "type": "string",
+            "const": "retry",
+            "title": "Kind",
+            "default": "retry"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision"
+        ],
+        "title": "RetryAction"
+      },
+      "RevisionAction": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "kind": {
+            "type": "string",
+            "const": "revision",
+            "title": "Kind",
+            "default": "revision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision"
+        ],
+        "title": "RevisionAction"
       },
       "SessionView": {
         "properties": {
@@ -1599,6 +1834,43 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WorkflowAction": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "kind": {
+            "type": "string",
+            "const": "workflow",
+            "title": "Kind",
+            "default": "workflow"
+          },
+          "workflow": {
+            "type": "string",
+            "enum": [
+              "open",
+              "waiting",
+              "completed"
+            ],
+            "title": "Workflow"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "workflow"
+        ],
+        "title": "WorkflowAction"
       }
     }
   }

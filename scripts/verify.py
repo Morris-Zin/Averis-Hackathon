@@ -28,6 +28,7 @@ def check_boundaries() -> None:
             "averis.api",
             "averis.persistence",
             "averis.intelligence",
+            "averis.jev",
         },
         "domain": {
             "fastapi",
@@ -35,6 +36,7 @@ def check_boundaries() -> None:
             "averis.api",
             "averis.persistence",
             "averis.intelligence",
+            "averis.jev",
         },
         "verification": {
             "fastapi",
@@ -42,19 +44,49 @@ def check_boundaries() -> None:
             "averis.api",
             "averis.persistence",
             "averis.intelligence",
+            "averis.jev",
         },
         "documents": {
             "fastapi",
             "averis.intelligence",
+            "averis.jev",
             "averis.processing",
             "averis.workflow",
         },
         "intake": {"fastapi", "averis.api", "averis.worker"},
-        "workflow": {"fastapi", "averis.api", "averis.worker"},
+        "workflow": {"fastapi", "averis.api", "averis.worker", "averis.jev"},
         "processing": {"fastapi", "averis.api", "averis.worker"},
         "runner": {"fastapi", "averis.api", "averis.worker", "averis.intelligence"},
+        "jev": {
+            "fastapi",
+            "sqlalchemy",
+            "averis.api",
+            "averis.persistence",
+            "averis.processing",
+            "averis.workflow",
+            "averis.routes",
+            "averis.http_context",
+        },
+        "intelligence": {
+            "fastapi",
+            "sqlalchemy",
+            "averis.api",
+            "averis.persistence",
+            "averis.processing",
+            "averis.workflow",
+            "averis.routes",
+            "averis.http_context",
+            "averis.jev",
+        },
     }
-    for module in ("review", "case_status", "responses", "pipeline"):
+    for module in (
+        "review",
+        "case_status",
+        "responses",
+        "pipeline",
+        "fields",
+        "versions",
+    ):
         prohibited[module] = {
             "fastapi",
             "sqlalchemy",
@@ -64,8 +96,19 @@ def check_boundaries() -> None:
             "averis.workflow",
             "averis.routes",
             "averis.http_context",
+            "averis.jev",
         }
-    for path in (ROOT / "src/averis").glob("*.py"):
+    # Domain and pipeline must not load Jev or parser libraries.
+    parser_libraries = {
+        "pdfplumber",
+        "pypdfium2",
+        "docx",
+        "openpyxl",
+        "pytesseract",
+        "PIL",
+        "pillow",
+    }
+    for path in (ROOT / "src/averis").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
         for node in ast.walk(tree):
             imports = (
@@ -84,6 +127,14 @@ def check_boundaries() -> None:
                 ):
                     raise SystemExit(
                         f"Module boundary violation: {path.name} imports {name}"
+                    )
+                if path.stem in {"domain", "pipeline"} and (
+                    name == "averis.jev"
+                    or name.startswith("averis.jev.")
+                    or name.split(".")[0] in parser_libraries
+                ):
+                    raise SystemExit(
+                        f"Module boundary violation: {path.name} loads Jev/parser {name}"
                     )
                 if path.stem not in {"cli", "dataset"} and name in {
                     "averis.dataset",
@@ -174,7 +225,7 @@ def main() -> None:
         if pnpm is None:
             raise SystemExit("Install pnpm 10.26.2 to check the frontend")
         check_contracts(pnpm)
-        for command in ("format:check", "typecheck", "lint", "build"):
+        for command in ("format:check", "typecheck", "lint", "test", "build"):
             run(pnpm, command, cwd=ROOT / "apps/web")
     print("Verification passed; paid inference was not enabled.", flush=True)
 

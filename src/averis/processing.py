@@ -18,7 +18,8 @@ from averis.budget import BudgetAuthority, BudgetUnavailable
 from averis.config import Settings
 from averis.documents import read_document_bounded
 from averis.domain import AuditEntry, CaseView
-from averis.intelligence import Intelligence, Jev
+from averis.intelligence import Intelligence
+from averis.jev import Jev
 from averis.persistence import (
     BrowserSession,
     Case,
@@ -33,6 +34,7 @@ from averis.persistence import (
 from averis.pipeline import (
     APPLICATION_DEADLINE_SECONDS,
     Checkpoints,
+    DocumentReader,
     InvalidCheckpoint,
     MissingDocument,
     ProcessingInput,
@@ -106,17 +108,27 @@ def failure_message(error: Exception, *, retrying: bool) -> str:
 
 
 class Processor:
+    """Durable runner with explicit inference and reading implementations.
+
+    The document reader is injected through construction rather than hardcoded
+    inside execution, so alternate readers work without pipeline format
+    branches. The caller receives evidence, locations, completeness issues and
+    reader identity; shipping values remain pipeline-owned.
+    """
+
     def __init__(
         self,
         db: Database,
         settings: Settings,
         storage: Storage,
         factory: Callable[[str, str], Intelligence] | None = None,
+        reader: DocumentReader | None = None,
     ):
         self.db = db
         self.settings = settings
         self.storage = storage
         self.factory: Callable[[str, str], Intelligence] = factory or self._jev
+        self.reader: DocumentReader = reader or read_document_bounded
 
     def _jev(self, run_id: str, purpose: str) -> Intelligence:
         return Jev(
@@ -275,6 +287,9 @@ class Processor:
         }
 
     def _claim(self, run_id: str) -> ClaimedRun | DeliveryOutcome:
+        # Worker lock ordering is always Run -> Case. Reviewer transactions lock
+        # only Case and never acquire a Run row lock while holding it, so a
+        # claim race cannot deadlock against a reviewer edit.
         with self.db.session() as session, session.begin():
             run = session.scalar(select(Run).where(Run.id == run_id).with_for_update())
             if not run:
@@ -290,7 +305,9 @@ class Processor:
             if run.attempts >= MAX_ATTEMPTS:
                 self._exhausted(session, run)
                 return "completed"
-            row = session.get(Case, run.case_id)
+            row = session.scalar(
+                select(Case).where(Case.id == run.case_id).with_for_update()
+            )
             if (
                 row is None
                 or row.input_revision != run.input_revision
@@ -310,6 +327,10 @@ class Processor:
             view.report = None
             view.processing, view.stage = "running", "classifying"
             view.processing_attempts, view.processing_error = run.attempts, None
+            # Claiming changes visible processing state, so advance the public
+            # revision and keep the row and serialized revisions synchronized.
+            view.revision += 1
+            row.revision = view.revision
             row.state = view.model_dump(mode="json")
             return ClaimedRun(
                 run_id=run.id,
@@ -347,7 +368,7 @@ class Processor:
                 self.factory(run_id, claim.purpose),
                 checkpoints,
                 self._load_document,
-                read_document_bounded,
+                self.reader,
                 lambda: deadline - time.monotonic(),
             )
             result = pipeline.process(claim.inputs)
@@ -394,12 +415,16 @@ class Processor:
             run.status = "completed"
 
     def _lost_lease(self, run_id: str, token: str) -> DeliveryOutcome:
+        # Run -> Case ordering is preserved even for this read-only supersede
+        # check so worker transactions never invert the lock order.
         with self.db.session() as session, session.begin():
             stale_run = session.scalar(
                 select(Run).where(Run.id == run_id).with_for_update()
             )
             if stale_run and stale_run.token == token:
-                current_case = session.get(Case, stale_run.case_id)
+                current_case = session.scalar(
+                    select(Case).where(Case.id == stale_run.case_id).with_for_update()
+                )
                 if (
                     not current_case
                     or current_case.input_revision != stale_run.input_revision

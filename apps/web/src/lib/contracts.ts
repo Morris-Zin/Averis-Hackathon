@@ -1,19 +1,32 @@
 import type { components } from "./generated/api";
 
-export type Category = NonNullable<components["schemas"]["Action"]["category"]>;
-export type Field = NonNullable<components["schemas"]["Action"]["field"]>;
+export type Category = components["schemas"]["CategoryAction"]["category"];
+export type Field = components["schemas"]["CorrectAction"]["field"];
 export type EvidenceBlock = components["schemas"]["EvidenceBlock"];
 export type AttachmentView = components["schemas"]["AttachmentView"];
 export type Finding = components["schemas"]["Finding"];
 export type CaseView = components["schemas"]["CaseResponse"];
 export type CasePage = components["schemas"]["CasePageResponse"];
 export type SessionView = components["schemas"]["SessionView"];
-export type Action = components["schemas"]["Action"];
-export type ActionDraft = Omit<
-  Action,
-  "expected_revision" | "verified" | "reason"
-> &
-  Partial<Pick<Action, "verified" | "reason">>;
+export type Action =
+  | components["schemas"]["CategoryAction"]
+  | components["schemas"]["PairAction"]
+  | components["schemas"]["CorrectAction"]
+  | components["schemas"]["AssignAction"]
+  | components["schemas"]["WorkflowAction"]
+  | components["schemas"]["RetryAction"]
+  | components["schemas"]["RevisionAction"];
+// Drafts omit the revision; each action sends only its own relevant fields.
+// Required payload fields fail at the HTTP boundary; ownership and source
+// validity remain domain checks.
+export type ActionDraft =
+  | Omit<components["schemas"]["CategoryAction"], "expected_revision">
+  | Omit<components["schemas"]["PairAction"], "expected_revision">
+  | Omit<components["schemas"]["CorrectAction"], "expected_revision">
+  | Omit<components["schemas"]["AssignAction"], "expected_revision">
+  | Omit<components["schemas"]["WorkflowAction"], "expected_revision">
+  | Omit<components["schemas"]["RetryAction"], "expected_revision">
+  | Omit<components["schemas"]["RevisionAction"], "expected_revision">;
 
 export const FIELDS: Field[] = [
   "shipper",

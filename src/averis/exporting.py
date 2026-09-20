@@ -171,7 +171,22 @@ def _adapt_comparison(
         if by_field[field].outcome == "unresolved"
     ]
     reasons, unrepresentable = _review_reasons(case, unresolved)
-    if report.issues and report.issues != ["pair_requires_review"]:
+    # Report issues may be legacy strings or typed Issue records; only the
+    # benign pair marker is representable. Any other selected-pair issue makes
+    # the row unrepresentable, and an unexplained blocking reason can never
+    # emit OK.
+    report_texts = [
+        issue if isinstance(issue, str) else f"{issue.code}:{issue.detail}".rstrip(":")
+        for issue in report.issues
+    ]
+    if report_texts and report_texts != ["pair_requires_review"]:
+        unrepresentable = True
+    from averis.case_status import assess_case
+
+    assessment = assess_case(case)
+    if assessment.blocking_issues and not unresolved and not reasons:
+        # A blocking issue with no representable official reason (for example an
+        # unknown legacy string or a conflicting identifier) must block export.
         unrepresentable = True
 
     if mismatches and (unresolved or reasons or unrepresentable):
@@ -316,15 +331,33 @@ def _reason_without_report(
     return None, "comparison_missing"
 
 
+def _selected_pair_ids(case: CaseView) -> set[str] | None:
+    current = [a for a in case.attachments if not a.superseded]
+    sis = [a.id for a in current if a.role == "SI" and a.evidence is not None]
+    bls = [a.id for a in current if a.role == "BL" and a.evidence is not None]
+    if len(sis) == 1 and len(bls) == 1:
+        return {sis[0], bls[0]}
+    return None
+
+
 def _review_reasons(
     case: CaseView, unresolved: list[Finding]
 ) -> tuple[set[ReviewReason], bool]:
     reasons: set[ReviewReason] = set()
     unrepresentable = False
+    selected = _selected_pair_ids(case)
+    # An explicitly selected SI/BL pair is assessed using its own evidence.
+    # Problems in unused attachments remain visible elsewhere as warnings and
+    # do not decide the selected-pair export outcome. Without a selection the
+    # handling stays conservative and every readable problem blocks.
+    relevant = [
+        attachment
+        for attachment in case.attachments
+        if not attachment.superseded and (selected is None or attachment.id in selected)
+    ]
     if any(
         attachment.evidence is not None and attachment.evidence.issues
-        for attachment in case.attachments
-        if not attachment.superseded
+        for attachment in relevant
     ):
         reasons.add("unreadable")
     for finding in unresolved:

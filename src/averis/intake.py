@@ -11,7 +11,7 @@ from sqlalchemy import select
 from averis.domain import AttachmentView, AuditEntry, CaseView
 from averis.persistence import Case, Database, Document, Workspace, uid, utcnow
 from averis.storage import Storage
-from averis.workflow import enqueue, view_of
+from averis.workflow import create_processing_run, view_of
 
 
 @dataclass(frozen=True)
@@ -125,8 +125,11 @@ def import_email(
                 state=view.model_dump(mode="json"),
             )
             session.add(row)
-            run_id = enqueue(session, row, purpose)
+            # Meaningful persistence op: create the run, then serialize once.
+            run_id = create_processing_run(session, row, view.input_revision, purpose)
             view.processing_run_id = run_id
+            row.revision, row.input_revision = view.revision, view.input_revision
+            row.state = view.model_dump(mode="json")
     except Exception:
         for object_key in stored:
             storage.delete(object_key)

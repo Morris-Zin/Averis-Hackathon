@@ -8,7 +8,7 @@ from averis.budget import BudgetAuthority
 from averis.config import Settings
 from averis.contracts import FIELDS
 from averis.domain import DocumentEvidence, EvidenceBlock, Location
-from averis.intelligence import Jev
+from averis.jev import Jev
 
 
 def response(answers: dict[str, ChoiceAnswer]) -> SystemOneResponse:
@@ -141,6 +141,12 @@ class RecordingBudget:
         self.reserved.append((run_id, purpose, payload_bytes, questions))
         return "reservation-1"
 
+    def reserve_estimate(
+        self, run_id: str, purpose: str, input_bound: int, output_bound: int
+    ) -> str:
+        self.reserved.append((run_id, purpose, input_bound, output_bound))
+        return "reservation-1"
+
     def settle_success(
         self,
         reservation_id: str,
@@ -192,7 +198,7 @@ def test_provider_usage_settles_before_business_answer_validation(
     provider_response = response({"category": answer})
     provider_response.__dict__["_request_id"] = "typesafe-request-1"
     fake = FakeTypeSafeClient(provider_response=provider_response)
-    monkeypatch.setattr("averis.intelligence.TypeSafeClient", lambda **_kwargs: fake)
+    monkeypatch.setattr("averis.jev.TypeSafeClient", lambda **_kwargs: fake)
 
     with pytest.raises(ValueError, match="requested criteria"):
         client.classify("Hello", "General request")
@@ -212,7 +218,7 @@ def test_provider_exception_retains_full_reservation(
         "development",
     )
     fake = FakeTypeSafeClient(error=TimeoutError("provider timeout"))
-    monkeypatch.setattr("averis.intelligence.TypeSafeClient", lambda **_kwargs: fake)
+    monkeypatch.setattr("averis.jev.TypeSafeClient", lambda **_kwargs: fake)
 
     with pytest.raises(TimeoutError, match="provider timeout"):
         client.classify("Hello", "General request")
@@ -236,7 +242,7 @@ def test_dotenv_provider_key_is_private_and_reaches_sdk(tmp_path, monkeypatch):
         captured.update(kwargs)
         return fake
 
-    monkeypatch.setattr("averis.intelligence.TypeSafeClient", client_factory)
+    monkeypatch.setattr("averis.jev.TypeSafeClient", client_factory)
     budget = RecordingBudget()
     with pytest.raises(TimeoutError):
         Jev(settings, cast(BudgetAuthority, budget), "run-1", "development").classify(
@@ -251,7 +257,7 @@ def test_client_configuration_failure_does_not_reserve_budget(monkeypatch):
     def invalid_client(**_kwargs):
         raise ValueError("Missing local credentials")
 
-    monkeypatch.setattr("averis.intelligence.TypeSafeClient", invalid_client)
+    monkeypatch.setattr("averis.jev.TypeSafeClient", invalid_client)
     with pytest.raises(ValueError, match="Missing local credentials"):
         Jev(
             Settings(_env_file=None),

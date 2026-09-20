@@ -2,14 +2,15 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from averis.api import create_app
 from averis.config import Settings
-from averis.domain import Action
+from averis.domain import Action, CorrectAction
 
 
 def test_action_contract_bounds_free_text_and_evidence_selection():
+    adapter = TypeAdapter(Action)
     for payload in (
         {"reason": "x" * 4001},
         {"transcription": "x" * 16001},
@@ -17,7 +18,18 @@ def test_action_contract_bounds_free_text_and_evidence_selection():
         {"evidence_ids": ["a" * 257]},
     ):
         with pytest.raises(ValidationError):
-            Action(kind="correct", expected_revision=1, **payload)
+            adapter.validate_python(
+                {
+                    "kind": "correct",
+                    "expected_revision": 1,
+                    "field": "shipper",
+                    "document_id": "doc-1",
+                    **payload,
+                }
+            )
+    # Required payload fields fail validation at the HTTP boundary.
+    with pytest.raises(ValidationError):
+        CorrectAction(expected_revision=1, document_id="doc-1", evidence_ids=["a"])
 
 
 def test_public_json_transport_limit_handles_chunked_body(tmp_path):

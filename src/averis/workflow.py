@@ -21,27 +21,54 @@ class Conflict(ValueError):
     pass
 
 
-def enqueue(session: Session, case: Case, purpose: str | None = None) -> str:
-    if purpose is None and case.active_run_id:
+def resolve_purpose(session: Session, case: Case, requested: str | None = None) -> str:
+    """Resolve the processing purpose without acquiring a Run row lock.
+
+    Reviewer transactions hold the Case lock; worker transactions use Run ->
+    Case ordering, so reviewers must never lock a Run row while holding Case.
+    """
+
+    if requested is not None:
+        purpose = requested
+    elif case.active_run_id:
         previous = session.get(Run, case.active_run_id)
-        if previous is not None:
-            purpose = previous.purpose
-    purpose = purpose or "demo"
+        purpose = previous.purpose if previous is not None else "demo"
+    else:
+        purpose = "demo"
     if purpose not in {"demo", "development"}:
         raise ValueError("Unknown processing purpose")
-    run = Run(
-        id=uid(), case_id=case.id, input_revision=case.input_revision, purpose=purpose
-    )
+    return purpose
+
+
+def create_processing_run(
+    session: Session, case: Case, input_revision: int, purpose: str
+) -> str:
+    """Create a Run and Outbox entry; the caller serializes the final view once.
+
+    This owns Run/Outbox persistence and the active-run pointer. It never
+    mutates the serialized case JSON; the workflow adapter updates the view and
+    persists ``row.state`` exactly once.
+    """
+
+    if purpose not in {"demo", "development"}:
+        raise ValueError("Unknown processing purpose")
+    run = Run(id=uid(), case_id=case.id, input_revision=input_revision, purpose=purpose)
     session.add(run)
     session.add(Outbox(run_id=run.id))
     case.active_run_id = run.id
-    case.state = {
-        **case.state,
-        "processing_run_id": run.id,
-        "processing_attempts": 0,
-        "processing_error": None,
-    }
     return run.id
+
+
+def enqueue(session: Session, case: Case, purpose: str | None = None) -> str:
+    """Legacy entry point kept for intake compatibility; prefers explicit ops.
+
+    New workflow code uses :func:`resolve_purpose` + :func:`create_processing_run`
+    and serializes the view once. This wrapper preserves the old import path
+    without the previous JSON-mutating protocol.
+    """
+
+    resolved = resolve_purpose(session, case, purpose)
+    return create_processing_run(session, case, case.input_revision, resolved)
 
 
 def view_of(case: Case) -> CaseView:
@@ -60,6 +87,9 @@ class Workflow:
         action: Action,
         live_enabled: bool,
     ) -> tuple[CaseView, str | None]:
+        # One ordered transaction: validate revision, apply the domain decision,
+        # append history, create any run/outbox entry, synchronize run metadata,
+        # and serialize the final state once.
         with self.db.session() as session, session.begin():
             row = session.scalar(
                 select(Case)
@@ -73,26 +103,24 @@ class Workflow:
                     "This case changed. Refresh before applying your action."
                 )
             view = view_of(row)
-            run_id = None
-            needs_processing = False
             controlled = any(
                 entry.actor == "Demo setup" and entry.action == "created"
                 for entry in view.history
             )
+            run_id: str | None = None
             if action.kind == "revision":
                 view = self._controlled_revision(session, row, view, action, controlled)
-                input_changed = True
                 history_detail = action.reason.strip()
+                processing_intent = "none"
             else:
                 decision = review_case(view, action, controlled=controlled)
-                needs_processing = decision.needs_processing
-                if needs_processing and not live_enabled:
+                if decision.processing_intent == "queue" and not live_enabled:
                     raise ValueError(
                         "Live processing is disabled until the AI budget is verified"
                     )
                 view = decision.view
-                input_changed = decision.input_changed
                 history_detail = decision.history_detail
+                processing_intent = decision.processing_intent
                 if decision.accepted_pair is not None:
                     row.accepted_pair = decision.accepted_pair
                 if decision.reading_override is not None:
@@ -101,10 +129,6 @@ class Workflow:
                         **row.overrides,
                         key: reading.model_dump(mode="json"),
                     }
-            if input_changed:
-                view.input_revision += 1
-                if view.report:
-                    view.report.input_revision = view.input_revision
             view.revision += 1
             view.history.append(
                 AuditEntry(
@@ -114,12 +138,15 @@ class Workflow:
                     detail=history_detail,
                 )
             )
-            row.revision, row.input_revision = view.revision, view.input_revision
-            row.state = view.model_dump(mode="json")
-            if needs_processing:
-                run_id = enqueue(session, row)
+            if processing_intent == "queue":
+                purpose = resolve_purpose(session, row, None)
+                run_id = create_processing_run(
+                    session, row, view.input_revision, purpose
+                )
                 view.processing_run_id = run_id
                 view.processing_attempts, view.processing_error = 0, None
+            row.revision, row.input_revision = view.revision, view.input_revision
+            row.state = view.model_dump(mode="json")
             return view, run_id
 
     def attach_revision(
@@ -194,14 +221,16 @@ class Workflow:
                         detail=f"{previous.id} replaced by {doc_id}: {reason.strip()}",
                     )
                 )
+                run_id = create_processing_run(
+                    session, row, view.input_revision, "development"
+                )
+                view.processing_run_id = run_id
+                view.processing_attempts, view.processing_error = 0, None
                 row.revision, row.input_revision, row.state = (
                     view.revision,
                     view.input_revision,
                     view.model_dump(mode="json"),
                 )
-                run_id = enqueue(session, row, "development")
-                view.processing_run_id = run_id
-                view.processing_attempts, view.processing_error = 0, None
                 return view, run_id
         except Exception:
             if stored:
@@ -227,7 +256,12 @@ class Workflow:
         from averis.review import replay_saved_comparison
 
         view = original.model_copy(deep=True)
+        # Controlled revisions advance the processing input exactly once.
+        view.input_revision = original.input_revision + 1
         controlled_revision(session, row, view, self.storage)
         row.accepted_pair = None
         replay_saved_comparison(view)
+        # Ensure the replayed report (if any) matches the new input revision.
+        if view.report is not None:
+            view.report.input_revision = view.input_revision
         return view

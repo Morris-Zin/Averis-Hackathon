@@ -28,6 +28,7 @@ from PIL import Image as Pillow
 from PIL.Image import Image as PillowImage
 
 from averis.domain import DocumentEvidence, EvidenceBlock, Location
+from averis.fields import FIELD_ALIASES as _SHARED_FIELD_ALIASES
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
@@ -46,6 +47,52 @@ DEFAULT_TIMEOUT_SECONDS = 30.0
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
 _SUPPORTED_SUFFIXES = {".txt", ".pdf", ".docx", ".xlsx"} | _IMAGE_SUFFIXES
 _TEXT_LABEL = re.compile(r"^[^\s:\r\n][^:\r\n]{0,80}:\s*\S")
+
+# One small static format declaration; handlers stay private. Rendering remains
+# optional and DOCX never invents page coordinates.
+SUPPORTED_FORMATS: dict[str, dict[str, object]] = {
+    ".txt": {"preview": False, "ocr": False},
+    ".pdf": {"preview": True, "ocr": True},
+    ".docx": {"preview": False, "ocr": False},
+    ".xlsx": {"preview": False, "ocr": False},
+    ".png": {"preview": True, "ocr": True},
+    ".jpg": {"preview": True, "ocr": True},
+    ".jpeg": {"preview": True, "ocr": True},
+}
+
+# Explicit English reading options and normalization profile. Additional
+# languages or providers are separate work; substitution is exercised with
+# deterministic test implementations.
+from averis.versions import OCR_PROFILE, READER_VERSION
+
+ENGLISH_READING_OPTIONS: dict[str, object] = {"language": "eng", "psm": 6}
+
+
+def validate_document_evidence(evidence: DocumentEvidence) -> list[str]:
+    """Validate identity, unique IDs, locations and partial-reading outcomes.
+
+    Returns a list of completeness problems; empty means the evidence is
+    structurally valid. Shipping values are never interpreted here.
+    """
+
+    problems: list[str] = []
+    if not evidence.document_id:
+        problems.append("missing_document_identity")
+    seen: set[str] = set()
+    for block in evidence.blocks:
+        if block.id in seen:
+            problems.append(f"duplicate_evidence_id:{block.id}")
+        seen.add(block.id)
+        if not block.text.strip():
+            problems.append(f"empty_evidence_text:{block.id}")
+        if not block.locations:
+            problems.append(f"missing_location:{block.id}")
+        for location in block.locations:
+            if location.kind == "docx" and location.page is not None:
+                problems.append(f"invented_docx_page:{block.id}")
+    if not evidence.blocks and not evidence.issues:
+        problems.append("empty_reading_without_issue")
+    return problems
 
 
 class _PdfBitmap(Protocol):
@@ -247,6 +294,29 @@ def _stop_process_tree(process: _ChildProcess) -> None:
         process.join(timeout=2)
 
 
+def _with_metadata(
+    document_id: str, content: bytes, evidence: DocumentEvidence
+) -> DocumentEvidence:
+    """Stamp immutable source identity, reader version and evidence fingerprint."""
+
+    from hashlib import sha256
+
+    from averis.domain import evidence_fingerprint
+
+    evidence.document_id = document_id
+    evidence.reader_version = READER_VERSION
+    evidence.ocr_profile = OCR_PROFILE
+    try:
+        evidence.source_sha256 = sha256(content).hexdigest()
+    except Exception:  # noqa: BLE001 - hashing never blocks evidence return
+        evidence.source_sha256 = None
+    try:
+        evidence.evidence_fingerprint = evidence_fingerprint(evidence)
+    except Exception:  # noqa: BLE001 - fingerprint failures stay explicit
+        evidence.evidence_fingerprint = None
+    return evidence
+
+
 def read_document(document_id: str, filename: str, content: bytes) -> DocumentEvidence:
     """Read one supported attachment into verbatim, source-linked evidence.
 
@@ -260,35 +330,41 @@ def read_document(document_id: str, filename: str, content: bytes) -> DocumentEv
 
     if not content:
         result.issues.append("empty_document")
-        return result
+        return _with_metadata(document_id, content, result)
     if len(content) > MAX_DOCUMENT_BYTES:
         result.issues.append(
             f"document_size_limit_exceeded:{len(content)}>{MAX_DOCUMENT_BYTES}"
         )
-        return result
+        return _with_metadata(document_id, content, result)
 
     suffix = PurePath(filename).suffix.lower()
     if suffix not in _SUPPORTED_SUFFIXES:
         result.issues.append(f"unsupported_document_type:{suffix or 'none'}")
-        return result
+        return _with_metadata(document_id, content, result)
 
     try:
         if suffix == ".txt":
-            return _read_text(document_id, content)
+            return _with_metadata(
+                document_id, content, _read_text(document_id, content)
+            )
         if suffix == ".pdf":
-            return _read_pdf(document_id, content)
+            return _with_metadata(document_id, content, _read_pdf(document_id, content))
         if suffix in _IMAGE_SUFFIXES:
-            return _read_image(document_id, content, suffix)
+            return _with_metadata(
+                document_id, content, _read_image(document_id, content, suffix)
+            )
         archive_issue = _check_office_archive(content)
         if archive_issue:
             result.issues.append(archive_issue)
-            return result
+            return _with_metadata(document_id, content, result)
         if suffix == ".docx":
-            return _read_docx(document_id, content)
-        return _read_xlsx(document_id, content)
+            return _with_metadata(
+                document_id, content, _read_docx(document_id, content)
+            )
+        return _with_metadata(document_id, content, _read_xlsx(document_id, content))
     except Exception as exc:  # noqa: BLE001 - failures are result data at this boundary.
         result.issues.append(f"document_unreadable:{type(exc).__name__}")
-        return result
+        return _with_metadata(document_id, content, result)
 
 
 def read_document_bounded(
@@ -945,6 +1021,17 @@ _EVIDENCE_FIELD_LABEL = re.compile(
     r")(?=\s*[:=|]\s*\S|\.?\s+\S)",
     re.IGNORECASE,
 )
+
+
+def official_field_aliases() -> dict[str, tuple[str, ...]]:
+    """Return the shared official aliases; layout grouping stays private.
+
+    The segmentation regex above covers these official aliases plus
+    parser-only headings (vessel, voyage, booking, B/L number, HS code).
+    Multiline addresses are preserved because only a new label starts a block.
+    """
+
+    return {str(key): value for key, value in _SHARED_FIELD_ALIASES.items()}
 
 
 def _starts_evidence_field(text: str) -> bool:

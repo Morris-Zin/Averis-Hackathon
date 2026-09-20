@@ -72,12 +72,29 @@ def export_cases(snapshot: Path, output: Path, diagnostics: Path, root: Path) ->
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Dataset and evaluation utilities")
-    parser.add_argument("command", choices=["inspect", "validate", "score", "export"])
+    parser.add_argument(
+        "command",
+        choices=[
+            "inspect",
+            "validate",
+            "score",
+            "export",
+            "rebuild-projections",
+        ],
+    )
     parser.add_argument("submission", type=Path, nargs="?")
     parser.add_argument("--data", type=Path, default=data_root())
     parser.add_argument("--output", type=Path)
     parser.add_argument("--diagnostics", type=Path)
     args = parser.parse_args()
+    if args.command == "rebuild-projections":
+        from averis.config import Settings
+        from averis.persistence import Database, rebuild_projections
+
+        db = Database(Settings().database_url)
+        changed = rebuild_projections(db)
+        print(f"Projection rebuild complete: {changed} case(s) updated")
+        return
     if args.command == "export":
         if args.submission is None or args.output is None or args.diagnostics is None:
             parser.error("export requires a case snapshot, --output and --diagnostics")

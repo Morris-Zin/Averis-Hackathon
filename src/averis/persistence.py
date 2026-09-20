@@ -164,25 +164,14 @@ class Database:
 @event.listens_for(Case, "before_insert")
 @event.listens_for(Case, "before_update")
 def project_case(_mapper: object, _connection: object, target: Case) -> None:
-    """Index already-decided outcomes; this projection never recomputes domain rules."""
+    """Index the shared assessment; queue flags never reimplement domain rules."""
+    from averis.case_status import assess_case
     from averis.domain import CaseView
 
     view = CaseView.model_validate(target.state)
-    target.has_mismatch = bool(
-        view.report and any(f.outcome == "mismatch" for f in view.report.findings)
-    )
-    target.needs_review = bool(
-        view.review_reasons
-        or view.processing == "failed"
-        or (
-            view.report
-            and (
-                view.report.issues
-                or not view.report.pair_valid
-                or any(f.outcome == "unresolved" for f in view.report.findings)
-            )
-        )
-    )
+    assessment = assess_case(view)
+    target.has_mismatch = assessment.has_mismatch
+    target.needs_review = assessment.needs_review
     target.workflow, target.received_at, target.subject = (
         view.workflow,
         view.received_at,
@@ -190,3 +179,55 @@ def project_case(_mapper: object, _connection: object, target: Case) -> None:
     )
     target.category = view.classification.accepted if view.classification else None
     target.assignee = view.assignee
+
+
+def rebuild_projections(db: Database, *, batch_size: int = 200) -> int:
+    """Recompute queue indexes from stored state without touching evidence.
+
+    Idempotent and batched: only the derived columns (has_mismatch,
+    needs_review, workflow, received_at, subject, category, assignee) are
+    updated. Evidence, history, revisions and AI are never invoked. Returns the
+    number of cases whose projection changed.
+    """
+
+    from sqlalchemy import select
+
+    from averis.case_status import assess_case
+    from averis.domain import CaseView
+
+    changed = 0
+    offset = 0
+    while True:
+        with db.session() as session, session.begin():
+            rows = list(
+                session.scalars(
+                    select(Case).order_by(Case.id).offset(offset).limit(batch_size)
+                )
+            )
+            if not rows:
+                break
+            for row in rows:
+                view = CaseView.model_validate(row.state)
+                assessment = assess_case(view)
+                desired = {
+                    "has_mismatch": assessment.has_mismatch,
+                    "needs_review": assessment.needs_review,
+                    "workflow": view.workflow,
+                    "received_at": view.received_at,
+                    "subject": view.subject,
+                    "category": view.classification.accepted
+                    if view.classification
+                    else None,
+                    "assignee": view.assignee,
+                }
+                for key, value in desired.items():
+                    if getattr(row, key) != value:
+                        setattr(row, key, value)
+                        changed += 1
+                        break
+            offset += batch_size
+            # Break when the last batch was partial; otherwise continue for the
+            # next batch. Idempotent: rerunning changes nothing.
+            if len(rows) < batch_size:
+                break
+    return changed

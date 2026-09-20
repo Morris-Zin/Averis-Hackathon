@@ -20,14 +20,14 @@ from averis.dataset import data_root, load_emails
 from averis.domain import CaseView
 from averis.exporting import adapt_case
 from averis.intake import import_email
-from averis.intelligence import (
-    CLASSIFICATION_POLICY_VERSION,
-    EXTRACTION_POLICY_VERSION,
-    Intelligence,
-)
+from averis.intelligence import Intelligence
 from averis.persistence import Budget, Case, Database, Outbox, Run, Workspace, utcnow
 from averis.processing import Processor
 from averis.storage import Storage
+from averis.versions import (
+    CLASSIFICATION_POLICY_VERSION,
+    EXTRACTION_POLICY_VERSION,
+)
 
 POLICY_VERSION = "averis-evaluation-v1"
 MAX_IMPORTS_PER_WORKSPACE = 100

@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, event, select, text
 
 from averis.budget import BudgetAuthority, BudgetUnavailable
 from averis.config import Settings
-from averis.domain import Action, AuditEntry, CaseView, Classification
+from averis.domain import AssignAction, AuditEntry, CaseView, Classification
 from averis.persistence import Base, Budget, Case, Database, Reservation
 from averis.storage import Storage
 from averis.workflow import Conflict, Workflow
@@ -124,7 +124,7 @@ def test_workflow_concurrent_edits_have_one_winner(postgres_db):
                 "workspace-1",
                 "case-1",
                 assignee,
-                Action(expected_revision=1, kind="assign", assignee=assignee),
+                AssignAction(expected_revision=1, assignee=assignee),
                 live_enabled=False,
             )
         except Conflict as exc:  # assertions below classify the result

@@ -1,8 +1,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ActionDraft, CaseView, Category, Field } from "@/lib/contracts";
+import type {
+  Action,
+  ActionDraft,
+  CaseView,
+  Category,
+  Field,
+} from "@/lib/contracts";
 import { ApiError } from "@/lib/api";
 import { useActivePolling } from "@/lib/use-active-polling";
+import { isActionAllowed, shouldIgnoreLateResponse } from "@/lib/case-binding";
 import { useSession } from "../session-provider";
 import { resultSummary } from "./presentation";
 
@@ -66,7 +73,15 @@ export function useReviewWorkspace(id: string) {
       }
       try {
         const value = await api.case(id, controller.signal);
-        if (controller.signal.aborted || version !== requestVersion.current)
+        if (
+          controller.signal.aborted ||
+          shouldIgnoreLateResponse(
+            id,
+            value.id,
+            version,
+            requestVersion.current,
+          )
+        )
           return false;
         setItem(value);
         if (resetDrafts) {
@@ -115,9 +130,16 @@ export function useReviewWorkspace(id: string) {
   );
 
   useEffect(() => {
+    // Navigating to another case invalidates the previous case view immediately.
+    // A failed load must never leave actions enabled against the previous case.
+    setItem(null);
     setPending(false);
     setCorrectSide(null);
     setNotice("");
+    setError("");
+    setCategoryDraft("GENERAL");
+    setPairSi("");
+    setPairBl("");
     void load(false, true);
     return () => {
       requestVersion.current += 1;
@@ -127,7 +149,15 @@ export function useReviewWorkspace(id: string) {
 
   const act = useCallback(
     async (action: ActionDraft, success: string) => {
-      if (!item || !session || sessionActionPending) return false;
+      // Bind every mutation to the requested case ID. Refreshing the same case
+      // preserves drafts; a stale view for another case can never mutate.
+      if (
+        !item ||
+        !isActionAllowed(id, item.id) ||
+        !session ||
+        sessionActionPending
+      )
+        return false;
       requestVersion.current += 1;
       requestController.current?.abort();
       requestController.current = null;
@@ -136,17 +166,19 @@ export function useReviewWorkspace(id: string) {
       setError("");
       setNotice("");
       try {
+        // Send only fields relevant to that action; required fields are
+        // validated at the HTTP boundary.
         const updated = await api.action(
-          item.id,
+          id,
           {
-            verified: false,
-            reason: "",
             ...action,
             expected_revision: item.revision,
-          },
+          } as unknown as Action,
           session.csrf_token,
         );
         if (mutationVersion !== requestVersion.current) return false;
+        // Ignore late mutation responses that no longer match the requested case.
+        if (updated.id !== id) return false;
         setItem(updated);
         if (action.kind === "revision" || action.kind === "pair") {
           setPairSi(
@@ -192,7 +224,7 @@ export function useReviewWorkspace(id: string) {
         if (mutationVersion === requestVersion.current) setPending(false);
       }
     },
-    [api, item, load, session, sessionActionPending],
+    [api, id, item, load, session, sessionActionPending],
   );
 
   const processingActive =

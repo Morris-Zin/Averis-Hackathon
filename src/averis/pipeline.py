@@ -18,9 +18,18 @@ from averis.domain import (
     DocumentEvidence,
     Reading,
     Report,
+    evidence_fingerprint,
 )
 from averis.intelligence import Intelligence
 from averis.verification import compare, validate_pair
+from averis.versions import (
+    ACCEPTANCE_PROFILE,
+    CHECKPOINT_VERSION,
+    EXTRACTION_POLICY_VERSION,
+    NORMALIZATION_PROFILE,
+    OCR_PROFILE,
+    READER_VERSION,
+)
 
 MAX_EVIDENCE_CANDIDATES = 240
 PARSER_TIMEOUT_SECONDS = 120
@@ -43,13 +52,22 @@ class DocumentReader(Protocol):
 
 
 class _DocumentCheckpoint(BaseModel):
+    version: str
     evidence: DocumentEvidence
+    reader_version: str
+    ocr_profile: str
+    evidence_fingerprint: str | None = None
 
 
 class _ExtractionCheckpoint(BaseModel):
+    version: str
     role: Literal["SI", "BL", "unknown"]
     role_confidence: float = Field(default=0, ge=0, le=1)
     fields: dict[str, Reading]
+    evidence_fingerprint: str | None = None
+    acceptance_profile: str
+    extraction_policy: str
+    normalization_profile: str
 
 
 class Checkpoints:
@@ -126,7 +144,15 @@ class ShipmentPipeline:
         self._remaining = remaining_seconds
 
     def process(self, inputs: ProcessingInput) -> ProcessingResult:
+        """Run classification, preparation and comparison without mutating inputs.
+
+        Document preparation returns its updated attachment, readings and
+        issues; comparison returns its report and additional issues. Neither
+        secretly mutates caller-owned arguments.
+        """
+
         classification = self._classify(inputs.case)
+        # Work on copies; inputs.case and its attachments are never mutated.
         attachments = [item.model_copy(deep=True) for item in inputs.case.attachments]
         if classification.accepted is None:
             return ProcessingResult(
@@ -141,15 +167,23 @@ class ShipmentPipeline:
             for item in attachments
             if not item.superseded
         ]
-        issues = [issue for document in prepared for issue in document.issues]
-        report = self._compare(prepared, inputs, issues)
-        return ProcessingResult(
-            classification, attachments, report, sorted(set(issues))
-        )
+        # Return the prepared attachments (with evidence and roles) in the
+        # original order; superseded originals are preserved untouched.
+        by_id = {doc.attachment.id: doc.attachment for doc in prepared}
+        updated = [by_id.get(item.id, item) for item in attachments]
+        base_issues: list[str] = []
+        for document in prepared:
+            base_issues.extend(document.issues)
+        report, extra_issues = self._compare(prepared, inputs, base_issues)
+        all_issues = sorted({*base_issues, *extra_issues})
+        return ProcessingResult(classification, updated, report, all_issues)
 
     def _classify(self, case: CaseView) -> Classification:
         saved = self._checkpoints.load("classification", Classification)
         if saved is not None:
+            # Classification reuse preserves the accepted policy version in the
+            # saved value; acceptance reinterpretation without a new provider
+            # call is handled by the caller comparing policy versions.
             return saved
         if case.classification is not None and case.classification.source == "human":
             return case.classification
@@ -168,8 +202,27 @@ class ShipmentPipeline:
         key = f"document:{attachment.id}"
         saved = self._checkpoints.load(key, _DocumentCheckpoint)
         if saved is not None:
+            # Unversioned resumable checkpoints cannot be reused.
+            if (
+                saved.version != CHECKPOINT_VERSION
+                or saved.reader_version != READER_VERSION
+                or saved.ocr_profile != OCR_PROFILE
+            ):
+                raise InvalidCheckpoint(
+                    "Saved document reading uses an incompatible reader profile"
+                )
+            if saved.evidence.document_id != attachment.id:
+                raise InvalidCheckpoint("Saved document reading has wrong identity")
             return saved.evidence
         if attachment.evidence is not None:
+            # Legacy evidence without a fingerprint is fingerprinted from its
+            # stored contents without claiming a newer parser produced it.
+            try:
+                fingerprint = evidence_fingerprint(attachment.evidence)
+            except Exception:  # noqa: BLE001 - fingerprint never blocks reading
+                fingerprint = None
+            if attachment.evidence.evidence_fingerprint is None and fingerprint:
+                attachment.evidence.evidence_fingerprint = fingerprint
             return attachment.evidence
         content = self._load_document(attachment.id)
         available = self._remaining() - PROVIDER_TIME_RESERVE_SECONDS
@@ -181,64 +234,143 @@ class ShipmentPipeline:
             content,
             timeout_seconds=min(PARSER_TIMEOUT_SECONDS, available),
         )
-        self._checkpoints.save(key, _DocumentCheckpoint(evidence=evidence))
+        try:
+            fingerprint = evidence_fingerprint(evidence)
+        except Exception:  # noqa: BLE001 - fingerprint never blocks reading
+            fingerprint = None
+        self._checkpoints.save(
+            key,
+            _DocumentCheckpoint(
+                version=CHECKPOINT_VERSION,
+                evidence=evidence,
+                reader_version=READER_VERSION,
+                ocr_profile=OCR_PROFILE,
+                evidence_fingerprint=fingerprint or evidence.evidence_fingerprint,
+            ),
+        )
         return evidence
 
     def _extract(self, evidence: DocumentEvidence) -> _ExtractionCheckpoint | None:
         key = f"extraction:{evidence.document_id}"
         saved = self._checkpoints.load(key, _ExtractionCheckpoint)
         if saved is not None:
+            if (
+                saved.version != CHECKPOINT_VERSION
+                or saved.acceptance_profile != ACCEPTANCE_PROFILE
+                or saved.extraction_policy != EXTRACTION_POLICY_VERSION
+                or saved.normalization_profile != NORMALIZATION_PROFILE
+            ):
+                raise InvalidCheckpoint(
+                    "Saved extraction uses an incompatible provider profile"
+                )
+            try:
+                current_print = evidence_fingerprint(evidence)
+            except Exception:  # noqa: BLE001 - fingerprint never blocks reuse check
+                current_print = evidence.evidence_fingerprint
+            expected = saved.evidence_fingerprint or current_print
+            if expected and current_print and expected != current_print:
+                raise InvalidCheckpoint(
+                    "Saved extraction does not match current evidence"
+                )
             return saved
         if not evidence.blocks or len(evidence.blocks) > MAX_EVIDENCE_CANDIDATES:
             return None
-        extracted = self._intelligence.extract(evidence)
-        value = _ExtractionCheckpoint.model_validate(
-            {
-                "role": extracted.role,
-                "role_confidence": extracted.role_confidence,
-                "fields": extracted.fields,
-            }
+        from averis.intelligence import ProviderCapacityError
+
+        try:
+            extracted = self._intelligence.extract(evidence)
+        except ProviderCapacityError:
+            # Capacity limitations become visible unsupported-input review
+            # outcomes; other provider failures remain processing failures.
+            return None
+        try:
+            fingerprint = evidence_fingerprint(evidence)
+        except Exception:  # noqa: BLE001 - fingerprint never blocks saving
+            fingerprint = evidence.evidence_fingerprint
+        value = _ExtractionCheckpoint(
+            version=CHECKPOINT_VERSION,
+            role=extracted.role,  # type: ignore[arg-type]
+            role_confidence=extracted.role_confidence,
+            fields=extracted.fields,
+            evidence_fingerprint=fingerprint,
+            acceptance_profile=ACCEPTANCE_PROFILE,
+            extraction_policy=EXTRACTION_POLICY_VERSION,
+            normalization_profile=NORMALIZATION_PROFILE,
         )
         self._checkpoints.save(key, value)
         return value
 
     def _prepare(
         self,
-        attachment: AttachmentView,
+        source: AttachmentView,
         pair: list[str] | None,
         overrides: dict[str, Reading],
     ) -> _PreparedDocument:
+        """Return a new attachment, readings and issues; never mutate `source`."""
+
         if self._remaining() <= PROVIDER_TIME_RESERVE_SECONDS:
             raise TimeoutError("application_deadline")
+        attachment = source.model_copy(deep=True)
         evidence = self._read(attachment)
         attachment.evidence = evidence
-        issues = list(evidence.issues)
+        issues: list[str | object] = list(evidence.issues)
         extracted = self._extract(evidence)
         if extracted is None:
             issues.append("Document cannot be reliably extracted")
-            return _PreparedDocument(attachment, None, issues)
+            return _PreparedDocument(
+                attachment,
+                None,
+                [
+                    str(i) if isinstance(i, str) else getattr(i, "code", "unknown")
+                    for i in issues
+                ],
+            )
         attachment.role_confidence = extracted.role_confidence
-        attachment.role = extracted.role
+        attachment.role = extracted.role  # type: ignore[assignment]
         if pair is not None:
             roles: dict[str, Literal["SI", "BL", "unknown"]] = dict(
                 zip(pair, ("SI", "BL"), strict=True)
             )
             attachment.role = roles.get(attachment.id, "unknown")
-        fields = {
-            field: overrides.get(f"{attachment.id}:{field}", reading)
-            for field, reading in extracted.fields.items()
-        }
-        return _PreparedDocument(attachment, fields, issues)
+        try:
+            current_print = evidence_fingerprint(evidence)
+        except Exception:  # noqa: BLE001 - fingerprint never blocks corrections
+            current_print = evidence.evidence_fingerprint
+        fields: dict[str, Reading] = {}
+        for field, reading in extracted.fields.items():
+            override = overrides.get(f"{attachment.id}:{field}")
+            # Corrections bind to an exact evidence-set fingerprint, not merely
+            # an ordinal block ID. A correction against different evidence
+            # requires renewed human review and is ignored here.
+            if override is not None:
+                expected = override.evidence_fingerprint
+                if expected and current_print and expected != current_print:
+                    fields[field] = reading
+                else:
+                    fields[field] = override
+            else:
+                fields[field] = reading
+        return _PreparedDocument(
+            attachment,
+            fields,
+            [
+                i if isinstance(i, str) else getattr(i, "code", "unknown")
+                for i in issues
+            ],
+        )
 
     @staticmethod
     def _compare(
-        documents: list[_PreparedDocument], inputs: ProcessingInput, issues: list[str]
-    ) -> Report | None:
+        documents: list[_PreparedDocument],
+        inputs: ProcessingInput,
+        base_issues: list[str],
+    ) -> tuple[Report | None, list[str]]:
+        """Pure comparison: return the report and additional issues."""
+
         sis = [document for document in documents if document.attachment.role == "SI"]
         bls = [document for document in documents if document.attachment.role == "BL"]
         if len(sis) != 1 or len(bls) != 1:
-            issues.append("Select the correct SI and draft BL")
-            return None
+            return None, [*base_issues, "Select the correct SI and draft BL"]
         si, bl = sis[0], bls[0]
         if (
             si.fields is None
@@ -246,16 +378,18 @@ class ShipmentPipeline:
             or si.attachment.evidence is None
             or bl.attachment.evidence is None
         ):
-            issues.append("Unreadable comparison documents")
-            return None
+            return None, [*base_issues, "Unreadable comparison documents"]
         manually_paired = inputs.accepted_pair == [si.attachment.id, bl.attachment.id]
         valid = validate_pair(
             si.attachment.evidence, bl.attachment.evidence, manually_paired
         )
         report = compare(
-            si.fields, bl.fields, inputs.case.input_revision, valid, issues
+            si.fields, bl.fields, inputs.case.input_revision, valid, base_issues
         )
-        issues.extend(report.issues)
+        extra: list[str] = [
+            i if isinstance(i, str) else getattr(i, "code", "unknown")
+            for i in report.issues
+        ]
         if any(finding.outcome == "unresolved" for finding in report.findings):
-            issues.append("Some fields need review")
-        return report
+            extra.append("Some fields need review")
+        return report, extra

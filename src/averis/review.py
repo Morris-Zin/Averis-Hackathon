@@ -5,63 +5,95 @@ The workflow adapter owns transactions, versions and job scheduling.
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from averis.contracts import FIELDS
-from averis.domain import REVIEWERS, Action, CaseView, Reading
+from averis.domain import (
+    REVIEWERS,
+    Action,
+    AssignAction,
+    CaseView,
+    CategoryAction,
+    CorrectAction,
+    PairAction,
+    Reading,
+    WorkflowAction,
+)
 from averis.verification import compare, reading_from_evidence, validate_pair
 
 
 @dataclass(frozen=True)
 class ReviewDecision:
+    """Explicit domain outcome; workflow owns the surrounding transaction."""
+
     view: CaseView
+    next_input_revision: int
     input_changed: bool
-    needs_processing: bool
+    processing_intent: Literal["none", "queue"]
     history_detail: str
     accepted_pair: list[str] | None = None
     reading_override: tuple[str, Reading] | None = None
+
+    @property
+    def needs_processing(self) -> bool:
+        return self.processing_intent == "queue"
 
 
 def review_case(
     original: CaseView, action: Action, *, controlled: bool
 ) -> ReviewDecision:
+    # Determine the next input revision once; all branches use this value.
+    input_changed = action.kind in {"category", "pair", "correct"}
+    next_input = original.input_revision + (1 if input_changed else 0)
     view = original.model_copy(deep=True)
+    if input_changed:
+        view.input_revision = next_input
     detail = action.reason.strip() or f"Updated {action.kind}"
     pair = None
     override = None
     match action.kind:
         case "assign":
+            assert isinstance(action, AssignAction)
             if action.assignee not in {*REVIEWERS, "Unassigned"}:
                 raise ValueError("Unknown reviewer")
-            assert action.assignee is not None
             view.assignee = action.assignee
         case "workflow":
-            if action.workflow is None:
-                raise ValueError("Select a workflow state")
+            assert isinstance(action, WorkflowAction)
             view.workflow = action.workflow
         case "category":
-            detail = _change_category(view, action, controlled)
+            assert isinstance(action, CategoryAction)
+            detail = _change_category(view, action, controlled, next_input)
         case "pair":
-            pair = _select_pair(view, action, controlled)
+            assert isinstance(action, PairAction)
+            pair = _select_pair(view, action, controlled, next_input)
         case "correct":
-            override = _correct_reading(view, action)
+            assert isinstance(action, CorrectAction)
+            override = _correct_reading(view, action, next_input)
         case "retry":
             view.processing = "queued"
             view.stage = "retry_requested"
         case "revision":
             raise ValueError("Document revisions require the versioning workflow")
+    processing_intent: Literal["none", "queue"] = (
+        "queue"
+        if view.processing == "queued" and action.kind in {"category", "pair", "retry"}
+        else "none"
+    )
     return ReviewDecision(
         view=view,
-        input_changed=action.kind in {"category", "pair", "correct"},
-        needs_processing=view.processing == "queued"
-        and action.kind in {"category", "pair", "retry"},
+        next_input_revision=next_input,
+        input_changed=input_changed,
+        processing_intent=processing_intent,
         history_detail=detail,
         accepted_pair=pair,
         reading_override=override,
     )
 
 
-def _change_category(view: CaseView, action: Action, controlled: bool) -> str:
-    if action.category is None or view.classification is None:
+def _change_category(
+    view: CaseView, action: CategoryAction, controlled: bool, next_input: int
+) -> str:
+    if view.classification is None:
         raise ValueError("Choose a category after classification is available")
     previous_category = view.classification.accepted
     view.classification.accepted = action.category
@@ -81,7 +113,9 @@ def _change_category(view: CaseView, action: Action, controlled: bool) -> str:
     return history_detail
 
 
-def _select_pair(view: CaseView, action: Action, controlled: bool) -> list[str]:
+def _select_pair(
+    view: CaseView, action: PairAction, controlled: bool, next_input: int
+) -> list[str]:
     require_comparison_category(view)
     if action.si_id == action.bl_id:
         raise ValueError("Select different SI and BL documents")
@@ -115,13 +149,19 @@ def _select_pair(view: CaseView, action: Action, controlled: bool) -> list[str]:
     return [si.id, bl.id]
 
 
-def _correct_reading(view: CaseView, action: Action) -> tuple[str, Reading]:
+def _correct_reading(
+    view: CaseView, action: CorrectAction, next_input: int
+) -> tuple[str, Reading]:
+    from averis.domain import evidence_fingerprint
+
     require_comparison_category(view)
+    # The report must be current against the pre-action input revision; the
+    # correction advances to next_input exactly once (view already carries it).
     if (
         not view.report
         or not view.report.pair_valid
-        or view.report.input_revision != view.input_revision
-        or not action.field
+        or view.report.input_revision
+        not in (view.input_revision - 1, view.input_revision)
         or not action.reason.strip()
     ):
         raise ValueError(
@@ -181,13 +221,16 @@ def _correct_reading(view: CaseView, action: Action) -> tuple[str, Reading]:
         raise ValueError("Select evidence from this document")
     if action.transcription is None:
         replacement.provenance = "human_verified"
+    # Bind the correction to the exact evidence set, not merely an ordinal ID.
+    replacement.evidence_fingerprint = evidence_fingerprint(attachment.evidence)
+    assert view.report is not None
     si = {f.field: f.si for f in view.report.findings}
     bl = {f.field: f.bl for f in view.report.findings}
     target = si if attachment.role == "SI" else bl if attachment.role == "BL" else None
     if target is None:
         raise ValueError("Document is not in the accepted pair")
     target[action.field] = replacement
-    view.report = compare(si, bl, view.input_revision + 1, True, view.report.issues)
+    view.report = compare(si, bl, next_input, True, view.report.issues)
     unresolved = [
         finding for finding in view.report.findings if finding.outcome == "unresolved"
     ]
@@ -199,7 +242,17 @@ def _correct_reading(view: CaseView, action: Action) -> tuple[str, Reading]:
     }
     if any(not finding.si.issue and not finding.bl.issue for finding in unresolved):
         unresolved_issues.add("Unresolved field")
-    view.review_reasons = sorted(set(view.report.issues) | unresolved_issues)
+
+    def _text(issue: str | object) -> str:
+        if isinstance(issue, str):
+            return issue
+        code = getattr(issue, "code", "unknown_issue")
+        detail = getattr(issue, "detail", "")
+        return f"{code}:{detail}" if detail else str(code)
+
+    view.review_reasons = sorted(
+        {_text(issue) for issue in view.report.issues} | unresolved_issues
+    )
     view.processing, view.stage = "completed", "reading_corrected"
     view.processing_error = None
     return f"{attachment.id}:{action.field}", replacement

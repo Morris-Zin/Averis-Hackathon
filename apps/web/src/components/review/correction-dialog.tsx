@@ -8,6 +8,7 @@ import type {
   Finding,
 } from "@/lib/contracts";
 import { FIELD_LABELS } from "@/lib/contracts";
+import { shouldResetVerification } from "@/lib/attestation";
 import { Button, Dialog, Input, Textarea } from "../ui";
 import { locationLabel } from "./evidence-pane";
 
@@ -88,7 +89,19 @@ export function CorrectionDialog({
             <span>Verified OCR transcription</span>
             <Textarea
               value={transcription}
-              onChange={(event) => setTranscription(event.target.value)}
+              onChange={(event) => {
+                // Any transcription edit revokes the original-image attestation.
+                if (
+                  shouldResetVerification(
+                    transcription,
+                    event.target.value,
+                    evidenceIds,
+                    evidenceIds,
+                  )
+                )
+                  setVerified(false);
+                setTranscription(event.target.value);
+              }}
               rows={3}
               disabled={pending}
             />
@@ -118,12 +131,19 @@ export function CorrectionDialog({
                 checked={evidenceIds.includes(block.id)}
                 disabled={pending}
                 onChange={(event) => {
-                  setVerified(false);
-                  setEvidenceIds((values) =>
-                    event.target.checked
-                      ? [...values, block.id]
-                      : values.filter((idValue) => idValue !== block.id),
-                  );
+                  const next = event.target.checked
+                    ? [...evidenceIds, block.id]
+                    : evidenceIds.filter((idValue) => idValue !== block.id);
+                  if (
+                    shouldResetVerification(
+                      transcription,
+                      transcription,
+                      evidenceIds,
+                      next,
+                    )
+                  )
+                    setVerified(false);
+                  setEvidenceIds(next);
                 }}
               />
               <span>

@@ -23,17 +23,33 @@ class BudgetAuthority:
     def reserve(
         self, run_id: str, purpose: str, payload_bytes: int, questions: int
     ) -> str:
+        # Legacy envelope helper kept for existing doubles; new provider adapters
+        # compute conservative bounds via averis.jev.estimate_request and call
+        # reserve_estimate so the ledger never owns provider estimation.
+        if not 0 <= payload_bytes <= 100_000 or not 1 <= questions <= 10:
+            raise BudgetUnavailable("Request exceeds the bounded inference envelope")
+        input_bound = payload_bytes * (questions + 1) * 2 + 32768
+        output_bound = 32768
+        return self.reserve_estimate(run_id, purpose, input_bound, output_bound)
+
+    def reserve_estimate(
+        self, run_id: str, purpose: str, input_bound: int, output_bound: int
+    ) -> str:
+        """Reserve a validated conservative estimate supplied by the adapter."""
+
         settings = self.settings
         if not settings.live_enabled or not settings.budget_verified:
             raise BudgetUnavailable(
                 "Live AI disabled until starting usage and billing are verified"
             )
         input_rate, output_rate = self._verified_rates()
-        if not 0 <= payload_bytes <= 100_000 or not 1 <= questions <= 10:
-            raise BudgetUnavailable("Request exceeds the bounded inference envelope")
-        # UTF-8 bytes upper-bound token count, with repeated-question/context overhead.
-        input_bound = payload_bytes * (questions + 1) * 2 + 32768
-        output_bound = 32768
+        if (
+            type(input_bound) is not int
+            or type(output_bound) is not int
+            or not 0 <= input_bound <= 10_000_000
+            or not 0 <= output_bound <= 1_000_000
+        ):
+            raise BudgetUnavailable("Invalid conservative cost estimate")
         amount = int(
             (input_bound * input_rate + output_bound * output_rate).to_integral_value(
                 rounding=ROUND_CEILING

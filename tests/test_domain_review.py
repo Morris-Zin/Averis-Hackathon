@@ -6,10 +6,10 @@ import pytest
 
 from averis.contracts import FIELDS, Field
 from averis.domain import (
-    Action,
     AttachmentView,
     CaseView,
     Classification,
+    CorrectAction,
     DocumentEvidence,
     EvidenceBlock,
     Location,
@@ -128,9 +128,8 @@ def test_ocr_correction_requires_explicit_original_verification() -> None:
     with pytest.raises(ValueError, match="Verify OCR evidence"):
         review_case(
             view,
-            Action(
+            CorrectAction(
                 expected_revision=1,
-                kind="correct",
                 document_id="bl",
                 field="shipper",
                 evidence_ids=["bl:b1"],
@@ -156,9 +155,8 @@ def test_correction_preserves_both_sides_of_unresolved_reason() -> None:
 
     decision = review_case(
         view,
-        Action(
+        CorrectAction(
             expected_revision=1,
-            kind="correct",
             document_id="bl",
             field="shipper",
             evidence_ids=["bl:b1"],
@@ -178,9 +176,8 @@ def test_correction_completes_a_superseded_pending_retry() -> None:
 
     decision = review_case(
         view,
-        Action(
+        CorrectAction(
             expected_revision=1,
-            kind="correct",
             document_id="bl",
             field="shipper",
             evidence_ids=["bl:b1"],
@@ -204,9 +201,8 @@ def test_correction_cannot_complete_a_stale_report() -> None:
     with pytest.raises(ValueError, match="current valid comparison"):
         review_case(
             view,
-            Action(
+            CorrectAction(
                 expected_revision=1,
-                kind="correct",
                 document_id="bl",
                 field="shipper",
                 evidence_ids=["bl:b1"],
