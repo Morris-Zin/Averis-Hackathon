@@ -4,6 +4,7 @@ import { EvidencePane } from "./evidence-pane";
 import { outcomeLabel, readingProvenanceLabel } from "./presentation";
 
 type Props = {
+  summaryKind: CaseView["summary"]["kind"];
   report: CaseView["report"];
   activeField: Field;
   setActiveField: (field: Field) => void;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function ComparisonPanel({
+  summaryKind,
   report,
   activeField,
   setActiveField,
@@ -22,6 +24,25 @@ export function ComparisonPanel({
   blAttachment,
   openCorrection,
 }: Props) {
+  if (summaryKind === "categorized") {
+    return (
+      <section className="comparison-section">
+        <div className="section-heading">
+          <div>
+            <h2>No shipment comparison needed</h2>
+            <p>
+              Review the email and its category, then update the workflow when
+              your work is complete. Source documents and history remain
+              available.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+  const checkedFields =
+    report?.findings?.filter((finding) => finding.outcome !== "unresolved")
+      .length ?? 0;
   return (
     <>
       <section className="comparison-section">
@@ -30,7 +51,7 @@ export function ComparisonPanel({
             <h2>Shipment comparison</h2>
             <p>Shipping instruction is the reference.</p>
           </div>
-          <span>{report?.findings?.length ?? 0} of 7 fields read</span>
+          <span>{checkedFields} of 7 fields checked</span>
         </div>
         <div className="comparison-table-wrap">
           <table className="comparison-table">

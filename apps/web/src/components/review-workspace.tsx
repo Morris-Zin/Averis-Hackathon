@@ -293,6 +293,7 @@ export function ReviewWorkspace() {
                     aria-labelledby="comparison-tab"
                   >
                     <ComparisonPanel
+                      summaryKind={item.summary.kind}
                       report={item.report}
                       activeField={activeField}
                       setActiveField={setActiveField}
