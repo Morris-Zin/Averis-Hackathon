@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  Gauge,
   RotateCcw,
   UserRound,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { ComparisonPanel } from "./review/comparison-panel";
 import { DocumentsPanel } from "./review/documents-panel";
 import { ActivityPanel } from "./review/activity-panel";
 import { CorrectionDialog } from "./review/correction-dialog";
+import { confidenceDisplay } from "./review/presentation";
 import { useReviewWorkspace } from "./review/use-review-workspace";
 
 export function ReviewWorkspace() {
@@ -35,7 +37,7 @@ export function ReviewWorkspace() {
     controlled,
     processingActive,
     navigation: { tab, setTab, activeField, setActiveField },
-    category: { categoryDraft, setCategoryDraft, classificationConfidence },
+    category: { categoryDraft, setCategoryDraft, classifying },
     documents: {
       pairSi,
       setPairSi,
@@ -60,6 +62,7 @@ export function ReviewWorkspace() {
       </main>
     );
   if (status !== "ready") return <Welcome />;
+  const confidence = item ? confidenceDisplay(item.classification) : null;
 
   return (
     <AppShell contentBusy={pending}>
@@ -204,54 +207,99 @@ export function ReviewWorkspace() {
                     <p>{summary?.detail}</p>
                   </div>
                 </section>
-                <section className="classification-panel">
-                  <div>
+                <section
+                  className="classification-panel"
+                  aria-label="Classification"
+                >
+                  <div className="classification-summary">
                     <h2>Classification</h2>
-                    <p>
-                      Confidence shows certainty in the category prediction. It
-                      is not measured accuracy.
-                    </p>
+                    {classifying ? (
+                      <p role="status">
+                        Classifying… the AI category is not ready yet.
+                      </p>
+                    ) : item.classification ? (
+                      <p>
+                        Classification confidence is AI certainty in the
+                        category — not measured accuracy. Field confidences
+                        below describe document readings, not the category.
+                      </p>
+                    ) : (
+                      <p>
+                        No AI classification is available. Retry processing to
+                        continue.
+                      </p>
+                    )}
+                    {confidence && !classifying ? (
+                      <div className="confidence-meter">
+                        <p className="confidence-meter-head">
+                          {confidence.kind === "reviewer" ? (
+                            <UserRound size={16} aria-hidden="true" />
+                          ) : (
+                            <Gauge size={16} aria-hidden="true" />
+                          )}
+                          <strong>{confidence.headline}</strong>
+                          <span>{confidence.detail}</span>
+                        </p>
+                        {confidence.kind === "reviewer" ? null : (
+                          <div
+                            className="confidence-bar"
+                            role="img"
+                            aria-label={`${confidence.headline}. ${confidence.detail}`}
+                          >
+                            <span style={{ width: `${confidence.percent}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="classification-controls">
-                    <Select
-                      value={categoryDraft}
-                      label="Email category"
-                      onValueChange={(value) =>
-                        setCategoryDraft(value as Category)
-                      }
-                      disabled={pending}
-                    >
-                      {(
-                        Object.entries(CATEGORY_LABELS) as [Category, string][]
-                      ).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                    <span className="confidence-pill">
-                      {classificationConfidence ?? "—"}% confidence
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        void act(
-                          {
-                            kind: "category",
-                            category: categoryDraft,
-                            reason: "Reviewer accepted the email category",
-                          },
-                          "Category accepted.",
-                        )
-                      }
-                      disabled={
-                        pending ||
-                        !item.classification ||
-                        categoryDraft === item.classification?.accepted
-                      }
-                    >
-                      Accept category
-                    </Button>
+                    {classifying ? (
+                      <span className="classifying-pill" role="status">
+                        Classifying…
+                      </span>
+                    ) : (
+                      <>
+                        <Select
+                          value={categoryDraft}
+                          label="Email category"
+                          onValueChange={(value) =>
+                            setCategoryDraft(value as Category)
+                          }
+                          disabled={pending}
+                        >
+                          {(
+                            Object.entries(CATEGORY_LABELS) as [
+                              Category,
+                              string,
+                            ][]
+                          ).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </Select>
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            void act(
+                              {
+                                kind: "category",
+                                category: categoryDraft,
+                                reason: "Reviewer accepted the email category",
+                              },
+                              "Category accepted.",
+                            )
+                          }
+                          disabled={
+                            pending ||
+                            !item.classification ||
+                            categoryDraft === item.classification?.accepted
+                          }
+                        >
+                          Accept category
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </section>
                 <div className="content-tabs" role="tablist">
@@ -312,6 +360,11 @@ export function ReviewWorkspace() {
                   >
                     <DocumentsPanel
                       attachments={item.attachments}
+                      email={{
+                        subject: item.subject,
+                        sender: item.sender,
+                        body: item.body,
+                      }}
                       selection={{
                         pairSi,
                         pairBl,

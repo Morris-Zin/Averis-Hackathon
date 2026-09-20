@@ -4,6 +4,7 @@ import { Button, Select, SelectItem } from "../ui";
 
 type Props = {
   attachments: AttachmentView[];
+  email: { subject: string; sender: string; body: string };
   selection: {
     pairSi: string;
     pairBl: string;
@@ -19,6 +20,7 @@ type Props = {
 
 export function DocumentsPanel({
   attachments,
+  email,
   selection,
   controlled,
   pending,
@@ -43,6 +45,22 @@ export function DocumentsPanel({
           </p>
         </div>
       </div>
+      <section className="original-email" aria-label="Original email">
+        <h3>Original email</h3>
+        <dl>
+          <div>
+            <dt>Subject</dt>
+            <dd>{email.subject}</dd>
+          </div>
+          <div>
+            <dt>From</dt>
+            <dd>{email.sender || "Unknown sender"}</dd>
+          </div>
+        </dl>
+        <p className="original-email-body">
+          {email.body || "No message body."}
+        </p>
+      </section>
       <div className="pair-controls">
         <label>
           <span>Shipping instruction</span>

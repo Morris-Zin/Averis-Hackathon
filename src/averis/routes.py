@@ -5,7 +5,7 @@ import secrets
 from datetime import timedelta
 from hashlib import sha256
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import quote
 
 from fastapi import (
@@ -22,6 +22,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from starlette.concurrency import run_in_threadpool
 
+from averis.bulk_ingest import (
+    MAX_ARCHIVE_BYTES,
+    MAX_EMAIL_JSON_BYTES,
+    MAX_FILE_BYTES,
+    BulkPlan,
+    parse_archive,
+    parse_email_files,
+)
 from averis.demo import seed
 from averis.domain import REVIEWERS, Action, CasePage, CaseView, SessionView
 from averis.http_context import (
@@ -32,6 +40,7 @@ from averis.http_context import (
     mutation,
     session_view,
 )
+from averis.intake import BulkEmailRequest, BulkOutcome, import_many
 from averis.intake import import_email as persist_import
 from averis.persistence import BrowserSession, Case, Document, Workspace, uid, utcnow
 from averis.responses import CasePageResponse, CaseResponse
@@ -49,6 +58,38 @@ class ImportEmail(BaseModel):
     subject: str = Field(min_length=1, max_length=1000)
     sender: str = Field(max_length=320)
     body: str = Field(max_length=100_000)
+
+
+class BulkPreviewEmail(BaseModel):
+    ref: str
+    subject: str = ""
+    sender: str = ""
+    attachments: list[str] = Field(default_factory=list)
+    missing_attachments: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+
+class BulkPreviewResponse(BaseModel):
+    emails: list[BulkPreviewEmail]
+    valid: int
+    invalid: int
+
+
+class BulkItemResult(BaseModel):
+    ref: str
+    status: Literal["accepted", "duplicate", "failed"]
+    case_id: str | None = None
+    subject: str = ""
+    attachments: int = 0
+    missing_attachments: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+
+class BulkImportResponse(BaseModel):
+    items: list[BulkItemResult]
+    accepted: int
+    duplicates: int
+    failed: int
 
 
 def document(
@@ -328,6 +369,152 @@ async def import_email(
     if result.run_id:
         await run_in_threadpool(services.processor.dispatch, result.run_id)
     return result.view
+
+
+async def _read_upload_bytes(file: UploadFile, cap: int, label: str) -> bytes:
+    """Stream one bulk part with an explicit byte bound before parsing."""
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(64 * 1024):
+        total += len(chunk)
+        if total > cap:
+            raise HTTPException(413, f"{label} exceeds its size limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+async def _parse_bulk_plan(
+    archive: UploadFile | None,
+    emails: list[UploadFile] | None,
+    files: list[UploadFile] | None,
+) -> BulkPlan:
+    """Parse one bulk request without persisting anything.
+
+    Exactly one source mode is accepted: a ZIP archive, or loose email JSON
+    files with optional loose attachments. Upload bytes stream with explicit
+    bounds on the event loop; CPU/decompression work runs in a worker thread.
+    Failures are per-email; only an unreadable archive or an empty selection
+    fails the whole request. Count and byte bounds live in the parser module.
+    """
+    email_files = emails or []
+    loose_files = files or []
+    if archive is not None and email_files:
+        raise HTTPException(
+            422, "Send either a ZIP archive or email JSON files, not both"
+        )
+    if archive is not None:
+        data = await _read_upload_bytes(archive, MAX_ARCHIVE_BYTES, "Archive")
+        try:
+            return await run_in_threadpool(parse_archive, data)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+    if not email_files:
+        raise HTTPException(422, "Upload a ZIP archive or at least one email JSON file")
+    parsed_emails = [
+        (
+            Path(item.filename or "email.json").name,
+            await _read_upload_bytes(item, MAX_EMAIL_JSON_BYTES, "Email JSON"),
+        )
+        for item in email_files
+    ]
+    parsed_files = [
+        (
+            Path(item.filename or "attachment").name,
+            await _read_upload_bytes(item, MAX_FILE_BYTES, "Attachment"),
+        )
+        for item in loose_files
+    ]
+    try:
+        return await run_in_threadpool(parse_email_files, parsed_emails, parsed_files)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+def _bulk_response(plan: BulkPlan, outcome: BulkOutcome) -> BulkImportResponse:
+    """Project a batch outcome to HTTP; per-email rows keep missing refs."""
+    items = [
+        BulkItemResult(
+            ref=item.ref,
+            status=item.status,
+            case_id=item.case_id,
+            subject=item.subject,
+            attachments=item.attachment_count,
+            missing_attachments=list(item.missing_attachments),
+            error=item.error,
+        )
+        for item in outcome.items
+    ]
+    items.extend(
+        BulkItemResult(ref=failure.ref, status="failed", error=failure.error)
+        for failure in plan.failures
+    )
+    return BulkImportResponse(
+        items=items,
+        accepted=sum(1 for item in items if item.status == "accepted"),
+        duplicates=sum(1 for item in items if item.status == "duplicate"),
+        failed=sum(1 for item in items if item.status == "failed"),
+    )
+
+
+@router.post("/api/bulk-imports/preview", response_model=BulkPreviewResponse)
+async def bulk_preview(
+    services: Services,
+    actor: Annotated[BrowserSession, Depends(mutation)],
+    archive: Annotated[UploadFile | None, File()] = None,
+    emails: Annotated[list[UploadFile] | None, File()] = None,
+    files: Annotated[list[UploadFile] | None, File()] = None,
+) -> BulkPreviewResponse:
+    plan = await _parse_bulk_plan(archive, emails, files)
+    previews = [
+        BulkPreviewEmail(
+            ref=record.ref,
+            subject=record.subject,
+            sender=record.sender,
+            attachments=[filename for filename, _ in record.attachments],
+            missing_attachments=list(record.missing_attachments),
+        )
+        for record in plan.records
+    ]
+    previews.extend(
+        BulkPreviewEmail(ref=failure.ref, error=failure.error)
+        for failure in plan.failures
+    )
+    return BulkPreviewResponse(
+        emails=previews, valid=len(plan.records), invalid=len(plan.failures)
+    )
+
+
+@router.post("/api/bulk-imports", response_model=BulkImportResponse)
+async def bulk_import(
+    services: Services,
+    actor: Annotated[BrowserSession, Depends(mutation)],
+    archive: Annotated[UploadFile | None, File()] = None,
+    emails: Annotated[list[UploadFile] | None, File()] = None,
+    files: Annotated[list[UploadFile] | None, File()] = None,
+) -> BulkImportResponse:
+    plan = await _parse_bulk_plan(archive, emails, files)
+    outcome = await run_in_threadpool(
+        import_many,
+        services.db,
+        services.storage,
+        actor.workspace_id,
+        actor.actor,
+        [
+            BulkEmailRequest(
+                ref=record.ref,
+                subject=record.subject,
+                sender=record.sender,
+                body=record.body,
+                attachments=record.attachments,
+                missing_attachments=record.missing_attachments,
+            )
+            for record in plan.records
+        ],
+        purpose="demo",
+    )
+    for run_id in outcome.run_ids:
+        await run_in_threadpool(services.processor.dispatch, run_id)
+    return _bulk_response(plan, outcome)
 
 
 @router.post("/api/cases/{case_id}/revisions", response_model=CaseResponse)

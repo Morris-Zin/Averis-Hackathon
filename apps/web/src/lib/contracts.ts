@@ -8,6 +8,9 @@ export type Finding = components["schemas"]["Finding"];
 export type CaseView = components["schemas"]["CaseResponse"];
 export type CasePage = components["schemas"]["CasePageResponse"];
 export type SessionView = components["schemas"]["SessionView"];
+export type BulkPreviewResponse = components["schemas"]["BulkPreviewResponse"];
+export type BulkImportResponse = components["schemas"]["BulkImportResponse"];
+export type BulkItemResult = components["schemas"]["BulkItemResult"];
 export type Action =
   | components["schemas"]["CategoryAction"]
   | components["schemas"]["PairAction"]

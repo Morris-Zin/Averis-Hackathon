@@ -208,6 +208,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/bulk-imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk Preview */
+        post: operations["bulk_preview_api_bulk_imports_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bulk-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk Import */
+        post: operations["bulk_import_api_bulk_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cases/{case_id}/revisions": {
         parameters: {
             query?: never;
@@ -284,6 +318,24 @@ export interface components {
             /** Detail */
             detail: string;
         };
+        /** Body_bulk_import_api_bulk_imports_post */
+        Body_bulk_import_api_bulk_imports_post: {
+            /** Archive */
+            archive?: string | null;
+            /** Emails */
+            emails?: string[] | null;
+            /** Files */
+            files?: string[] | null;
+        };
+        /** Body_bulk_preview_api_bulk_imports_preview_post */
+        Body_bulk_preview_api_bulk_imports_preview_post: {
+            /** Archive */
+            archive?: string | null;
+            /** Emails */
+            emails?: string[] | null;
+            /** Files */
+            files?: string[] | null;
+        };
         /** Body_import_email_api_imports_post */
         Body_import_email_api_imports_post: {
             /** Email */
@@ -308,6 +360,73 @@ export interface components {
             reason: string;
             /** File */
             file: string;
+        };
+        /** BulkImportResponse */
+        BulkImportResponse: {
+            /** Items */
+            items: components["schemas"]["BulkItemResult"][];
+            /** Accepted */
+            accepted: number;
+            /** Duplicates */
+            duplicates: number;
+            /** Failed */
+            failed: number;
+        };
+        /** BulkItemResult */
+        BulkItemResult: {
+            /** Ref */
+            ref: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "accepted" | "duplicate" | "failed";
+            /** Case Id */
+            case_id?: string | null;
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /**
+             * Attachments
+             * @default 0
+             */
+            attachments: number;
+            /** Missing Attachments */
+            missing_attachments?: string[];
+            /** Error */
+            error?: string | null;
+        };
+        /** BulkPreviewEmail */
+        BulkPreviewEmail: {
+            /** Ref */
+            ref: string;
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /**
+             * Sender
+             * @default
+             */
+            sender: string;
+            /** Attachments */
+            attachments?: string[];
+            /** Missing Attachments */
+            missing_attachments?: string[];
+            /** Error */
+            error?: string | null;
+        };
+        /** BulkPreviewResponse */
+        BulkPreviewResponse: {
+            /** Emails */
+            emails: components["schemas"]["BulkPreviewEmail"][];
+            /** Valid */
+            valid: number;
+            /** Invalid */
+            invalid: number;
         };
         /** CasePageResponse */
         CasePageResponse: {
@@ -1091,6 +1210,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_preview_api_bulk_imports_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_bulk_preview_api_bulk_imports_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_import_api_bulk_imports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_bulk_import_api_bulk_imports_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkImportResponse"];
                 };
             };
             /** @description Validation Error */

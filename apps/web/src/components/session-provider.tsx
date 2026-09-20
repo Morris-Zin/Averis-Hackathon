@@ -63,6 +63,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     () => ({
       importEmail: (...args: Parameters<AppApi["importEmail"]>) =>
         guard(liveApi.importEmail(...args)),
+      bulkPreview: (...args: Parameters<AppApi["bulkPreview"]>) =>
+        guard(liveApi.bulkPreview(...args)),
+      bulkImport: (...args: Parameters<AppApi["bulkImport"]>) =>
+        guard(liveApi.bulkImport(...args)),
       session: () => guard(liveApi.session()),
       enterDemo: () => guard(liveApi.enterDemo()),
       cases: (...args: Parameters<AppApi["cases"]>) =>

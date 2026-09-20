@@ -1,5 +1,7 @@
 import type {
   Action,
+  BulkImportResponse,
+  BulkPreviewResponse,
   CasePage,
   CaseView,
   Category,
@@ -62,6 +64,34 @@ export const liveApi = {
     form.set("email", JSON.stringify(email));
     for (const file of files) form.append("files", file);
     return request<CaseView>("/api/manual-imports", {
+      method: "POST",
+      body: form,
+      headers: { "X-CSRF-Token": csrfToken },
+    });
+  },
+  bulkPreview: (
+    input: { archive?: File; emails?: File[]; files?: File[] },
+    csrfToken: string,
+  ) => {
+    const form = new FormData();
+    if (input.archive) form.append("archive", input.archive);
+    for (const file of input.emails ?? []) form.append("emails", file);
+    for (const file of input.files ?? []) form.append("files", file);
+    return request<BulkPreviewResponse>("/api/bulk-imports/preview", {
+      method: "POST",
+      body: form,
+      headers: { "X-CSRF-Token": csrfToken },
+    });
+  },
+  bulkImport: (
+    input: { archive?: File; emails?: File[]; files?: File[] },
+    csrfToken: string,
+  ) => {
+    const form = new FormData();
+    if (input.archive) form.append("archive", input.archive);
+    for (const file of input.emails ?? []) form.append("emails", file);
+    for (const file of input.files ?? []) form.append("files", file);
+    return request<BulkImportResponse>("/api/bulk-imports", {
       method: "POST",
       body: form,
       headers: { "X-CSRF-Token": csrfToken },

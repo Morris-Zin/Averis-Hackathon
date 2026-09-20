@@ -247,6 +247,9 @@ export function useReviewWorkspace(id: string) {
   const classificationConfidence = item?.classification
     ? Math.round(item.classification.confidence * 100)
     : null;
+  // No classification exists yet while a run is active: the UI must show
+  // "Classifying…" and never present the editable default as an AI result.
+  const classifying = processingActive && !item?.classification;
   // Untouched controls follow worker updates; explicit reviewer drafts survive polling.
   const categoryDraft =
     categoryOverride ??
@@ -287,7 +290,12 @@ export function useReviewWorkspace(id: string) {
     pending: pending || sessionActionPending,
     act,
     navigation: { tab, setTab, activeField, setActiveField },
-    category: { categoryDraft, setCategoryDraft, classificationConfidence },
+    category: {
+      categoryDraft,
+      setCategoryDraft,
+      classificationConfidence,
+      classifying,
+    },
     documents: {
       pairSi,
       setPairSi,

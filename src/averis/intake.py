@@ -1,6 +1,7 @@
 """Framework-independent email intake and persistence boundary."""
 
 import json
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
@@ -12,6 +13,8 @@ from averis.domain import AttachmentView, AuditEntry, CaseView
 from averis.persistence import Case, Database, Document, Workspace, uid, utcnow
 from averis.storage import Storage
 from averis.workflow import create_processing_run, view_of
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -135,3 +138,119 @@ def import_email(
             storage.delete(object_key)
         raise
     return ImportResult(view=view, run_id=run_id)
+
+
+@dataclass(frozen=True)
+class BulkEmailRequest:
+    """One parsed email within a batch; attachments are that email's own."""
+
+    ref: str
+    subject: str
+    sender: str
+    body: str
+    attachments: tuple[tuple[str, bytes], ...]
+    missing_attachments: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class BulkItemOutcome:
+    """Per-email batch result; missing refs stay visible on every outcome."""
+
+    ref: str
+    status: Literal["accepted", "duplicate", "failed"]
+    case_id: str | None = None
+    subject: str = ""
+    attachment_count: int = 0
+    missing_attachments: tuple[str, ...] = ()
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class BulkOutcome:
+    """Partial-success batch result plus accepted runs to dispatch."""
+
+    items: tuple[BulkItemOutcome, ...]
+    run_ids: tuple[str, ...]
+
+
+def import_many(
+    db: Database,
+    storage: Storage,
+    workspace_id: str,
+    actor: str,
+    requests: Sequence[BulkEmailRequest],
+    *,
+    purpose: Literal["demo", "development"] = "demo",
+) -> BulkOutcome:
+    """Persist a parsed batch through single-email intake, reusing its rules.
+
+    This owns batch orchestration: per-email persistence, deduplication and
+    partial-success semantics. Validated input failures keep their actionable
+    message; unexpected database/storage failures return a stable public
+    message while only the error category is logged server-side.
+    """
+    items: list[BulkItemOutcome] = []
+    run_ids: list[str] = []
+    for request in requests:
+        try:
+            result = import_email(
+                db,
+                storage,
+                workspace_id,
+                actor,
+                request.subject,
+                request.sender,
+                request.body,
+                list(request.attachments),
+                purpose=purpose,
+            )
+        except (ValueError, KeyError) as exc:
+            items.append(
+                BulkItemOutcome(
+                    ref=request.ref,
+                    status="failed",
+                    subject=request.subject,
+                    missing_attachments=request.missing_attachments,
+                    error=str(exc) or "The email could not be imported",
+                )
+            )
+            continue
+        except Exception as exc:  # noqa: BLE001 - one bad email never blocks the batch
+            log.warning(
+                "bulk_item_failed",
+                extra={"ref": request.ref, "error_type": type(exc).__name__},
+            )
+            items.append(
+                BulkItemOutcome(
+                    ref=request.ref,
+                    status="failed",
+                    subject=request.subject,
+                    missing_attachments=request.missing_attachments,
+                    error="The email could not be imported. Try again.",
+                )
+            )
+            continue
+        if result.run_id is None:
+            items.append(
+                BulkItemOutcome(
+                    ref=request.ref,
+                    status="duplicate",
+                    case_id=result.view.id,
+                    subject=result.view.subject,
+                    attachment_count=len(result.view.attachments),
+                    missing_attachments=request.missing_attachments,
+                )
+            )
+        else:
+            run_ids.append(result.run_id)
+            items.append(
+                BulkItemOutcome(
+                    ref=request.ref,
+                    status="accepted",
+                    case_id=result.view.id,
+                    subject=result.view.subject,
+                    attachment_count=len(result.view.attachments),
+                    missing_attachments=request.missing_attachments,
+                )
+            )
+    return BulkOutcome(items=tuple(items), run_ids=tuple(run_ids))

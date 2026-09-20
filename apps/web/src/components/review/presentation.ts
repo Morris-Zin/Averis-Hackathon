@@ -1,6 +1,31 @@
 import type { CaseView, Finding } from "@/lib/contracts";
 import { CATEGORY_LABELS } from "@/lib/contracts";
 
+export function confidenceDisplay(classification: CaseView["classification"]) {
+  if (!classification) return null;
+  const percent = Math.round(classification.confidence * 100);
+  if (classification.source === "human")
+    return {
+      kind: "reviewer" as const,
+      percent,
+      headline: "Reviewer classified",
+      detail: `Original AI suggestion: ${CATEGORY_LABELS[classification.suggested]} (${percent}%)`,
+    };
+  if (classification.source === "fixture")
+    return {
+      kind: "demo" as const,
+      percent,
+      headline: `Classification confidence: ${percent}%`,
+      detail: "Illustrative demo value, not a live AI result",
+    };
+  return {
+    kind: "ai" as const,
+    percent,
+    headline: `Classification confidence: ${percent}%`,
+    detail: `Suggested by ${classification.model}. AI certainty in the category, not measured accuracy.`,
+  };
+}
+
 export function outcomeLabel(outcome: Finding["outcome"]) {
   if (outcome === "match") return "MATCH";
   if (outcome === "mismatch") return "MISMATCH";
@@ -46,7 +71,10 @@ export function resultSummary(item: CaseView) {
       return {
         label: `Processing ${kind}`,
         tone: "neutral",
-        detail: item.stage || "The comparison is not ready yet.",
+        detail:
+          item.stage === "classified"
+            ? "Category decided; reading source documents."
+            : item.stage || "The comparison is not ready yet.",
       };
     case "unclassified":
       return {

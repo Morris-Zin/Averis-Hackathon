@@ -11,13 +11,14 @@ from typing import Literal, TypeGuard
 from google.api_core.exceptions import AlreadyExists
 from google.cloud import tasks_v2
 from google.protobuf.duration_pb2 import Duration
+from pydantic import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from averis.budget import BudgetAuthority, BudgetUnavailable
 from averis.config import Settings
 from averis.documents import read_document_bounded
-from averis.domain import AuditEntry, CaseView
+from averis.domain import AuditEntry, CaseView, Classification
 from averis.intelligence import Intelligence
 from averis.jev import Jev
 from averis.persistence import (
@@ -204,11 +205,32 @@ class Processor:
             )
             current = CaseView.model_validate(case.state)
             current.stage = stage
+            if key == "classification":
+                self._publish_classification(current, value)
             current.revision += 1
             case.revision, case.state = (
                 current.revision,
                 current.model_dump(mode="json"),
             )
+
+    @staticmethod
+    def _publish_classification(current: CaseView, value: object) -> None:
+        """Expose a completed classification before slow extraction finishes.
+
+        Only the category decision is published; the report, review reasons
+        and workflow stay untouched so no stale comparison result can leak.
+        Human decisions and newer reviewer state always win over a checkpoint.
+        """
+        try:
+            saved = Classification.model_validate(value)
+        except ValidationError:
+            # A checkpoint that is not a Classification is ignored; the run
+            # continues and the final publish still decides the outcome.
+            return
+        existing = current.classification
+        if existing is not None and existing.source == "human":
+            return
+        current.classification = saved
 
     def _heartbeat(self, run_id: str, token: str, stop: Event) -> None:
         while not stop.wait(HEARTBEAT_SECONDS):

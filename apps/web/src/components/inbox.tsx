@@ -14,8 +14,10 @@ import type { CasePage, CaseView, Category, QueueView } from "@/lib/contracts";
 import { CATEGORY_LABELS, displayCaseKey } from "@/lib/contracts";
 import { useActivePolling } from "@/lib/use-active-polling";
 import { AppShell, queueLabels } from "./app-shell";
+import { confidenceDisplay } from "./review/presentation";
 import { useSession } from "./session-provider";
 import { Button, Input, Select, SelectItem, Spinner } from "./ui";
+import { BulkImportDialog } from "./bulk-import-dialog";
 import { ImportEmailDialog } from "./import-email-dialog";
 
 const QUEUES: QueueView[] = [
@@ -29,6 +31,31 @@ const ALL_FILTERS = "all";
 
 function isActiveProcessing(item: CaseView) {
   return item.processing === "queued" || item.processing === "running";
+}
+
+function classificationFor(item: CaseView) {
+  if (item.classification)
+    return CATEGORY_LABELS[
+      item.classification.accepted ?? item.classification.suggested
+    ];
+  if (isActiveProcessing(item)) return "Classifying…";
+  return "Unclassified";
+}
+
+function confidenceFor(item: CaseView) {
+  const display = confidenceDisplay(item.classification);
+  if (!display) {
+    if (isActiveProcessing(item)) return "Classifying…";
+    return "—";
+  }
+  if (display.kind === "reviewer") return "Reviewer";
+  return `${display.percent}%`;
+}
+
+function confidenceTitle(item: CaseView) {
+  const display = confidenceDisplay(item.classification);
+  if (!display) return undefined;
+  return `${display.headline}. ${display.detail}`;
 }
 
 function resultFor(item: CaseView) {
@@ -56,6 +83,7 @@ function relativeDate(value: string) {
 
 export function InboxView() {
   const [importOpen, setImportOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [importPending, setImportPending] = useState(false);
   const { api, session } = useSession();
   const router = useRouter();
@@ -188,6 +216,7 @@ export function InboxView() {
             <Button variant="primary" onClick={() => setImportOpen(true)}>
               Add email
             </Button>
+            <Button onClick={() => setBulkOpen(true)}>Bulk import</Button>
             <Button onClick={() => void load()}>
               <RefreshCw size={15} />
               Refresh
@@ -199,6 +228,12 @@ export function InboxView() {
         <ImportEmailDialog
           onClose={() => setImportOpen(false)}
           onPendingChange={setImportPending}
+        />
+      ) : null}
+      {bulkOpen ? (
+        <BulkImportDialog
+          onClose={() => setBulkOpen(false)}
+          onImported={() => void load()}
         />
       ) : null}
       {!session?.live_enabled ? (
@@ -303,6 +338,7 @@ export function InboxView() {
                   <th>Case</th>
                   <th>Summary</th>
                   <th>Classification</th>
+                  <th>AI confidence</th>
                   <th>Result</th>
                   <th>Assignee</th>
                   <th>Received</th>
@@ -331,13 +367,14 @@ export function InboxView() {
                         </Link>
                         <span className="sender-line">{item.sender}</span>
                       </td>
+                      <td>{classificationFor(item)}</td>
                       <td>
-                        {item.classification
-                          ? CATEGORY_LABELS[
-                              item.classification.accepted ??
-                                item.classification.suggested
-                            ]
-                          : "Unclassified"}
+                        <span
+                          className="confidence-cell"
+                          title={confidenceTitle(item)}
+                        >
+                          {confidenceFor(item)}
+                        </span>
                       </td>
                       <td>
                         <span className={`status-lozenge ${result.tone}`}>

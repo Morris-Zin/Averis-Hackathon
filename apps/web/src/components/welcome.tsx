@@ -2,9 +2,69 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowRight, FileCheck2, ShieldCheck } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  FileCheck2,
+  FileSearch,
+  History,
+  Inbox,
+  ShieldCheck,
+} from "lucide-react";
 import { useSession } from "./session-provider";
 import { Button } from "./ui";
+
+const STEPS = [
+  {
+    icon: Inbox,
+    title: "Bring the emails",
+    detail:
+      "Paste one email or bulk-import a ZIP of email JSON with attachments. Re-imports reuse their case instead of duplicating it.",
+  },
+  {
+    icon: FileSearch,
+    title: "Let the check run",
+    detail:
+      "Every email is classified into five categories. Shipping checks compare seven instruction fields against the draft bill of lading.",
+  },
+  {
+    icon: History,
+    title: "Review the evidence",
+    detail:
+      "Mismatches route to human review with source text, locations and history. Corrections change our reading, never the original document.",
+  },
+];
+
+const QUEUE_PREVIEW = [
+  {
+    key: "AV-7F3A2C91",
+    subject: "Draft BL review · Port Klang to Singapore",
+    category: "Shipping instruction check",
+    result: "MISMATCH",
+    tone: "danger",
+  },
+  {
+    key: "AV-41BD88E0",
+    subject: "Shipping documents · Penang export",
+    category: "Shipping instruction check",
+    result: "NO MISMATCH",
+    tone: "success",
+  },
+  {
+    key: "AV-90C1D452",
+    subject: "Invoice INV-2094 · freight charge query",
+    category: "Invoice query",
+    result: "CATEGORIZED",
+    tone: "neutral",
+  },
+  {
+    key: "AV-2E77B309",
+    subject: "Draft BL · gross weight missing",
+    category: "Shipping instruction check",
+    result: "NEEDS REVIEW",
+    tone: "warning",
+  },
+];
 
 export function Welcome() {
   const router = useRouter();
@@ -31,7 +91,7 @@ export function Welcome() {
 
   return (
     <main className="welcome-shell">
-      <section className="welcome-panel">
+      <section className="welcome-entry" aria-labelledby="welcome-title">
         <div className="brand-lockup">
           <span className="brand-mark">
             <FileCheck2 size={21} />
@@ -39,18 +99,28 @@ export function Welcome() {
           <span>Averis</span>
         </div>
         <div className="welcome-copy">
-          <p className="welcome-kicker">Document operations</p>
-          <h1>
-            Every discrepancy,
-            <br />
-            traced to its source.
+          <h1 id="welcome-title">
+            Check every draft bill of lading against its shipping instruction.
           </h1>
           <p>
-            A focused review desk for checking draft bills of lading against
-            shipping instructions. See the source, correct the reading, and keep
-            work moving.
+            Averis classifies incoming email, compares the seven shipment
+            fields, and traces each finding back to its source document for
+            human review.
           </p>
         </div>
+        <ol className="welcome-steps">
+          {STEPS.map((step) => (
+            <li key={step.title}>
+              <span className="welcome-step-icon" aria-hidden="true">
+                <step.icon size={18} />
+              </span>
+              <div>
+                <strong>{step.title}</strong>
+                <p>{step.detail}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
         <div className="welcome-actions">
           <Button
             variant="primary"
@@ -85,43 +155,37 @@ export function Welcome() {
         <div className="welcome-proof">
           <ShieldCheck size={16} />
           <span>
-            The server creates a private controlled-demo session. No email
-            account is connected.
+            Private demo session with saved scenarios. No mailbox is connected,
+            and workspaces expire after 24 hours.
           </span>
         </div>
       </section>
-      <aside
-        className="welcome-ledger"
-        aria-label="Illustrative comparison example"
-      >
-        <div className="ledger-heading">
-          <span>Illustrative comparison</span>
-          <span className="badge badge-danger">2 mismatches</span>
+      <aside className="welcome-queue" aria-label="Illustrative review queue">
+        <div className="welcome-queue-head">
+          <div>
+            <strong>Shipping review</strong>
+            <span>Illustrative queue</span>
+          </div>
+          <span className="status-lozenge neutral">4 open</span>
         </div>
-        <div className="ledger-docs">
-          <span>Shipping instruction</span>
-          <span>Draft bill of lading</span>
-        </div>
-        <div className="ledger-row">
-          <span>Port of discharge</span>
-          <strong>Rotterdam</strong>
-          <strong className="mismatch-value">Antwerp</strong>
-        </div>
-        <div className="ledger-row">
-          <span>Gross weight</span>
-          <strong>48,620 kg</strong>
-          <strong className="mismatch-value">46,820 kg</strong>
-        </div>
-        <div className="ledger-row">
-          <span>Container count</span>
-          <strong>2 × 40HC</strong>
-          <strong>2 × 40HC</strong>
-        </div>
-        <div className="source-slip">
-          <span>Source evidence</span>
-          <p>PORT OF DISCHARGE: ANTWERP, BELGIUM</p>
-          <small>Draft_BL.txt · line 8</small>
-        </div>
+        <ul>
+          {QUEUE_PREVIEW.map((row) => (
+            <li key={row.key}>
+              <span className="welcome-queue-key">{row.key}</span>
+              <span className="welcome-queue-subject">{row.subject}</span>
+              <span className="welcome-queue-meta">
+                {row.category}
+                <span className={`status-lozenge ${row.tone}`}>
+                  {row.result}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="welcome-queue-foot">
+          Demo workspaces start with eight saved scenarios like these. Live AI
+          checks run only after the shared budget is verified.
+        </p>
       </aside>
     </main>
   );

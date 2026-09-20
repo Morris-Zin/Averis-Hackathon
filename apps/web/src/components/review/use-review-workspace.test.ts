@@ -41,6 +41,23 @@ const queued: CaseView = {
   history: [],
   summary: { kind: "queued", mismatches: 0 },
 };
+const classified: CaseView = {
+  ...queued,
+  summary: { kind: "running", mismatches: 0 },
+  processing: "running",
+  stage: "classified",
+  revision: 2,
+  classification: {
+    suggested: "BL_COMPARISON",
+    accepted: null,
+    confidence: 0.82,
+    probabilities: { BL_COMPARISON: 0.82, GENERAL: 0.18 },
+    source: "model",
+    model: "jev-test",
+    policy_version: "classification-v1",
+  },
+  attachments: [],
+};
 const completed: CaseView = {
   ...queued,
   summary: { kind: "categorized", mismatches: 0 },
@@ -71,6 +88,12 @@ async function deliverWorkerResult() {
     await mocks.poll?.(new AbortController().signal);
   });
 }
+async function deliverIntermediateClassification() {
+  mocks.api.case.mockResolvedValue(classified);
+  await act(async () => {
+    await mocks.poll?.(new AbortController().signal);
+  });
+}
 describe("review controls during worker updates", () => {
   it("updates untouched category and pair controls when processing completes", async () => {
     const { result } = renderHook(() => useReviewWorkspace("test-case"));
@@ -80,6 +103,32 @@ describe("review controls during worker updates", () => {
     expect(result.current.documents.pairSi).toBe("si-new");
     expect(result.current.documents.pairBl).toBe("bl-new");
     expect(result.current.documents.pairChanged).toBe(false);
+  });
+  it("shows classifying until a real classification exists", async () => {
+    const { result } = renderHook(() => useReviewWorkspace("test-case"));
+    await waitFor(() => expect(result.current.item?.processing).toBe("queued"));
+    expect(result.current.category.classifying).toBe(true);
+    await deliverWorkerResult();
+    expect(result.current.category.classifying).toBe(false);
+  });
+  it("follows an intermediate classification while extraction still runs", async () => {
+    const { result } = renderHook(() => useReviewWorkspace("test-case"));
+    await waitFor(() => expect(result.current.item?.processing).toBe("queued"));
+    await deliverIntermediateClassification();
+    expect(result.current.item?.processing).toBe("running");
+    expect(result.current.item?.report).toBeUndefined();
+    expect(result.current.category.classifying).toBe(false);
+    expect(result.current.category.categoryDraft).toBe("BL_COMPARISON");
+    expect(result.current.category.classificationConfidence).toBe(82);
+  });
+  it("preserves explicit reviewer choices across an intermediate update", async () => {
+    const { result } = renderHook(() => useReviewWorkspace("test-case"));
+    await waitFor(() => expect(result.current.item?.processing).toBe("queued"));
+    act(() => {
+      result.current.category.setCategoryDraft("SI_REQUEST");
+    });
+    await deliverIntermediateClassification();
+    expect(result.current.category.categoryDraft).toBe("SI_REQUEST");
   });
   it("preserves explicit reviewer choices while the server result changes", async () => {
     const { result } = renderHook(() => useReviewWorkspace("test-case"));

@@ -43,9 +43,12 @@ class _RequestLimit:
             await self.app(scope, receive, send)
             return
         path = scope.get("path", "")
-        upload = path in {"/api/imports", "/api/manual-imports"} or path.endswith(
-            "/revisions"
-        )
+        upload = path in {
+            "/api/imports",
+            "/api/manual-imports",
+            "/api/bulk-imports",
+            "/api/bulk-imports/preview",
+        } or path.endswith("/revisions")
         limit = 21 * 1024 * 1024 if upload else 256 * 1024
         received = 0
 
@@ -70,13 +73,16 @@ async def security_headers(
     request: Request, call_next: RequestResponseEndpoint
 ) -> Response:
     config = get_services(request).config
-    public_import = request.url.path == "/api/manual-imports"
+    path = request.url.path
+    public_import = path in {"/api/manual-imports", "/api/bulk-imports"}
+    bulk_preview = path == "/api/bulk-imports/preview"
     if (
         public_import
-        or request.url.path == "/api/imports"
-        or request.url.path.endswith("/revisions")
+        or bulk_preview
+        or path == "/api/imports"
+        or path.endswith("/revisions")
     ):
-        if not public_import and (
+        if not (public_import or bulk_preview) and (
             not config.operator_token
             or not secrets.compare_digest(
                 request.headers.get("x-operator-token", ""), config.operator_token
