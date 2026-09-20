@@ -504,7 +504,11 @@ def _process_exists(pid: int) -> bool:
         return f'"{pid}"' in result.stdout
     process_stat = Path(f"/proc/{pid}/stat")
     if process_stat.exists():
-        state = process_stat.read_text(encoding="utf-8").split()[2]
+        try:
+            state = process_stat.read_text(encoding="utf-8").split()[2]
+        except (FileNotFoundError, ProcessLookupError):
+            # Cleanup can finish between checking /proc and reading its entry.
+            return False
         return state != "Z"
     try:
         os.kill(pid, 0)

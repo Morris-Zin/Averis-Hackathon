@@ -40,7 +40,7 @@ outside runtime imports and images.
 ## Release verification
 
 Full offline verification with real PostgreSQL passed: 240 Python tests, two
-intentional platform/opt-in skips, five frontend tests, strict Python/TypeScript
+intentional platform/opt-in skips, seven frontend tests, strict Python/TypeScript
 checks, formatting, lint, import boundaries, generated API contracts and static
 production build. Offline tests use provider doubles, not live paid inference.
 Resume regression tests verify that changed model/policy profiles reclassify,
@@ -54,9 +54,11 @@ activity history, submitted search, manual category change, review completion an
 the completed queue. Manual intake correctly disables submission when live AI is
 off. A 390-pixel viewport exposed navigation controls without document overflow.
 
-Browser review also identified and fixed two presentation problems: categorized
+Browser review also identified and fixed presentation problems: categorized
 non-comparison emails no longer show seven empty shipment fields; comparison
 progress counts resolved fields rather than labelling all findings as read.
+Untouched category and document-pair controls follow background results while
+preserving explicit reviewer drafts; hook regression tests cover both cases.
 
 This is representative workflow coverage, not proof of every possible UI/input
 combination. Parser formats, request bounds, access isolation, concurrent changes,
