@@ -19,7 +19,7 @@ from averis.domain import (
 )
 from averis.pipeline import Checkpoints, ShipmentPipeline
 from averis.verification import normalize, reading_from_evidence
-from averis.versions import READER_VERSION
+from averis.versions import OCR_PROFILE, READER_VERSION
 
 
 @pytest.mark.parametrize(
@@ -228,6 +228,7 @@ def test_selected_pair_keeps_unused_issues_scoped_through_pipeline():
     }
     for doc in documents.values():
         doc.reader_version = READER_VERSION
+        doc.ocr_profile = OCR_PROFILE
     documents["si"].issues = [Issue(code="advisory", blocking=False)]
     documents["extra"].issues = [Issue(code="broken_unused", detail="page unreadable")]
     case = complete_case()

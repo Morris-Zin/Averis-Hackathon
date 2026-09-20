@@ -20,7 +20,7 @@ from importlib import import_module
 from io import BytesIO
 from multiprocessing.connection import Connection
 from pathlib import PurePath
-from typing import Any, Protocol, TypedDict, cast
+from typing import Any, Protocol, cast
 from zipfile import BadZipFile, ZipFile
 
 from openpyxl.cell.cell import Cell, MergedCell
@@ -31,6 +31,7 @@ from PIL.Image import Image as PillowImage
 from averis.domain import DocumentEvidence, EvidenceBlock, Location
 from averis.fields import DOCUMENT_BOUNDARY_LABELS
 from averis.fields import FIELD_ALIASES as _SHARED_FIELD_ALIASES
+from averis.ocr import OcrLine, read_page
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
@@ -62,12 +63,8 @@ SUPPORTED_FORMATS: dict[str, dict[str, object]] = {
     ".jpeg": {"preview": True, "ocr": True},
 }
 
-# Explicit English reading options and normalization profile. Additional
-# languages or providers are separate work; substitution is exercised with
-# deterministic test implementations.
+# OCR engine selection is hidden behind the page-reading interface.
 from averis.versions import OCR_PROFILE, READER_VERSION
-
-ENGLISH_READING_OPTIONS: dict[str, object] = {"language": "eng", "psm": 6}
 
 
 def validate_document_evidence(evidence: DocumentEvidence) -> list[str]:
@@ -121,30 +118,6 @@ class _PdfDocument(Protocol):
 
 class _PdfiumModule(Protocol):
     PdfDocument: Callable[[bytes], _PdfDocument]
-
-
-class _OcrModule(Protocol):
-    def image_to_data(
-        self,
-        image: PillowImage,
-        *,
-        lang: str,
-        config: str,
-        output_type: str,
-        timeout: int,
-    ) -> object: ...
-
-
-class _OcrData(TypedDict):
-    text: list[object]
-    conf: list[object] | None
-    block_num: list[object]
-    par_num: list[object]
-    line_num: list[object]
-    left: list[object]
-    top: list[object]
-    width: list[object]
-    height: list[object]
 
 
 class _CalculationProperties(Protocol):
@@ -478,7 +451,10 @@ def _apply_child_resource_limits(cpu_seconds: int) -> None:
     if sys.platform == "win32":
         return
     resources = cast(_ResourceModule, import_module("resource"))
-    memory_bytes = 768 * 1024 * 1024
+    # ONNX maps model/workspace memory beyond its resident set. The multilingual
+    # reader is measured separately inside a 1 GiB container; retain a finite
+    # address-space ceiling rather than rejecting valid model allocations.
+    memory_bytes = 1536 * 1024 * 1024
     resources.setrlimit(resources.RLIMIT_AS, (memory_bytes, memory_bytes))
     resources.setrlimit(resources.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
 
@@ -812,7 +788,6 @@ def _ocr_pdf_pages(
     starting_block_number: int,
 ) -> tuple[list[EvidenceBlock], list[str]]:
     pdfium = cast(_PdfiumModule, import_module("pypdfium2"))
-    ocr = cast(_OcrModule, import_module("pytesseract"))
 
     blocks: list[EvidenceBlock] = []
     issues: list[str] = []
@@ -835,15 +810,7 @@ def _ocr_pdf_pages(
                 try:
                     image = bitmap.to_pil()
                     try:
-                        data = _validated_ocr_data(
-                            ocr.image_to_data(
-                                image,
-                                lang="eng",
-                                config="--psm 6",
-                                output_type="dict",
-                                timeout=10,
-                            )
-                        )
+                        data = read_page(image)
                     finally:
                         image.close()
                 finally:
@@ -874,51 +841,6 @@ def _ocr_pdf_pages(
     return blocks, issues
 
 
-def _validated_ocr_data(value: object) -> _OcrData:
-    if not isinstance(value, dict):
-        raise TypeError("OCR result is not a dictionary")
-    mapping = cast(dict[object, object], value)
-
-    def column(name: str) -> list[object]:
-        raw = mapping.get(name)
-        if not isinstance(raw, list):
-            raise TypeError(f"OCR result is missing column: {name}")
-        return cast(list[object], raw)
-
-    data = _OcrData(
-        text=column("text"),
-        conf=column("conf") if mapping.get("conf") is not None else None,
-        block_num=column("block_num"),
-        par_num=column("par_num"),
-        line_num=column("line_num"),
-        left=column("left"),
-        top=column("top"),
-        width=column("width"),
-        height=column("height"),
-    )
-    expected_length = len(data["text"])
-    columns = (
-        data["block_num"],
-        data["par_num"],
-        data["line_num"],
-        data["left"],
-        data["top"],
-        data["width"],
-        data["height"],
-    )
-    if data["conf"] is not None:
-        columns = (*columns, data["conf"])
-    if any(len(values) != expected_length for values in columns):
-        raise ValueError("OCR result columns have inconsistent lengths")
-    return data
-
-
-def _ocr_int(value: object) -> int:
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
-        raise TypeError("OCR coordinate is not numeric")
-    return int(value)
-
-
 def _read_image(
     document_id: str,
     content: bytes,
@@ -945,16 +867,7 @@ def _read_image(
         source.load()
         image = source.convert("RGB")
     try:
-        ocr = cast(_OcrModule, import_module("pytesseract"))
-        data = _validated_ocr_data(
-            ocr.image_to_data(
-                image,
-                lang="eng",
-                config="--psm 6",
-                output_type="dict",
-                timeout=10,
-            )
-        )
+        data = read_page(image)
     finally:
         image.close()
 
@@ -976,51 +889,21 @@ def _read_image(
 
 
 def _ocr_blocks(
-    data: _OcrData,
+    recognized_lines: list[OcrLine],
     scale: float = 1.0,
 ) -> list[tuple[str, list[tuple[float, float, float, float]], float | None]]:
-    line_groups: dict[tuple[int, int, int], list[int]] = {}
-    for index, raw_text in enumerate(data["text"]):
-        if not str(raw_text).strip():
-            continue
-        key = (
-            _ocr_int(data["block_num"][index]),
-            _ocr_int(data["par_num"][index]),
-            _ocr_int(data["line_num"][index]),
-        )
-        line_groups.setdefault(key, []).append(index)
-
     paragraphs: dict[
         tuple[int, int],
         list[tuple[int, str, tuple[float, float, float, float], float | None]],
     ] = {}
-    for (block_number, paragraph_number, line_number), raw_indices in sorted(
-        line_groups.items()
-    ):
-        indices = sorted(raw_indices, key=lambda index: _ocr_int(data["left"][index]))
-        text = " ".join(str(data["text"][index]).strip() for index in indices)
-        left = min(_ocr_int(data["left"][index]) for index in indices) / scale
-        top = min(_ocr_int(data["top"][index]) for index in indices) / scale
-        right = (
-            max(
-                _ocr_int(data["left"][index]) + _ocr_int(data["width"][index])
-                for index in indices
-            )
-            / scale
-        )
-        bottom = (
-            max(
-                _ocr_int(data["top"][index]) + _ocr_int(data["height"][index])
-                for index in indices
-            )
-            / scale
-        )
-        paragraphs.setdefault((block_number, paragraph_number), []).append(
+    for line in recognized_lines:
+        left, top, right, bottom = line.bbox
+        paragraphs.setdefault(line.paragraph, []).append(
             (
-                line_number,
-                text,
-                (float(left), float(top), float(right), float(bottom)),
-                _minimum_ocr_confidence(data, indices),
+                line.order,
+                line.text,
+                (left / scale, top / scale, right / scale, bottom / scale),
+                line.confidence,
             )
         )
 
@@ -1120,33 +1003,6 @@ def _make_ocr_block(
         [line[2] for line in lines],
         confidence,
     )
-
-
-def _minimum_ocr_confidence(data: _OcrData, indices: Sequence[int]) -> float | None:
-    """Return the weakest meaningful word score, or unknown if any score is unsafe.
-
-    Tesseract reports confidence per word on a 0..100 scale. A block is only as
-    trustworthy as its weakest nonblank word because a single corrupted number
-    or place name can change a shipment finding. Missing, non-finite, sentinel,
-    or out-of-range scores make the aggregate unknown instead of optimistic.
-    """
-
-    raw_confidences = data["conf"]
-    if raw_confidences is None or not indices:
-        return None
-    confidences: list[float] = []
-    for index in indices:
-        raw = raw_confidences[index]
-        if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
-            return None
-        try:
-            confidence = float(raw)
-        except ValueError:
-            return None
-        if not math.isfinite(confidence) or not 0 <= confidence <= 100:
-            return None
-        confidences.append(confidence / 100)
-    return min(confidences) if confidences else None
 
 
 def _read_docx(document_id: str, content: bytes) -> DocumentEvidence:

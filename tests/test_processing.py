@@ -17,7 +17,7 @@ from averis.persistence import Base, Case, Database, Outbox, Run, utcnow
 from averis.processing import LostLease, Processor
 from averis.storage import Storage
 from averis.verification import reading_from_evidence
-from averis.versions import READER_VERSION
+from averis.versions import OCR_PROFILE, READER_VERSION
 
 
 @pytest.fixture
@@ -98,6 +98,7 @@ def processing_case(case_id: str = "case-1", input_revision: int = 1) -> CaseVie
         },
     )
     si.reader_version = bl.reader_version = READER_VERSION
+    si.ocr_profile = bl.ocr_profile = OCR_PROFILE
     return CaseView(
         id=case_id,
         subject="Processing fixture",

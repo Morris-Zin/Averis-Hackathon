@@ -27,7 +27,15 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pytesseract>=0.3.13",
     "pillow>=12.3.0",
+    "rapidocr==3.9.2",
+    "onnxruntime==1.30.0",
+    "opencv-python-headless==5.0.0.93",
 ]
+
+[tool.uv]
+# RapidOCR uses OpenCV image operations only; the headless package supplies
+# the same cv2 API without GUI libraries in server/worker containers.
+exclude-dependencies = ["opencv-python"]
 
 [dependency-groups]
 dev = [

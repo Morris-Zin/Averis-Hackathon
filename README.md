@@ -2,7 +2,7 @@
 
 A Jira-inspired shipping operations workspace. It classifies incoming messages, compares draft Bills of Lading against Shipping Instructions, and links each finding to source evidence. English is the first supported language.
 
-Native text also recognises common Chinese and Malay shipment labels and units; see [multilingual validation and limits](docs/multilingual-validation.md). OCR remains English-only.
+Native text recognises common Chinese and Malay shipment labels and units. Scans now use language-directed OCR: Tesseract for English/Malay and bundled RapidOCR for Chinese, with uncertain readings still requiring review. See [measured results and limits](docs/ocr-evaluation-2026-09-21.md).
 
 Optional DeepSeek field assistance supplements unresolved Jev readings without replacing classification, document roles, or deterministic comparison. See the [measured comparison, safeguards and setup](docs/deepseek-evaluation-2026-09-21.md). Vision extraction remains experimental and is not enabled.
 
@@ -12,7 +12,7 @@ The app and private worker run on Railway with Neon PostgreSQL and private R2 st
 
 ## Run locally
 
-Prerequisites: Python 3.12+, uv, Node 24, pnpm 10.26.2 and PostgreSQL. Tesseract with English data is required for scans; the Docker image installs it.
+Prerequisites: Python 3.12+, uv, Node 24, pnpm 10.26.2 and PostgreSQL. Scans require Tesseract with `eng`, `msa`, `chi_sim` and `chi_tra` data; the Docker image installs these. The locked Python environment includes RapidOCR's models and headless ONNX/OpenCV dependencies; inference does not download models. Use the Docker image for the tested, resource-bounded Linux reader.
 
 ```powershell
 uv sync --locked

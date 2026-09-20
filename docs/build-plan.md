@@ -57,7 +57,7 @@ Classification, technical processing, comparison findings and employee workflow 
 
 ## Evidence and revisions
 
-TXT retains line positions; PDF retains pages and regions; DOCX uses a labelled structured reading-order preview; XLSX retains sheets/cells. OCR is English-first. Original Unicode survives preparation. Formula-dependent spreadsheet values without usable cached results stay unresolved.
+TXT retains line positions; PDF retains pages and regions; DOCX uses a labelled structured reading-order preview; XLSX retains sheets/cells. OCR selects English/Malay Tesseract or bundled Chinese RapidOCR behind one page-reading interface. Character uncertainty remains visible; see the [OCR evaluation](ocr-evaluation-2026-09-21.md). Original Unicode survives preparation. Formula-dependent spreadsheet values without usable cached results stay unresolved.
 
 Native corrections copy selected evidence from the same document version. OCR transcription must reference OCR evidence and be explicitly attested; unverified text cannot clear a discrepancy. Originals cannot be overwritten. New drafts get new document IDs, previous versions stay accessible, and superseded documents cannot become current comparison sources.
 

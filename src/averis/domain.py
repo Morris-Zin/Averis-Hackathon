@@ -80,7 +80,7 @@ class DocumentEvidence(Model):
         default_factory=lambda: list[str | Issue]()
     )
     parser_version: str = "evidence-v2"
-    language: str = "eng"
+    language: str = "und"
     reader_version: str = "reader-v1"
     ocr_profile: str = "eng-psm6"
     source_sha256: str | None = None

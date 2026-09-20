@@ -86,6 +86,7 @@ def check_boundaries() -> None:
         "pipeline",
         "fields",
         "versions",
+        "ocr",
     ):
         prohibited[module] = {
             "fastapi",
@@ -113,6 +114,9 @@ def check_boundaries() -> None:
         "pytesseract",
         "PIL",
         "pillow",
+        "rapidocr",
+        "onnxruntime",
+        "cv2",
     }
     for path in (ROOT / "src/averis").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))

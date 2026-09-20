@@ -7,8 +7,8 @@ bind to an exact evidence-set fingerprint. Unversioned resumable checkpoints
 cannot be reused as verified-compatible results.
 """
 
-READER_VERSION = "reader-v4-font-runs-malay-boundaries"
-OCR_PROFILE = "eng-psm6"
+READER_VERSION = "reader-v5-multilingual-ocr"
+OCR_PROFILE = "tesseract-language-route-rapid-v6-small-char-v1"
 EVIDENCE_PARSER_VERSION = "evidence-v2"
 CLASSIFICATION_POLICY_VERSION = "classification-v3-thread-reference"
 EXTRACTION_POLICY_VERSION = "extraction-v4-complete-regions"
@@ -17,4 +17,4 @@ NORMALIZATION_PROFILE = "source-bound-layout-v4-complete-regions"
 COMPARISON_POLICY_VERSION = "comparison-v1"
 CHECKPOINT_VERSION = "checkpoint-v1"
 CLASSIFICATION_PROMPT_VERSION = "jev-classification-v2-thread-reference"
-EXTRACTION_PROMPT_VERSION = "jev-extraction-v1"
+EXTRACTION_PROMPT_VERSION = "jev-extraction-v2-localized-roles"

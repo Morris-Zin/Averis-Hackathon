@@ -27,12 +27,15 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y tesseract-ocr tesseract-ocr-eng \
+       tesseract-ocr-msa tesseract-ocr-chi-sim tesseract-ocr-chi-tra \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 10001 averis \
     && useradd --system --uid 10001 --gid averis --home-dir /app --no-create-home averis
 
 ENV PATH="/app/.venv/bin:$PATH" \
+    OMP_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     AVERIS_ROLE=web
