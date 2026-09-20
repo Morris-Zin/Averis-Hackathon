@@ -26,9 +26,9 @@ export function useReviewWorkspace(id: string) {
   const [tab, setTab] = useState<Tab>("comparison");
   const [activeField, setActiveField] = useState<Field>("shipper");
   const [correctSide, setCorrectSide] = useState<Side | null>(null);
-  const [categoryDraft, setCategoryDraft] = useState<Category>("BL_COMPARISON");
-  const [pairSi, setPairSi] = useState("");
-  const [pairBl, setPairBl] = useState("");
+  const [categoryOverride, setCategoryDraft] = useState<Category | null>(null);
+  const [pairSiOverride, setPairSi] = useState<string | null>(null);
+  const [pairBlOverride, setPairBl] = useState<string | null>(null);
   const requestVersion = useRef(0);
   const requestController = useRef<AbortController | null>(null);
 
@@ -42,9 +42,9 @@ export function useReviewWorkspace(id: string) {
     setNotice("");
     setPending(false);
     setCorrectSide(null);
-    setCategoryDraft("GENERAL");
-    setPairSi("");
-    setPairBl("");
+    setCategoryDraft(null);
+    setPairSi(null);
+    setPairBl(null);
   }, [status]);
 
   const load = useCallback(
@@ -85,23 +85,9 @@ export function useReviewWorkspace(id: string) {
           return false;
         setItem(value);
         if (resetDrafts) {
-          setCategoryDraft(
-            value.classification?.accepted ??
-              value.classification?.suggested ??
-              "GENERAL",
-          );
-          setPairSi(
-            value.attachments.find(
-              (attachment) =>
-                attachment.role === "SI" && !attachment.superseded,
-            )?.id ?? "",
-          );
-          setPairBl(
-            value.attachments.find(
-              (attachment) =>
-                attachment.role === "BL" && !attachment.superseded,
-            )?.id ?? "",
-          );
+          setCategoryDraft(null);
+          setPairSi(null);
+          setPairBl(null);
           const important = value.report?.findings?.find(
             (finding) => finding.outcome !== "match",
           )?.field;
@@ -137,9 +123,9 @@ export function useReviewWorkspace(id: string) {
     setCorrectSide(null);
     setNotice("");
     setError("");
-    setCategoryDraft("GENERAL");
-    setPairSi("");
-    setPairBl("");
+    setCategoryDraft(null);
+    setPairSi(null);
+    setPairBl(null);
     void load(false, true);
     return () => {
       requestVersion.current += 1;
@@ -181,26 +167,12 @@ export function useReviewWorkspace(id: string) {
         if (updated.id !== id) return false;
         setItem(updated);
         if (action.kind === "revision" || action.kind === "pair") {
-          setPairSi(
-            updated.attachments.find(
-              (attachment) =>
-                attachment.role === "SI" && !attachment.superseded,
-            )?.id ?? "",
-          );
-          setPairBl(
-            updated.attachments.find(
-              (attachment) =>
-                attachment.role === "BL" && !attachment.superseded,
-            )?.id ?? "",
-          );
+          setPairSi(null);
+          setPairBl(null);
           setCorrectSide(null);
         }
         if (action.kind === "category") {
-          setCategoryDraft(
-            updated.classification?.accepted ??
-              updated.classification?.suggested ??
-              "GENERAL",
-          );
+          setCategoryDraft(null);
         }
         setNotice(success);
         return true;
@@ -275,6 +247,16 @@ export function useReviewWorkspace(id: string) {
   const classificationConfidence = item?.classification
     ? Math.round(item.classification.confidence * 100)
     : null;
+  // Untouched controls follow worker updates; explicit reviewer drafts survive polling.
+  const categoryDraft =
+    categoryOverride ??
+    item?.classification?.accepted ??
+    item?.classification?.suggested ??
+    "GENERAL";
+  const pairSi =
+    pairSiOverride ?? currentAttachments.find((a) => a.role === "SI")?.id ?? "";
+  const pairBl =
+    pairBlOverride ?? currentAttachments.find((a) => a.role === "BL")?.id ?? "";
   const pairChanged = item
     ? pairSi !==
         (item.attachments.find(
