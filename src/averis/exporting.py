@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydanticField
 
 from averis.contracts import FIELDS, Field, Prediction
-from averis.domain import CaseView, Finding, Report
+from averis.domain import CaseView, Finding, Report, normalize_issue
 
 ExportBlocker = Literal[
     "processing_incomplete",
@@ -178,6 +178,8 @@ def _adapt_comparison(
     report_texts = [
         issue if isinstance(issue, str) else f"{issue.code}:{issue.detail}".rstrip(":")
         for issue in report.issues
+        if normalize_issue(issue).blocking
+        and normalize_issue(issue).scope != "unused_attachment"
     ]
     if report_texts and report_texts != ["pair_requires_review"]:
         unrepresentable = True
@@ -356,7 +358,8 @@ def _review_reasons(
         if not attachment.superseded and (selected is None or attachment.id in selected)
     ]
     if any(
-        attachment.evidence is not None and attachment.evidence.issues
+        attachment.evidence is not None
+        and any(normalize_issue(issue).blocking for issue in attachment.evidence.issues)
         for attachment in relevant
     ):
         reasons.add("unreadable")

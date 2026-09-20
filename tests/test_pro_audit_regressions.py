@@ -253,6 +253,11 @@ def test_selected_pair_keeps_unused_issues_scoped_through_pipeline():
     assert assessment.unused_warnings
     assert restored.report is not None
     assert any(isinstance(i, Issue) and not i.blocking for i in restored.report.issues)
+    from averis.exporting import adapt_case
+
+    exported = adapt_case(restored)
+    assert exported.prediction is not None
+    assert exported.prediction.status == "OK"
 
 
 def test_two_corrections_keep_before_and_after_in_persisted_history(tmp_path):
