@@ -374,6 +374,10 @@ export function ReviewWorkspace() {
                         currentAttachments,
                       }}
                       controlled={controlled}
+                      pairNeedsConfirmation={
+                        item.processing === "completed" &&
+                        item.report?.pair_valid === false
+                      }
                       pending={pending}
                       act={act}
                     />

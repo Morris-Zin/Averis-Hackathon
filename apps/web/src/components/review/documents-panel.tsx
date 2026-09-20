@@ -14,6 +14,7 @@ type Props = {
     currentAttachments: AttachmentView[];
   };
   controlled: boolean;
+  pairNeedsConfirmation: boolean;
   pending: boolean;
   act: (action: ActionDraft, message: string) => Promise<boolean>;
 };
@@ -23,6 +24,7 @@ export function DocumentsPanel({
   email,
   selection,
   controlled,
+  pairNeedsConfirmation,
   pending,
   act,
 }: Props) {
@@ -61,6 +63,13 @@ export function DocumentsPanel({
           {email.body || "No message body."}
         </p>
       </section>
+      {pairNeedsConfirmation ? (
+        <p role="status">
+          We could not verify that these documents belong to the same shipment.
+          Check the originals, then confirm the SI and draft BL below.
+          Conflicting shipment references cannot be overridden.
+        </p>
+      ) : null}
       <div className="pair-controls">
         <label>
           <span>Shipping instruction</span>
@@ -95,7 +104,11 @@ export function DocumentsPanel({
         <Button
           variant="primary"
           disabled={
-            !pairChanged || !pairSi || !pairBl || pairSi === pairBl || pending
+            (!pairChanged && !pairNeedsConfirmation) ||
+            !pairSi ||
+            !pairBl ||
+            pairSi === pairBl ||
+            pending
           }
           onClick={() =>
             void act(
@@ -103,13 +116,16 @@ export function DocumentsPanel({
                 kind: "pair",
                 si_id: pairSi,
                 bl_id: pairBl,
-                reason: "Reviewer selected the current document pair",
+                reason:
+                  "Reviewer confirmed these SI and BL documents belong to the same shipment",
               },
               "Document pair updated.",
             )
           }
         >
-          Recompute comparison
+          {pairNeedsConfirmation
+            ? "Confirm pair and compare"
+            : "Recompute comparison"}
         </Button>
       </div>
       <div className="attachment-list">

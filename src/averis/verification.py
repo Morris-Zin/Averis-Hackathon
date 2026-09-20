@@ -25,7 +25,7 @@ _TYPED_FIELDS = cast(tuple[Field, ...], FIELDS)
 OCR_CONFIDENCE_THRESHOLD: Final = 0.8
 _SIMPLE_NUMBER = re.compile(
     r"([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)\s*"
-    r"(kg|kgs|kilograms?|mt|tonnes?|tons?|containers?|units?)?",
+    r"(kg|kgs|kilograms?|mt|tonnes?|tons?|公斤|千克|公吨|公噸|吨|噸|kilogram|tan|containers?|units?|kontena|个|個|箱)?",
     re.IGNORECASE,
 )
 _CONTAINER_WITH_EQUIPMENT = re.compile(
@@ -38,6 +38,7 @@ _CONTAINER_WITH_EQUIPMENT = re.compile(
 def source_value(field: Field, text: str) -> str:
     """Remove only a recognized leading field label from source text."""
 
+    canonical = unicodedata.normalize("NFKC", text)
     for label in sorted(LABELS[field], key=len, reverse=True):
         result = re.sub(
             r"^\s*"
@@ -45,11 +46,11 @@ def source_value(field: Field, text: str) -> str:
             + r"(?:\s*\([^()\r\n]*\))*"
             + r"(?:(?:\s*[:=\t|]\s*)|\s+)(?=\S)",
             "",
-            text,
+            canonical,
             count=1,
             flags=re.IGNORECASE,
         )
-        if result != text:
+        if result != canonical:
             return result.strip()
     return text.strip()
 
@@ -85,15 +86,33 @@ def normalize(field: Field, text: str) -> str | None:
     unit = (match[2] or "").lower()
     if field == "container_count":
         if (
-            unit not in {"", "container", "containers", "unit", "units"}
+            unit
+            not in {
+                "",
+                "container",
+                "containers",
+                "unit",
+                "units",
+                "kontena",
+                "个",
+                "個",
+                "箱",
+            }
             or number != number.to_integral()
         ):
             return None
     else:
-        if unit in {"mt", "tonne", "tonnes"}:
+        if unit in {"mt", "tonne", "tonnes", "公吨", "公噸", "吨", "噸", "tan"}:
             number *= 1000
-        elif unit not in {"kg", "kgs", "kilogram", "kilograms"} and not (
-            unit == "" and re.search(r"\bkg\b|kilogram", text, re.IGNORECASE)
+        elif unit not in {
+            "kg",
+            "kgs",
+            "kilogram",
+            "kilograms",
+            "公斤",
+            "千克",
+        } and not (
+            unit == "" and re.search(r"\bkg\b|kilogram|公斤|千克", text, re.IGNORECASE)
         ):
             # The value must establish kilograms; an arbitrary bare number is unsafe.
             return None
@@ -236,10 +255,12 @@ def shipment_references(document: DocumentEvidence) -> set[str]:
 
 def _references_by_kind(document: DocumentEvidence) -> dict[str, set[str]]:
     """Keep identifier namespaces separate; a shared booking cannot mask a conflict."""
-    text = "\n".join(block.text for block in document.blocks)
+    text = unicodedata.normalize(
+        "NFKC", "\n".join(block.text for block in document.blocks)
+    )
     labels = {
-        "shipment": r"(?>shipment[ \t]*(?:id|ref(?:erence)?\.?))",
-        "booking": r"(?>booking\b(?:[ \t]*(?:no\.?|number|ref(?:erence)?\.?))?)",
+        "shipment": r"(?>shipment[ \t]*(?:id|ref(?:erence)?\.?)|装运编号|裝運編號|货运编号|貨運編號|rujukan[ \t]+penghantaran)",
+        "booking": r"(?>booking\b(?:[ \t]*(?:no\.?|number|ref(?:erence)?\.?))?|订舱号|訂艙號|nombor[ \t]+tempahan)",
         "oc": r"(?>OC\b(?:[ \t]*(?:no\.?|number|ref(?:erence)?\.?))?)",
     }
     return {

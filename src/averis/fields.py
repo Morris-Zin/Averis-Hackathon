@@ -34,15 +34,46 @@ FIELD_LABELS: Final[dict[Field, str]] = {
 # Parser-only headings (vessel, voyage, B/L number, HS code, etc.) remain in
 # documents.py; they help grouping but never define shipment values.
 FIELD_ALIASES: Final[dict[Field, tuple[str, ...]]] = {
-    "shipper": ("shipper/exporter", "shipper", "exporter"),
-    "consignee": ("to the order of", "consignee"),
-    "notify_party": ("notify party/intermediate consignee", "notify party", "notify"),
-    "port_of_loading": ("port of loading", "portof loading", "load port", "pol"),
+    "shipper": (
+        "shipper/exporter",
+        "shipper",
+        "exporter",
+        "托运人",
+        "託運人",
+        "发货人",
+        "發貨人",
+        "pengirim",
+    ),
+    "consignee": ("to the order of", "consignee", "收货人", "收貨人", "penerima"),
+    "notify_party": (
+        "notify party/intermediate consignee",
+        "notify party",
+        "notify",
+        "通知方",
+        "通知人",
+        "pihak untuk dimaklumkan",
+        "pihak dimaklumkan",
+    ),
+    "port_of_loading": (
+        "port of loading",
+        "portof loading",
+        "load port",
+        "pol",
+        "装货港",
+        "裝貨港",
+        "装运港",
+        "裝運港",
+        "pelabuhan muatan",
+    ),
     "port_of_discharge": (
         "port of discharge",
         "portof discharge",
         "discharge port",
         "pod",
+        "卸货港",
+        "卸貨港",
+        "pelabuhan pelepasan",
+        "pelabuhan pemunggahan",
     ),
     "container_count": (
         "number of containers or packages",
@@ -52,6 +83,12 @@ FIELD_ALIASES: Final[dict[Field, tuple[str, ...]]] = {
         "container count",
         "total containers",
         "containers",
+        "集装箱数量",
+        "集裝箱數量",
+        "货柜数量",
+        "貨櫃數量",
+        "bilangan kontena",
+        "jumlah kontena",
     ),
     "gross_weight_kg": (
         "total gross weight (kg)",
@@ -66,6 +103,8 @@ FIELD_ALIASES: Final[dict[Field, tuple[str, ...]]] = {
         "gross weight kg",
         "gross weight",
         "gross wt",
+        "毛重",
+        "berat kasar",
     ),
 }
 

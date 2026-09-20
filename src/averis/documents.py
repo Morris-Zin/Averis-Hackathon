@@ -14,6 +14,7 @@ import os
 import re
 import signal
 import sys
+import unicodedata
 from collections.abc import Callable, Iterable, Sequence
 from importlib import import_module
 from io import BytesIO
@@ -649,7 +650,10 @@ def _starts_text_field(line: str) -> bool:
     such as ``P.O. BOX: 123`` therefore stay with their owning field.
     """
 
-    return _starts_evidence_field(line) or _TEXT_LABEL.match(line) is not None
+    return (
+        _starts_evidence_field(line)
+        or _TEXT_LABEL.match(unicodedata.normalize("NFKC", line)) is not None
+    )
 
 
 def _read_pdf(document_id: str, content: bytes) -> DocumentEvidence:
@@ -1037,7 +1041,26 @@ def official_field_aliases() -> dict[str, tuple[str, ...]]:
 def _starts_evidence_field(text: str) -> bool:
     """Recognize a new official field without dropping continuation lines."""
 
-    return _EVIDENCE_FIELD_LABEL.match(text) is not None
+    normalized = unicodedata.normalize("NFKC", text)
+    return (
+        _EVIDENCE_FIELD_LABEL.match(normalized) is not None
+        or _SHARED_FIELD_LABEL.match(normalized) is not None
+    )
+
+
+_SHARED_FIELD_LABEL = re.compile(
+    r"^\s*(?:"
+    + "|".join(
+        re.escape(label)
+        for label in sorted(
+            {label for aliases in _SHARED_FIELD_ALIASES.values() for label in aliases},
+            key=len,
+            reverse=True,
+        )
+    )
+    + r")(?:\s*\([^()\r\n]*\))*(?=\s*[:=|]\s*\S|\s+\S)",
+    re.IGNORECASE,
+)
 
 
 def _make_ocr_block(

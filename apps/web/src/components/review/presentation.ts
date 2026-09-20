@@ -115,9 +115,11 @@ export function resultSummary(item: CaseView) {
         label: "Needs review",
         tone: "warning",
         detail:
-          item.review_reasons.join(" · ") ||
-          item.report?.issues?.join(" · ") ||
-          "The report is incomplete or contains uncertain evidence.",
+          item.report?.pair_valid === false
+            ? "Document pairing needs confirmation. Open Source documents, check the selected SI and draft BL, then confirm the pair."
+            : item.review_reasons.join(" · ") ||
+              item.report?.issues?.join(" · ") ||
+              "The report is incomplete or contains uncertain evidence.",
       };
   }
 }
