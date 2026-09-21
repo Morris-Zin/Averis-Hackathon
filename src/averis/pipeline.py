@@ -31,6 +31,7 @@ from averis.pairing import (
     accept_pairing,
     prepare_pairing,
 )
+from averis.timing import count, measure, timed
 from averis.verification import compare, reading_from_evidence, validate_pair
 from averis.versions import (
     ACCEPTANCE_PROFILE,
@@ -178,10 +179,12 @@ class ShipmentPipeline:
         # Work on copies; inputs.case and its attachments are never mutated.
         attachments = [item.model_copy(deep=True) for item in inputs.case.attachments]
         if classification.accepted is None:
+            count("document_processing_skipped")
             return ProcessingResult(
                 classification, attachments, None, ["Check category"]
             )
         if classification.accepted != "BL_COMPARISON":
+            count("document_processing_skipped")
             return ProcessingResult(classification, attachments, None, [])
 
         overrides = self._decode_overrides(inputs.overrides)
@@ -206,14 +209,17 @@ class ShipmentPipeline:
             classification, updated, report, sorted(set(extra_issues))
         )
 
+    @timed("classify")
     def _classify(self, case: CaseView) -> Classification:
         if case.classification is not None and case.classification.source == "human":
+            count("classification_reused")
             return case.classification
         saved = self._checkpoints.load("classification", Classification)
         if saved is not None and (
             self._classification_profile is None
             or (saved.model, saved.policy_version) == self._classification_profile
         ):
+            count("classification_reused")
             return saved
         # A changed provider profile invalidates only classification. Compatible
         # document checkpoints remain available, and human decisions take priority.
@@ -236,6 +242,7 @@ class ShipmentPipeline:
         except ValidationError as exc:
             raise InvalidCheckpoint("Saved reviewer readings are invalid") from exc
 
+    @timed("read_document")
     def _read(self, attachment: AttachmentView) -> DocumentEvidence:
         key = f"document:{attachment.id}"
         saved = self._checkpoints.load(key, _DocumentCheckpoint)
@@ -251,6 +258,7 @@ class ShipmentPipeline:
                 )
             if saved.evidence.document_id != attachment.id:
                 raise InvalidCheckpoint("Saved document reading has wrong identity")
+            count("document_reading_reused")
             return saved.evidence
         if (
             attachment.evidence is not None
@@ -265,17 +273,22 @@ class ShipmentPipeline:
                 fingerprint = None
             if attachment.evidence.evidence_fingerprint is None and fingerprint:
                 attachment.evidence.evidence_fingerprint = fingerprint
+            count("document_reading_reused")
             return attachment.evidence
         content = self._load_document(attachment.id)
         available = self._remaining() - self._provider_time_reserve
         if available <= 0:
             raise TimeoutError("application_deadline")
-        evidence = self._reader(
-            attachment.id,
-            attachment.filename,
-            content,
-            timeout_seconds=min(PARSER_TIMEOUT_SECONDS, available),
-        )
+        with measure("parser"):
+            evidence = self._reader(
+                attachment.id,
+                attachment.filename,
+                content,
+                timeout_seconds=min(PARSER_TIMEOUT_SECONDS, available),
+            )
+        count("documents_parsed")
+        count("ocr_blocks", sum(block.method == "ocr" for block in evidence.blocks))
+        count("native_blocks", sum(block.method != "ocr" for block in evidence.blocks))
         try:
             fingerprint = evidence_fingerprint(evidence)
         except Exception:  # noqa: BLE001 - fingerprint never blocks reading
@@ -292,6 +305,7 @@ class ShipmentPipeline:
         )
         return evidence
 
+    @timed("extract")
     def _extract(self, evidence: DocumentEvidence) -> _ExtractionCheckpoint | None:
         key = f"extraction:{evidence.document_id}"
         saved = self._checkpoints.load(key, _ExtractionCheckpoint)
@@ -314,6 +328,7 @@ class ShipmentPipeline:
                 raise InvalidCheckpoint(
                     "Saved extraction does not match current evidence"
                 )
+            count("extraction_reused")
             return saved
         if not evidence.blocks or len(evidence.blocks) > MAX_EVIDENCE_CANDIDATES:
             return None
@@ -425,6 +440,7 @@ class ShipmentPipeline:
             issues,
         )
 
+    @timed("compare")
     def _compare(
         self,
         documents: list[_PreparedDocument],
@@ -472,6 +488,7 @@ class ShipmentPipeline:
             extra.append("Some fields need review")
         return report, extra
 
+    @timed("pair")
     def _pair(
         self, si: DocumentEvidence, bl: DocumentEvidence, inputs: ProcessingInput
     ) -> tuple[bool, PairingEvidence | None]:

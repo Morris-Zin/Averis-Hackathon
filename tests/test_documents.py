@@ -281,7 +281,13 @@ def test_pdf_native_text_has_page_and_bounding_box_locations() -> None:
     assert all(location.bbox is not None for location in locations)
 
 
-def test_pdf_native_text_splits_adjacent_fields_and_retains_address_regions() -> None:
+def test_pdf_native_text_splits_adjacent_fields_and_retains_address_regions(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def unnecessary_ocr(*args, **kwargs):
+        raise AssertionError("Readable native PDF must not invoke OCR")
+
+    monkeypatch.setattr("averis.documents.read_page", unnecessary_ocr)
     evidence = read_document(
         "pdf-fields",
         "si.pdf",

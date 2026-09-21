@@ -51,6 +51,7 @@ from averis.numeric_evidence import (
 )
 from averis.pairing import PairingProposal, PairingRequest
 from averis.source_regions import complete_party_selection
+from averis.timing import measure, timed
 from averis.verification import normalize, reading_from_evidence
 from averis.versions import (
     ACCEPTANCE_PROFILE,
@@ -133,6 +134,7 @@ class Jev:
         self.purpose = purpose
         self.metadata = JevMetadata(model=settings.jev_model)
 
+    @timed("jev_request")
     def _ask(
         self,
         state: Mapping[str, object],
@@ -174,11 +176,12 @@ class Jev:
                 assert isinstance(raw_legacy, str)
                 reservation_id = raw_legacy
             try:
-                response = client.system_one(  # pyright: ignore[reportUnknownMemberType]
-                    state=cast(JSONContent, state),
-                    questions=questions,
-                    model=self.settings.jev_model,
-                )
+                with measure("http"):
+                    response = client.system_one(  # pyright: ignore[reportUnknownMemberType]
+                        state=cast(JSONContent, state),
+                        questions=questions,
+                        model=self.settings.jev_model,
+                    )
             except Exception:
                 self.budget.retain_for_reconciliation(
                     reservation_id,

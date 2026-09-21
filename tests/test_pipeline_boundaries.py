@@ -8,6 +8,36 @@ from averis.pipeline import Checkpoints, InvalidCheckpoint, ProcessingResult
 from averis.review import review_case
 
 
+@pytest.mark.parametrize(
+    "category", ["GENERAL", "SPAM", "INVOICE_QUERY", "SI_REQUEST", None]
+)
+def test_non_comparison_never_loads_reads_or_extracts_attachments(category):
+    from averis.pipeline import ProcessingInput, ShipmentPipeline
+
+    case = complete_case()
+    case.classification = Classification(
+        suggested=category or "GENERAL",
+        accepted=category,
+        confidence=1 if category else 0.5,
+        probabilities={category or "GENERAL": 1},
+        source="human",
+        model="fixture",
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Non-comparison must not process attachments")
+
+    class NoExtraction:
+        extract = forbidden
+
+    pipeline = ShipmentPipeline(
+        NoExtraction(), Checkpoints({}, forbidden), forbidden, forbidden, lambda: 480
+    )
+    result = pipeline.process(ProcessingInput(case, None, {}))
+    assert result.report is None
+    assert result.attachments == case.attachments
+
+
 def test_processing_outputs_preserve_reviewer_state_and_original():
     latest = complete_case()
     latest.assignee = "Mei Lin"

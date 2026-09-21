@@ -44,6 +44,7 @@ from averis.pipeline import (
     ShipmentPipeline,
 )
 from averis.storage import Storage
+from averis.timing import measure, processing_trace, timed
 from averis.versions import CLASSIFICATION_POLICY_VERSION
 
 log = logging.getLogger(__name__)
@@ -210,6 +211,7 @@ class Processor:
                 outbox.dispatched_at = utcnow()
         return True
 
+    @timed("checkpoint")
     def _checkpoint(self, run_id: str, token: str, key: str, value: object) -> None:
         with self.db.session() as session, session.begin():
             run = session.scalar(select(Run).where(Run.id == run_id).with_for_update())
@@ -279,7 +281,8 @@ class Processor:
         started = time.monotonic()
         outcome = "unexpected_failure"
         try:
-            outcome = self._execute(run_id)
+            with processing_trace(run_id):
+                outcome = self._execute(run_id)
             return outcome
         finally:
             log.info(
@@ -340,6 +343,7 @@ class Processor:
             "review_rate": reviews / cases if cases else 0,
         }
 
+    @timed("claim")
     def _claim(self, run_id: str) -> ClaimedRun | DeliveryOutcome:
         # Worker lock ordering is always Run -> Case. Reviewer transactions lock
         # only Case and never acquire a Run row lock while holding it, so a
@@ -394,6 +398,7 @@ class Processor:
                 checkpoint=dict(run.checkpoint),
             )
 
+    @timed("document_fetch")
     def _load_document(self, document_id: str) -> bytes:
         with self.db.session() as session:
             document = session.get(Document, document_id)
@@ -401,7 +406,8 @@ class Processor:
                 raise MissingDocument("missing_attachment")
             object_key = document.object_key
         # Object storage can block; release the database connection first.
-        return self.storage.read(object_key)
+        with measure("object_storage"):
+            return self.storage.read(object_key)
 
     def _execute(self, run_id: str) -> DeliveryOutcome:
         claim = self._claim(run_id)
@@ -444,6 +450,7 @@ class Processor:
             stop.set()
             heartbeat.join(timeout=2)
 
+    @timed("publish")
     def _publish(self, claim: ClaimedRun, result: ProcessingResult) -> None:
         with self.db.session() as session, session.begin():
             run = session.scalar(

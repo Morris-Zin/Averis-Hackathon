@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from averis.config import Settings
 from averis.persistence import Budget, Database, Reservation, utcnow
+from averis.timing import timed
 
 _MAX_REPORTED_TOKENS = 2_147_483_647
 _USAGE_EXCEEDED_ISSUE = "Reported usage exceeded the conservative reservation"
@@ -32,6 +33,7 @@ class BudgetAuthority:
         output_bound = 32768
         return self.reserve_estimate(run_id, purpose, input_bound, output_bound)
 
+    @timed("budget_reserve")
     def reserve_estimate(
         self,
         run_id: str,
@@ -119,6 +121,7 @@ class BudgetAuthority:
             session.flush()
             return reservation.id
 
+    @timed("budget_settle")
     def settle_success(
         self,
         reservation_id: str,
