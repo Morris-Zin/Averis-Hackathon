@@ -95,4 +95,3 @@ This repository configuration has been validated locally only. Until a reviewed 
 ## Operator observability
 
 Run `uv run python scripts/manage.py metrics` with the deployment database configured to read aggregate run states, attempts, retried runs, oldest queue age, undispatched outbox entries and review rate. The command does not call Jev. Worker logs include delivery duration, run ID and outcome; no document body or signed URL is included in these events. `scripts/manage.py budget` reads reserved/settled bucket totals. Cloud resource/OCR CPU and memory measurements remain a deployment acceptance task.
-
