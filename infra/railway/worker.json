@@ -6,9 +6,10 @@
   },
   "deploy": {
     "startCommand": "python -m averis.runner",
-    "numReplicas": 1,
+    "numReplicas": 2,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
-    "drainingSeconds": "500"
+    "drainingSeconds": "500",
+    "region": "asia-southeast1-eqsg3a"
   }
 }
