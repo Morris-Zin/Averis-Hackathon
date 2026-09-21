@@ -55,7 +55,11 @@ def test_matrices_cover_stale_incomplete_duplicate_unaccepted_mixed():
     mixed.report.findings[1].bl.normalized = None
     assessment = assess_case(mixed)
     assert assessment.mismatches and assessment.unresolved
-    assert adapt_case(mixed).prediction is None
+    decision = adapt_case(mixed)
+    assert decision.prediction is not None
+    assert decision.prediction.status == "NEEDS_REVIEW"
+    assert decision.diagnostics.known_mismatches == ["shipper"]
+    assert assessment.needs_review
 
 
 def test_unexplained_blocking_reason_never_emits_ok():

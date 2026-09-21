@@ -83,6 +83,8 @@ uv run averis export outputs/case-snapshot.json --output outputs/submission.json
 
 The supplied sample submission is a placeholder, **not model output**. The existing score command invokes the unchanged official scorer. Unsupported export states must block export, never be replaced with invented categories or matches. Report automatic coverage, abstentions, and reviewer-assisted results separately.
 
+Known mismatches and unresolved fields are preserved together in export diagnostics. See the [official mapping and regression results](docs/export-evaluation-2026-09-21.md) for when a partial finding can be exported and when review or an explicit blocker remains necessary.
+
 ## Cost controls
 
 Live AI defaults off. Verify earlier project spending and provider prices, initialize the shared budget ledger, and only then enable it. The combined Jev ceiling is $7 including earlier experiments: at most $5 development and $2 demonstrations. Reservations are atomic; uncertain charged outcomes retain their reservation. Cloud budget alerts are notifications, not a guaranteed spending cap.

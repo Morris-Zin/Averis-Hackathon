@@ -35,6 +35,9 @@ _TYPED_FIELDS = cast(tuple[Field, ...], FIELDS)
 _FIELD_SET = frozenset(_TYPED_FIELDS)
 _REVIEW_ACTIONS = frozenset({"category", "pair", "correct"})
 _MISSING_READING_ISSUES = frozenset({"missing_value", "missing_or_ambiguous_value"})
+_SELECTION_UNCERTAINTY = frozenset(
+    {"low_field_confidence", "low_ocr_confidence", "provider_disagreement"}
+)
 
 
 class ExportBlocked(ValueError):
@@ -53,6 +56,11 @@ class ExportDiagnostics(BaseModel):
     reviewer_assisted: bool = False
     reviewer_actions: list[str] = PydanticField(default_factory=list)
     blockers: list[ExportBlocker] = PydanticField(default_factory=_empty_blockers)
+    known_mismatches: list[Field] = PydanticField(default_factory=lambda: list[Field]())
+    unresolved_fields: list[Field] = PydanticField(
+        default_factory=lambda: list[Field]()
+    )
+    review_reasons: list[str] = PydanticField(default_factory=list)
 
 
 class ExportDecision(BaseModel):
@@ -143,7 +151,28 @@ def adapt_case(case: CaseView) -> ExportDecision:
         assert reason is not None
         return _review_decision(case, reviewer_assisted, reviewer_actions, reason)
 
-    return _adapt_comparison(case, report, reviewer_assisted, reviewer_actions)
+    decision = _adapt_comparison(case, report, reviewer_assisted, reviewer_actions)
+    if any(
+        blocker in {"pairing_unresolved", "comparison_missing", "report_incomplete"}
+        for blocker in decision.diagnostics.blockers
+    ):
+        return decision
+    # The official schema has no place for simultaneous findings and unknowns.
+    # Preserve both in the sidecar even when the official row needs review.
+    from averis.case_status import assess_case
+
+    assessment = assess_case(case)
+    return decision.model_copy(
+        update={
+            "diagnostics": decision.diagnostics.model_copy(
+                update={
+                    "known_mismatches": assessment.mismatches,
+                    "unresolved_fields": assessment.unresolved,
+                    "review_reasons": assessment.blocking_issues,
+                }
+            )
+        }
+    )
 
 
 def _adapt_comparison(
@@ -154,12 +183,8 @@ def _adapt_comparison(
     if report.input_revision != case.input_revision:
         return _blocked(reviewer_assisted, reviewer_actions, "comparison_missing")
 
-    by_field: dict[Field, Finding] = {}
-    for finding in report.findings:
-        if finding.field in by_field:
-            return _blocked(reviewer_assisted, reviewer_actions, "report_incomplete")
-        by_field[finding.field] = finding
-    if frozenset(by_field) != _FIELD_SET:
+    by_field = {finding.field: finding for finding in report.findings}
+    if len(report.findings) != len(_FIELD_SET) or frozenset(by_field) != _FIELD_SET:
         return _blocked(reviewer_assisted, reviewer_actions, "report_incomplete")
 
     mismatches: list[Field] = [
@@ -192,11 +217,26 @@ def _adapt_comparison(
         unrepresentable = True
 
     if mismatches and (unresolved or reasons or unrepresentable):
-        return _blocked(
-            reviewer_assisted,
-            reviewer_actions,
-            "mixed_outcomes_unrepresentable",
-        )
+        if any(
+            issue != "Some fields need review" for issue in assessment.blocking_issues
+        ):
+            return _blocked(
+                reviewer_assisted, reviewer_actions, "mixed_outcomes_unrepresentable"
+            )
+        if reasons == {"missing_value"}:
+            # The organizer explicitly treats missing required values as review,
+            # even if other fields differ. Known findings survive in diagnostics.
+            return _review_decision(
+                case, reviewer_assisted, reviewer_actions, "missing_value"
+            )
+        if reasons or not _only_selection_uncertainty(unresolved):
+            return _blocked(
+                reviewer_assisted, reviewer_actions, "mixed_outcomes_unrepresentable"
+            )
+        # A dependable discrepancy answers whether at least one field differs.
+        # Unrelated selection uncertainty does not turn it into a match or erase
+        # it. Only known fields are exported; the app and sidecar retain review.
+        return _mismatch_decision(mismatches, reviewer_assisted, reviewer_actions)
     if unresolved or reasons or unrepresentable:
         if unrepresentable:
             return _blocked(
@@ -219,28 +259,50 @@ def _adapt_comparison(
         )
 
     if mismatches:
-        prediction = Prediction(
-            category="BL_COMPARISON",
-            status="MISMATCH",
-            review_reason=None,
-            has_defect=True,
-            defect_fields=mismatches,
-        )
-    else:
-        prediction = Prediction(
+        return _mismatch_decision(mismatches, reviewer_assisted, reviewer_actions)
+    return ExportDecision(
+        prediction=Prediction(
             category="BL_COMPARISON",
             status="OK",
             review_reason=None,
             has_defect=False,
             defect_fields=[],
-        )
-    return ExportDecision(
-        prediction=prediction,
+        ),
         diagnostics=ExportDiagnostics(
             reviewer_assisted=reviewer_assisted,
             reviewer_actions=reviewer_actions,
         ),
     )
+
+
+def _mismatch_decision(
+    fields: list[Field], reviewer_assisted: bool, reviewer_actions: list[str]
+) -> ExportDecision:
+    return ExportDecision(
+        prediction=Prediction(
+            category="BL_COMPARISON",
+            status="MISMATCH",
+            review_reason=None,
+            has_defect=True,
+            defect_fields=fields,
+        ),
+        diagnostics=ExportDiagnostics(
+            reviewer_assisted=reviewer_assisted,
+            reviewer_actions=reviewer_actions,
+        ),
+    )
+
+
+def _only_selection_uncertainty(findings: list[Finding]) -> bool:
+    if not findings:
+        return False
+    issues = [
+        reading.issue
+        for finding in findings
+        for reading in (finding.si, finding.bl)
+        if reading.issue is not None or reading.normalized is None
+    ]
+    return bool(issues) and all(issue in _SELECTION_UNCERTAINTY for issue in issues)
 
 
 def export_submission(

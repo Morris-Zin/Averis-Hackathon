@@ -199,13 +199,103 @@ def test_missing_field_maps_to_needs_review_without_fabricating_a_match() -> Non
     assert decision.prediction.review_reason == "missing_value"
 
 
-def test_known_mismatch_plus_unknown_is_explicitly_unrepresentable() -> None:
+def test_missing_field_preserves_known_findings_in_review_sidecar() -> None:
     report = comparison_report(mismatch={"consignee"}, unresolved={"gross_weight_kg"})
 
     decision = adapt_case(case_view(report=report))
 
+    assert decision.prediction is not None
+    assert decision.prediction.status == "NEEDS_REVIEW"
+    assert decision.prediction.review_reason == "missing_value"
+    assert decision.prediction.defect_fields == []
+    assert decision.diagnostics.known_mismatches == ["consignee"]
+    assert decision.diagnostics.unresolved_fields == ["gross_weight_kg"]
+
+
+@pytest.mark.parametrize(
+    "issue", ["low_field_confidence", "low_ocr_confidence", "provider_disagreement"]
+)
+def test_known_mismatch_survives_unrelated_selection_uncertainty(issue: str) -> None:
+    from averis.case_status import assess_case
+
+    case = case_view(
+        report=comparison_report(
+            mismatch={"container_count"},
+            unresolved={"gross_weight_kg"},
+            unresolved_issue=issue,
+        )
+    )
+    case.review_reasons = ["Some fields need review"]
+    before = case.model_dump(mode="json")
+    exported = export_submission([case], [case.id])
+    official = exported.official_payload()[case.id]
+    assert official["status"] == "MISMATCH"
+    assert official["defect_fields"] == ["container_count"]
+    assert set(official) == {
+        "category",
+        "status",
+        "review_reason",
+        "has_defect",
+        "defect_fields",
+    }
+    diagnostic = exported.diagnostics[case.id]
+    assert diagnostic.known_mismatches == ["container_count"]
+    assert diagnostic.unresolved_fields == ["gross_weight_kg"]
+    assert diagnostic.review_reasons == ["Some fields need review"]
+    assert case.model_dump(mode="json") == before
+    assert assess_case(case).needs_review
+    assert not assess_case(case).can_be_clear
+
+
+@pytest.mark.parametrize("issue", ["unknown_failure", "ambiguous_source_fields"])
+def test_unrecognized_field_problem_does_not_gain_mismatch_export(issue: str) -> None:
+    case = case_view(
+        report=comparison_report(
+            mismatch={"container_count"},
+            unresolved={"gross_weight_kg"},
+            unresolved_issue=issue,
+        )
+    )
+    decision = adapt_case(case)
     assert decision.prediction is None
     assert decision.diagnostics.blockers == ["mixed_outcomes_unrepresentable"]
+    assert decision.diagnostics.known_mismatches == ["container_count"]
+
+
+@pytest.mark.parametrize("location", ["document", "report", "case"])
+def test_document_wide_problem_still_blocks_mixed_mismatch_export(
+    location: str,
+) -> None:
+    report = comparison_report(
+        mismatch={"consignee"},
+        unresolved={"gross_weight_kg"},
+        unresolved_issue="low_field_confidence",
+    )
+    case = case_view(report=report)
+    if location == "document":
+        assert case.attachments[0].evidence is not None
+        case.attachments[0].evidence.issues.append("docx_hidden_text_requires_review")
+    elif location == "report":
+        report.issues.append("shipment_reference_conflict")
+    else:
+        case.review_reasons.append("unexpected_processing_problem")
+    decision = adapt_case(case)
+    assert decision.prediction is None
+    assert decision.diagnostics.blockers == ["mixed_outcomes_unrepresentable"]
+
+
+@pytest.mark.parametrize("invalid", ["pair", "revision", "duplicate"])
+def test_invalid_report_never_exports_known_mismatches(invalid: str) -> None:
+    report = comparison_report(mismatch={"consignee"}, unresolved={"gross_weight_kg"})
+    if invalid == "pair":
+        report.pair_valid = False
+    elif invalid == "revision":
+        report.input_revision = 0
+    else:
+        report.findings[-1] = report.findings[0]
+    decision = adapt_case(case_view(report=report))
+    assert decision.prediction is None
+    assert decision.diagnostics.known_mismatches == []
 
 
 def test_low_confidence_unknown_is_not_relabelled_as_an_official_reason() -> None:
