@@ -16,6 +16,7 @@ import signal
 import sys
 import unicodedata
 from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
 from importlib import import_module
 from io import BytesIO
 from multiprocessing.connection import Connection
@@ -48,20 +49,7 @@ MAX_XLSX_CELLS = 200_000
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
-_SUPPORTED_SUFFIXES = {".txt", ".pdf", ".docx", ".xlsx"} | _IMAGE_SUFFIXES
 _TEXT_LABEL = re.compile(r"^[^\s:\r\n][^:\r\n]{0,80}:\s*\S")
-
-# One small static format declaration; handlers stay private. Rendering remains
-# optional and DOCX never invents page coordinates.
-SUPPORTED_FORMATS: dict[str, dict[str, object]] = {
-    ".txt": {"preview": False, "ocr": False},
-    ".pdf": {"preview": True, "ocr": True},
-    ".docx": {"preview": False, "ocr": False},
-    ".xlsx": {"preview": False, "ocr": False},
-    ".png": {"preview": True, "ocr": True},
-    ".jpg": {"preview": True, "ocr": True},
-    ".jpeg": {"preview": True, "ocr": True},
-}
 
 # OCR engine selection is hidden behind the page-reading interface.
 from averis.versions import OCR_PROFILE, READER_VERSION
@@ -313,30 +301,20 @@ def read_document(document_id: str, filename: str, content: bytes) -> DocumentEv
         return _with_metadata(document_id, content, result)
 
     suffix = PurePath(filename).suffix.lower()
-    if suffix not in _SUPPORTED_SUFFIXES:
+    adapter = FORMAT_READERS.get(suffix)
+    if adapter is None:
         result.issues.append(f"unsupported_document_type:{suffix or 'none'}")
         return _with_metadata(document_id, content, result)
 
     try:
-        if suffix == ".txt":
-            return _with_metadata(
-                document_id, content, _read_text(document_id, content)
-            )
-        if suffix == ".pdf":
-            return _with_metadata(document_id, content, _read_pdf(document_id, content))
-        if suffix in _IMAGE_SUFFIXES:
-            return _with_metadata(
-                document_id, content, _read_image(document_id, content, suffix)
-            )
-        archive_issue = _check_office_archive(content)
-        if archive_issue:
-            result.issues.append(archive_issue)
-            return _with_metadata(document_id, content, result)
-        if suffix == ".docx":
-            return _with_metadata(
-                document_id, content, _read_docx(document_id, content)
-            )
-        return _with_metadata(document_id, content, _read_xlsx(document_id, content))
+        if adapter.office_archive:
+            archive_issue = _check_office_archive(content)
+            if archive_issue:
+                result.issues.append(archive_issue)
+                return _with_metadata(document_id, content, result)
+        return _with_metadata(
+            document_id, content, adapter.read(document_id, content, suffix)
+        )
     except Exception as exc:  # noqa: BLE001 - failures are result data at this boundary.
         result.issues.append(f"document_unreadable:{type(exc).__name__}")
         return _with_metadata(document_id, content, result)
@@ -1296,3 +1274,35 @@ def _check_office_archive(content: bytes) -> str | None:
 
 def _block_id(document_id: str, number: int) -> str:
     return f"{document_id}:b{number:04d}"
+
+
+@dataclass(frozen=True)
+class FormatReader:
+    """A trusted built-in format adapter behind the bounded document boundary."""
+
+    read: Callable[[str, bytes, str], DocumentEvidence]
+    preview: bool = False
+    ocr: bool = False
+    office_archive: bool = False
+
+
+# Static registration is imported in spawned parser processes too. Adding a
+# format does not change pipeline or dispatcher logic. Keep metadata and handler
+# together; uploads must explicitly authorize newly supported file extensions.
+FORMAT_READERS = {
+    ".txt": FormatReader(lambda doc, content, suffix: _read_text(doc, content)),
+    ".pdf": FormatReader(
+        lambda doc, content, suffix: _read_pdf(doc, content), True, True
+    ),
+    ".docx": FormatReader(
+        lambda doc, content, suffix: _read_docx(doc, content), office_archive=True
+    ),
+    ".xlsx": FormatReader(
+        lambda doc, content, suffix: _read_xlsx(doc, content), office_archive=True
+    ),
+    **{suffix: FormatReader(_read_image, True, True) for suffix in _IMAGE_SUFFIXES},
+}
+SUPPORTED_FORMATS: dict[str, dict[str, object]] = {
+    suffix: {"preview": reader.preview, "ocr": reader.ocr}
+    for suffix, reader in FORMAT_READERS.items()
+}

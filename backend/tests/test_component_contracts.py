@@ -13,9 +13,9 @@ from averis.domain import (
 )
 from averis.intelligence import (
     ExtractionResult,
-    validate_choice_answer,
     validate_extraction_proposal,
 )
+from averis.jev import validate_choice_answer
 from averis.pipeline import Checkpoints, ShipmentPipeline
 from averis.verification import reading_from_evidence
 

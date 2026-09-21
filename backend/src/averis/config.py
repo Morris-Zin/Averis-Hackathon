@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     category_threshold: float = Field(default=0.80, ge=0, le=1)
     spam_threshold: float = Field(default=0.95, ge=0, le=1)
     field_threshold: float = Field(default=0.80, ge=0, le=1)
-    frontend_dir: str = "apps/web/out"
+    frontend_dir: str = "frontend/out"
 
     def validate_deployment(self) -> None:
         if (

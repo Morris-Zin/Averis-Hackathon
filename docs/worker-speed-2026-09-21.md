@@ -6,7 +6,7 @@ Recovery previously locked every queued/running run before checking whether a wo
 
 Recovery now filters healthy leases and recently dispatched work in SQL before locking, and fetches outbox data in the same query. Exhausted attempts remain eligible for finalization, abandoned work remains recoverable, and missing outboxes are repaired. Document inference, thresholds, comparison, budget accounting and version fencing are unchanged.
 
-Validation: `uv run python scripts/verify.py` with real PostgreSQL passed: 452 backend tests, 2 optional skips, 21 frontend tests, strict types, lint, generated contracts and production build. New PostgreSQL acceptance checks show healthy/recent rows can be locked independently during recovery and two independent runners process distinct jobs exactly once. Existing process-crash recovery and retry checks passed.
+Validation: `uv run --project backend python scripts/verify.py` with real PostgreSQL passed: 452 backend tests, 2 optional skips, 21 frontend tests, strict types, lint, generated contracts and production build. New PostgreSQL acceptance checks show healthy/recent rows can be locked independently during recovery and two independent runners process distinct jobs exactly once. Existing process-crash recovery and retry checks passed.
 
 ## Deployment and timing
 

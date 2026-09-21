@@ -5,7 +5,7 @@ from typesafe_sdk import ChoiceAnswer
 
 from averis.contracts import FIELDS, Field
 from averis.domain import DocumentEvidence, EvidenceBlock, Location, Reading
-from averis.intelligence import validate_choice_answer
+from averis.jev import validate_choice_answer
 from averis.verification import (
     compare,
     normalize,

@@ -20,7 +20,7 @@ The API composes dependencies once. Its routes translate HTTP requests, enforce 
 
 ## Enforced checks
 
-`uv run python scripts/verify.py` checks import boundaries, Ruff formatting/lint/complexity, strict Pyright, offline tests, API contract drift, Prettier, strict TypeScript, ESLint and the static production build. CI uses PostgreSQL and the same command. Tests may use larger scenario functions; runtime and script functions have a McCabe complexity limit of 15. This metric is a guard against oversized branching, not proof of good design.
+`uv run --project backend python scripts/verify.py` checks import boundaries, Ruff formatting/lint/complexity, strict Pyright, offline tests, API contract drift, Prettier, strict TypeScript, ESLint and the static production build. CI uses PostgreSQL and the same command. Tests may use larger scenario functions; runtime and script functions have a McCabe complexity limit of 15. This metric is a guard against oversized branching, not proof of good design.
 
 Regression coverage includes database connections released before processing storage/parser/provider callbacks, malformed checkpoints failing without repeated inference, publication preserving reviewer state, stale/incomplete summary rejection and rejecting the same document in both pairing roles. Existing concurrency, recovery, format, budget and workspace-isolation tests remain in place.
 

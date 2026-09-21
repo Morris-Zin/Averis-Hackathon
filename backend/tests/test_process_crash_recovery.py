@@ -317,7 +317,7 @@ def test_killed_worker_recovers_after_natural_lease_expiry(
     lease_wait = result["lease_wait_seconds"]
     assert isinstance(lease_wait, float)
     assert lease_wait >= 85
-    output = ROOT / "outputs" / "process-crash-recovery"
+    output = ROOT.parent / "outputs" / "process-crash-recovery"
     output.mkdir(parents=True, exist_ok=True)
     (output / "natural-expiry.json").write_text(
         json.dumps(

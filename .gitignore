@@ -25,7 +25,7 @@ docs/pro-review-brief.md
 
 node_modules/
 .next/
-apps/web/out/
+frontend/out/
 .local/
 .coverage
 playwright-report/

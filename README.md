@@ -19,13 +19,13 @@ The app and private worker run on Railway with Neon PostgreSQL and private R2 st
 Prerequisites: Python 3.12+, uv, Node 24, pnpm 10.26.2 and PostgreSQL. Scans require Tesseract with `eng`, `msa`, `chi_sim` and `chi_tra` data; the Docker image installs these. The locked Python environment includes RapidOCR's models and headless ONNX/OpenCV dependencies; inference does not download models. Use the Docker image for the tested, resource-bounded Linux reader.
 
 ```powershell
-uv sync --locked
-pnpm --dir apps/web install --frozen-lockfile
-pnpm --dir apps/web build
+uv sync --project backend --locked
+pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend build
 # Use your local PostgreSQL connection:
 $env:AVERIS_DATABASE_URL = 'postgresql+psycopg://averis:averis@localhost:5432/averis'
-uv run alembic upgrade head
-uv run uvicorn averis.api:app --host 127.0.0.1 --port 8000
+uv run --project backend alembic -c backend/alembic.ini upgrade head
+uv run --project backend uvicorn averis.api:app --host 127.0.0.1 --port 8000
 ```
 
 Open **http://localhost:8000** and choose **Enter demo workspace**. The browser and API share one origin. Every session gets an isolated 24-hour workspace; reviewer names are simulated identities. No mailbox connection is required.
@@ -40,19 +40,23 @@ See [deployment instructions](docs/deployment.md) for the selected Railway deplo
 
 ```powershell
 $env:AVERIS_TEST_DATABASE_URL = $env:AVERIS_DATABASE_URL
-uv run python scripts/verify.py
+uv run --project backend python scripts/verify.py
 ```
 
 This checks Python formatting, lint, function complexity (maximum 15 for application/scripts), strict types, meaningful offline tests, module boundaries, OpenAPI/TypeScript contract drift, frontend formatting, strict types, lint and the production static build. PostgreSQL tests use temporary schemas. No paid provider is called. `--backend-only` is available for backend work.
 
-Run `uv run ruff format src tests scripts migrations` and `pnpm --dir apps/web format` to apply the enforced formatting. Generated API types remain generator-owned. TypeScript non-null assertions are rejected by ESLint.
+Run `uv run --project backend ruff format backend/src backend/tests scripts backend/migrations` and `pnpm --dir frontend format` to apply the enforced formatting. Generated API types remain generator-owned. TypeScript non-null assertions are rejected by ESLint.
 
 For browser acceptance, use the built app through its real API: enter a workspace, open Mismatches, inspect evidence, correct a reading, attach a controlled replacement, change reviewer/workflow and refresh. A completed review does not clear a genuine document mismatch.
 
 ## Structure and design
 
-- `src/averis/domain.py`: typed public contracts.
-- `intelligence.py`: budgeted Jev classification and independent document extraction.
+`frontend/` contains Next.js. `backend/` contains the Python project, tests and migrations. Repository-wide tools stay in `scripts/`; deployment configuration stays in `infra/`. Run the commands below from the repository root.
+
+- `backend/src/averis/domain.py`: typed public contracts.
+- `intelligence.py`: provider-neutral classification and extraction contracts.
+- `components.py`, `runtime.py`: versioned adapter bindings and application composition.
+- `jev.py`, `jev_prompts.py`, `deepseek.py`: budgeted provider adapters and replaceable Jev questions.
 - `documents.py`: bounded TXT/PDF/DOCX/XLSX/OCR reading and previews.
 - `verification.py`: source validation, numeric units and seven-field comparison.
 - `review.py`: source-bound reviewer decisions, independent of HTTP and persistence.
@@ -61,10 +65,10 @@ For browser acceptance, use the built app through its real API: enter a workspac
 - `processing.py`: durable run ownership, leases, publication, outbox dispatch and recovery.
 - `case_status.py` and `responses.py`: authoritative report summaries and HTTP projections, separate from persisted case state.
 - `api.py`, `http_context.py`, `routes.py`: application composition, authentication and HTTP adapters.
-- `apps/web/`: Next.js static frontend; generated API types, review state hook and focused panels.
+- `frontend/`: Next.js static frontend; generated API types, review state hook and focused panels.
 - `migrations/`, `infra/`: database migration and deployment configuration.
 
-Read [architecture](docs/build-plan.md), [module contracts](docs/module-contracts.md), [organizer brief](docs/hackathon-brief.md), and [submission checklist](docs/submission.md). Agent-specific instructions and skills are local-only.
+Read [replaceable components](docs/component-architecture.md), [architecture](docs/build-plan.md), [module contracts](docs/module-contracts.md), [organizer brief](docs/hackathon-brief.md), and [submission checklist](docs/submission.md). Agent-specific instructions and skills are local-only.
 
 See the [expected results and advanced requirements checklist](docs/requirements-checklist.md) for verified feature support, fresh document-reader checks and supported limits.
 
@@ -76,11 +80,11 @@ for the latest frozen before/after results, rejected experiments and remaining l
 Official kits belong under ignored `resources/official/bundle` and `resources/official/docker`. Download them from the [organizer folder](https://drive.google.com/drive/folders/1ouOrFF6GMKvJDaX_asN8R6v467W7P8Df). Ground truth is evaluation-only and excluded from runtime images.
 
 ```powershell
-uv run averis inspect
-uv run averis validate resources/official/bundle/sample_submission.json
-uv run averis score resources/official/bundle/sample_submission.json
+uv run --project backend averis inspect
+uv run --project backend averis validate resources/official/bundle/sample_submission.json
+uv run --project backend averis score resources/official/bundle/sample_submission.json
 # Snapshot: JSON object mapping original email IDs to complete CaseView objects
-uv run averis export outputs/case-snapshot.json --output outputs/submission.json --diagnostics outputs/coverage.json
+uv run --project backend averis export outputs/case-snapshot.json --output outputs/submission.json --diagnostics outputs/coverage.json
 ```
 
 The supplied sample submission is a placeholder, **not model output**. The existing score command invokes the unchanged official scorer. Unsupported export states must block export, never be replaced with invented categories or matches. Report automatic coverage, abstentions, and reviewer-assisted results separately.

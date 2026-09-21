@@ -12,7 +12,7 @@ from averis.config import Settings
 from averis.domain import Classification
 from averis.persistence import Base, Budget, Database, Outbox, Run
 
-sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[2]))
 from scripts.evaluate import prepare_evaluation, run_evaluation
 
 

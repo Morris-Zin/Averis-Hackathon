@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1.7
 
 FROM node:24-bookworm-slim AS frontend-builder
-WORKDIR /workspace/apps/web
+WORKDIR /workspace/frontend
 
 RUN npm install --global pnpm@10.26.2
-COPY apps/web/package.json apps/web/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-COPY apps/web ./
+COPY frontend ./
 RUN pnpm build
 
 FROM python:3.12-slim AS python-builder
@@ -18,8 +18,9 @@ ENV UV_LINK_MODE=copy \
     UV_NO_CACHE=1
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml uv.lock README.md ./
-COPY src ./src
+COPY backend/pyproject.toml backend/uv.lock ./
+COPY README.md ./
+COPY backend/src ./src
 RUN uv sync --locked --no-dev --no-editable
 
 FROM python:3.12-slim AS runtime
@@ -41,10 +42,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
     AVERIS_ROLE=web
 
 COPY --from=python-builder /app/.venv /app/.venv
-COPY src ./src
-COPY migrations ./migrations
-COPY alembic.ini ./
-COPY --from=frontend-builder /workspace/apps/web/out ./apps/web/out
+COPY backend/src ./src
+COPY backend/migrations ./migrations
+COPY backend/alembic.ini ./
+COPY --from=frontend-builder /workspace/frontend/out ./frontend/out
 
 EXPOSE 8080
 

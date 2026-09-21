@@ -54,7 +54,7 @@ jobs:
           enable-cache: true
 
       - name: Install Python dependencies
-        run: uv sync --locked
+        run: uv sync --project backend --locked
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -66,11 +66,11 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install frontend dependencies
-        working-directory: apps/web
+        working-directory: frontend
         run: pnpm install --frozen-lockfile
 
       - name: Run repository verification
-        run: uv run python scripts/verify.py
+        run: uv run --project backend python scripts/verify.py

@@ -51,7 +51,7 @@ The organizer scorer remains a separate command. Use the existing CLI only when 
 After inference, run this separate command. It never calls Jev and does not belong in a runtime container:
 
 ```powershell
-uv run python scripts/report_evaluation.py `
+uv run --project backend python scripts/report_evaluation.py `
   --snapshot outputs/evaluation-linux-v4/snapshot.json `
   --manifest outputs/evaluation-linux-v4/manifest.json `
   --ground-truth resources/official/docker/data_v2/ground_truth.json `

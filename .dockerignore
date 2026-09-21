@@ -18,9 +18,9 @@ resources
 AGENTS.md
 CLAUDE.md
 skills-lock.json
-apps/web/node_modules
-apps/web/.next
-apps/web/out
+frontend/node_modules
+frontend/.next
+frontend/out
 infra/terraform/.terraform
 infra/terraform/*.tfstate
 infra/terraform/*.tfstate.*
@@ -28,3 +28,9 @@ infra/terraform/*.tfstate.*
 tools/demo-video
 *.tfvars
 *.tfplan
+
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+data

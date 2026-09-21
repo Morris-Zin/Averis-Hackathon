@@ -116,12 +116,19 @@ def check_boundaries() -> None:
             "averis.jev",
         }
     # Domain and pipeline must not load Jev or parser libraries.
+    prohibited["jev_prompts"] = set(prohibited["jev"])
     prohibited["jev_classification"] = set(prohibited["jev"])
     prohibited["deepseek"] = set(prohibited["jev"])
+    prohibited["processing"].update({"averis.jev", "averis.deepseek"})
+    prohibited["components"] = set(prohibited["pipeline"])
     for forbidden in prohibited.values():
         if "averis.jev" in forbidden:
+            forbidden.add("typesafe_sdk")
+            forbidden.add("averis.jev_prompts")
+            forbidden.add("averis.runtime")
             forbidden.add("averis.jev_classification")
             forbidden.add("averis.deepseek")
+    prohibited["processing"].discard("averis.runtime")
     parser_libraries = {
         "pdfplumber",
         "pypdfium2",
@@ -134,7 +141,7 @@ def check_boundaries() -> None:
         "onnxruntime",
         "cv2",
     }
-    for path in (ROOT / "src/averis").rglob("*.py"):
+    for path in (ROOT / "backend/src/averis").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
         for node in ast.walk(tree):
             imports = (
@@ -178,7 +185,7 @@ def check_contracts(pnpm: str) -> None:
 
     schema = create_app(Settings()).openapi()
     expected = json.loads(
-        (ROOT / "apps/web/openapi.json").read_text(encoding="utf-8-sig")
+        (ROOT / "frontend/openapi.json").read_text(encoding="utf-8-sig")
     )
     if schema != expected:
         raise SystemExit(
@@ -193,9 +200,9 @@ def check_contracts(pnpm: str) -> None:
             "openapi.json",
             "-o",
             str(output),
-            cwd=ROOT / "apps/web",
+            cwd=ROOT / "frontend",
         )
-        current = (ROOT / "apps/web/src/lib/generated/api.ts").read_text(
+        current = (ROOT / "frontend/src/lib/generated/api.ts").read_text(
             encoding="utf-8"
         )
         if output.read_text(encoding="utf-8") != current:
@@ -236,23 +243,38 @@ def main() -> None:
         "-m",
         "ruff",
         "format",
+        "--config",
+        "pyproject.toml",
         "--check",
         "src",
         "tests",
-        "scripts",
+        "../scripts",
         "migrations",
+        cwd=ROOT / "backend",
     )
-    run(sys.executable, "-m", "ruff", "check", "src", "tests", "scripts", "migrations")
-    run(sys.executable, "-m", "pyright")
+    run(
+        sys.executable,
+        "-m",
+        "ruff",
+        "check",
+        "--config",
+        "pyproject.toml",
+        "src",
+        "tests",
+        "../scripts",
+        "migrations",
+        cwd=ROOT / "backend",
+    )
+    run(sys.executable, "-m", "pyright", cwd=ROOT / "backend")
     check_test_database()
-    run(sys.executable, "-m", "pytest", "-q")
+    run(sys.executable, "-m", "pytest", "-q", cwd=ROOT / "backend")
     if not options.backend_only:
         pnpm = shutil.which("pnpm")
         if pnpm is None:
             raise SystemExit("Install pnpm 10.26.2 to check the frontend")
         check_contracts(pnpm)
         for command in ("format:check", "typecheck", "lint", "test", "build"):
-            run(pnpm, command, cwd=ROOT / "apps/web")
+            run(pnpm, command, cwd=ROOT / "frontend")
     print("Verification passed; paid inference was not enabled.", flush=True)
 
 

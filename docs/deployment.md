@@ -12,7 +12,7 @@ The public app is live at https://averis-hackathon-production.up.railway.app/. F
 
 ## Cloud Run runtime shape
 
-The repository builds one image with Python 3.12, the FastAPI application, the worker entry point, and the Next.js static export under `apps/web/out`. The container selects its process from `AVERIS_ROLE`:
+The repository builds one image with Python 3.12, the FastAPI application, the worker entry point, and the Next.js static export under `frontend/out`. The container selects its process from `AVERIS_ROLE`:
 
 - `web` runs `averis.api:app` and serves the public frontend and same-origin API.
 - `worker` runs `averis.worker:app` and is deployed as a private Cloud Run service.
@@ -84,7 +84,7 @@ The runtime environment names are:
 
 `.github/workflows/ci.yml` runs against PostgreSQL 16 and performs the locked Python sync, pytest, Ruff, Pyright, `python scripts/verify.py`, and the frontend's frozen pnpm install, contract/type check, lint, and static export build. CI sets `AVERIS_LIVE_ENABLED=false` and uses local storage, so it does not make paid provider calls or require cloud credentials.
 
-The workflow is intentionally strict about `uv.lock` and `apps/web/pnpm-lock.yaml`. A dependency change must update its lockfile in the same change. The verification script runs all configured gates; CI does not silently skip missing contract checks.
+The workflow is intentionally strict about `backend/uv.lock` and `frontend/pnpm-lock.yaml`. A dependency change must update its lockfile in the same change. The verification script runs all configured gates; CI does not silently skip missing contract checks.
 
 ## Operational checks after deployment
 
@@ -94,4 +94,8 @@ This repository configuration has been validated locally only. Until a reviewed 
 
 ## Operator observability
 
-Run `uv run python scripts/manage.py metrics` with the deployment database configured to read aggregate run states, attempts, retried runs, oldest queue age, undispatched outbox entries and review rate. The command does not call Jev. Worker logs include delivery duration, run ID and outcome; no document body or signed URL is included in these events. `scripts/manage.py budget` reads reserved/settled bucket totals. Cloud resource/OCR CPU and memory measurements remain a deployment acceptance task.
+Run `uv run --project backend python scripts/manage.py metrics` with the deployment database configured to read aggregate run states, attempts, retried runs, oldest queue age, undispatched outbox entries and review rate. The command does not call Jev. Worker logs include delivery duration, run ID and outcome; no document body or signed URL is included in these events. `scripts/manage.py budget` reads reserved/settled bucket totals. Cloud resource/OCR CPU and memory measurements remain a deployment acceptance task.
+
+## Source layout and container paths
+
+Build from the repository root using `Dockerfile`. Python source, migrations and the Python lockfile live in `backend/`; Next.js lives in `frontend/`. The container keeps Python and Alembic in `/app`, so Railway commands remain `alembic upgrade head` and `python -m averis.runner`. The static frontend is `/app/frontend/out`; if `AVERIS_FRONTEND_DIR` is explicitly set, update it to `frontend/out`.

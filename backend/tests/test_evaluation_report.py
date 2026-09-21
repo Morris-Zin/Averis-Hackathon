@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[2]))
 from scripts.report_evaluation import FIELDS, build_evaluation_report
 
 

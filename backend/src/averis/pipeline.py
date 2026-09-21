@@ -66,6 +66,10 @@ class DocumentReader(Protocol):
     ) -> DocumentEvidence: ...
 
 
+class _ClassificationCheckpoint(Classification):
+    implementation: str = "legacy-unspecified"
+
+
 class _DocumentCheckpoint(BaseModel):
     version: str
     evidence: DocumentEvidence
@@ -75,6 +79,7 @@ class _DocumentCheckpoint(BaseModel):
 
 
 class _ExtractionCheckpoint(BaseModel):
+    implementation: str = "legacy-unspecified"
     version: str
     role: Literal["SI", "BL", "unknown"]
     role_confidence: float = Field(default=0, ge=0, le=1)
@@ -179,6 +184,10 @@ class ShipmentPipeline:
         acceptance_profile: str = ACCEPTANCE_PROFILE,
         provider_time_reserve: float = PROVIDER_TIME_RESERVE_SECONDS,
         pairing_judge: PairingJudge | None = None,
+        reader_profile: tuple[str, str] = (READER_VERSION, OCR_PROFILE),
+        extraction_profile: str = "legacy-unspecified",
+        pairing_profile: str | None = None,
+        classification_identity: str = "legacy-unspecified",
     ):
         self._intelligence = intelligence
         self._checkpoints = checkpoints
@@ -189,6 +198,10 @@ class ShipmentPipeline:
         self._acceptance_profile = acceptance_profile
         self._provider_time_reserve = provider_time_reserve
         self._pairing_judge = pairing_judge
+        self._reader_version, self._ocr_profile = reader_profile
+        self._extraction_profile = extraction_profile
+        self._pairing_profile = pairing_profile
+        self._classification_identity = classification_identity
 
     def process(self, inputs: ProcessingInput) -> ProcessingResult:
         """Run classification, preparation and comparison without mutating inputs.
@@ -250,13 +263,19 @@ class ShipmentPipeline:
         if case.classification is not None and case.classification.source == "human":
             count("classification_reused")
             return case.classification
-        saved = self._checkpoints.load("classification", Classification)
-        if saved is not None and (
-            self._classification_profile is None
-            or (saved.model, saved.policy_version) == self._classification_profile
+        saved = self._checkpoints.load("classification", _ClassificationCheckpoint)
+        if (
+            saved is not None
+            and saved.implementation == self._classification_identity
+            and (
+                self._classification_profile is None
+                or (saved.model, saved.policy_version) == self._classification_profile
+            )
         ):
             count("classification_reused")
-            return saved
+            return Classification.model_validate(
+                saved.model_dump(exclude={"implementation"})
+            )
         # A changed provider profile invalidates only classification. Compatible
         # document checkpoints remain available, and human decisions take priority.
         classification = self._intelligence.classify(
@@ -269,7 +288,13 @@ class ShipmentPipeline:
             ),
             load_attachment_previews=lambda: self._classification_previews(attachments),
         )
-        self._checkpoints.save("classification", classification)
+        self._checkpoints.save(
+            "classification",
+            _ClassificationCheckpoint(
+                **classification.model_dump(),
+                implementation=self._classification_identity,
+            ),
+        )
         return classification
 
     def _classification_previews(
@@ -310,8 +335,8 @@ class ShipmentPipeline:
             # Unversioned resumable checkpoints cannot be reused.
             if (
                 saved.version != CHECKPOINT_VERSION
-                or saved.reader_version != READER_VERSION
-                or saved.ocr_profile != OCR_PROFILE
+                or saved.reader_version != self._reader_version
+                or saved.ocr_profile != self._ocr_profile
             ):
                 raise InvalidCheckpoint(
                     "Saved document reading uses an incompatible reader profile"
@@ -322,8 +347,8 @@ class ShipmentPipeline:
             return saved.evidence
         if (
             attachment.evidence is not None
-            and attachment.evidence.reader_version == READER_VERSION
-            and attachment.evidence.ocr_profile == OCR_PROFILE
+            and attachment.evidence.reader_version == self._reader_version
+            and attachment.evidence.ocr_profile == self._ocr_profile
         ):
             # Legacy evidence without a fingerprint is fingerprinted from its
             # stored contents without claiming a newer parser produced it.
@@ -358,8 +383,8 @@ class ShipmentPipeline:
             _DocumentCheckpoint(
                 version=CHECKPOINT_VERSION,
                 evidence=evidence,
-                reader_version=READER_VERSION,
-                ocr_profile=OCR_PROFILE,
+                reader_version=self._reader_version,
+                ocr_profile=self._ocr_profile,
                 evidence_fingerprint=fingerprint or evidence.evidence_fingerprint,
             ),
         )
@@ -372,6 +397,7 @@ class ShipmentPipeline:
         if saved is not None:
             if (
                 saved.version != CHECKPOINT_VERSION
+                or saved.implementation != self._extraction_profile
                 or saved.acceptance_profile != self._acceptance_profile
                 or saved.extraction_policy != EXTRACTION_POLICY_VERSION
                 or saved.normalization_profile != NORMALIZATION_PROFILE
@@ -433,6 +459,7 @@ class ShipmentPipeline:
         except Exception:  # noqa: BLE001 - fingerprint never blocks saving
             fingerprint = evidence.evidence_fingerprint
         value = _ExtractionCheckpoint(
+            implementation=self._extraction_profile,
             version=CHECKPOINT_VERSION,
             role=extracted.role,  # type: ignore[arg-type]
             role_confidence=extracted.role_confidence,
@@ -565,7 +592,7 @@ class ShipmentPipeline:
         model = (
             self._classification_profile[0] if self._classification_profile else None
         )
-        fingerprint = request.fingerprint(model)
+        fingerprint = request.fingerprint(self._pairing_profile or model)
         saved = self._checkpoints.load("pairing", _PairingCheckpoint)
         if saved is None or saved.fingerprint != fingerprint:
             if self._remaining() <= PROVIDER_TIME_RESERVE_SECONDS:

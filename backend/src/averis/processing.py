@@ -15,13 +15,12 @@ from pydantic import ValidationError
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
-from averis.budget import BudgetAuthority, BudgetUnavailable
+from averis.budget import BudgetUnavailable
+from averis.components import Components
 from averis.config import Settings
 from averis.documents import read_document_bounded
 from averis.domain import AuditEntry, CaseView, Classification
 from averis.intelligence import Intelligence
-from averis.jev import Jev, NumericAssistedIntelligence
-from averis.pairing import PairingJudge
 from averis.persistence import (
     BrowserSession,
     Case,
@@ -43,9 +42,9 @@ from averis.pipeline import (
     ProcessingResult,
     ShipmentPipeline,
 )
+from averis.runtime import application_components, injected_components
 from averis.storage import Storage
 from averis.timing import measure, processing_trace, timed
-from averis.versions import CLASSIFICATION_POLICY_VERSION
 
 log = logging.getLogger(__name__)
 
@@ -127,51 +126,32 @@ class Processor:
         storage: Storage,
         factory: Callable[[str, str], Intelligence] | None = None,
         reader: DocumentReader | None = None,
+        components: Components | None = None,
     ):
         self.db = db
         self.settings = settings
         self.storage = storage
-        self.factory: Callable[[str, str], Intelligence] = factory or self._jev
-        self.reader: DocumentReader = reader or read_document_bounded
-        self.classification_profile = (
-            (settings.jev_model, CLASSIFICATION_POLICY_VERSION)
-            if factory is None
-            else None
-        )
-
-    def _jev(self, run_id: str, purpose: str) -> Intelligence:
-        budget = BudgetAuthority(self.db, self.settings)
-        primary = Jev(self.settings, budget, run_id, purpose)
-        if not self.settings.deepseek_fields_enabled:
-            return NumericAssistedIntelligence(primary, primary)
-        from averis.deepseek import AssistedIntelligence
-
-        assisted = AssistedIntelligence(
-            primary,
-            self.settings.deepseek_api_key.get_secret_value(),
-            budget,
-            run_id,
-            purpose,
-        )
-        return NumericAssistedIntelligence(assisted, primary)
+        if components is not None and (factory is not None or reader is not None):
+            raise ValueError(
+                "Supply components or legacy injection arguments, not both"
+            )
+        if factory is not None and settings.env == "production":
+            raise ValueError("Production replacements require versioned components")
+        if components is None:
+            components = application_components(db, settings)
+            if factory is not None:
+                components = injected_components(
+                    factory, reader or read_document_bounded
+                )
+            elif reader is not None:
+                raise ValueError(
+                    "A replacement reader requires explicit versioned components"
+                )
+        self.components = components
 
     def processing_enabled(self) -> bool:
         """Return whether a delivery may start paid processing work."""
         return self.settings.live_enabled and self.settings.budget_verified
-
-    def _pairing_judge(self, run_id: str, purpose: str) -> PairingJudge | None:
-        # Injected/offline intelligence never gains a hidden paid provider call.
-        if self.classification_profile is None:
-            return None
-        return Jev(
-            self.settings, BudgetAuthority(self.db, self.settings), run_id, purpose
-        ).judge_pair
-
-    def _acceptance_profile(self) -> str:
-        from averis.deepseek import PROFILE
-        from averis.versions import ACCEPTANCE_PROFILE
-
-        return PROFILE if self.settings.deepseek_fields_enabled else ACCEPTANCE_PROFILE
 
     def dispatch(self, run_id: str) -> bool:
         if not self.settings.tasks_queue or not self.processing_enabled():
@@ -424,18 +404,26 @@ class Processor:
                 claim.checkpoint,
                 lambda key, value: self._checkpoint(run_id, claim.token, key, value),
             )
+            adapters = self.components.create_intelligence(run_id, claim.purpose)
             pipeline = ShipmentPipeline(
-                self.factory(run_id, claim.purpose),
+                adapters.intelligence,
                 checkpoints,
                 self._load_document,
-                self.reader,
+                self.components.reader,
                 lambda: deadline - time.monotonic(),
-                classification_profile=self.classification_profile,
-                acceptance_profile=self._acceptance_profile(),
-                provider_time_reserve=140
-                if self.settings.deepseek_fields_enabled
-                else 45,
-                pairing_judge=self._pairing_judge(run_id, claim.purpose),
+                classification_profile=self.components.classification_profile,
+                acceptance_profile=self.components.acceptance_profile,
+                provider_time_reserve=self.components.provider_time_reserve,
+                pairing_judge=adapters.pairing_judge,
+                reader_profile=self.components.reader_profile,
+                extraction_profile=self.components.extraction_profile,
+                pairing_profile=self.components.pairing_profile,
+                classification_identity=self.components.classification_identity
+                or (
+                    str(self.components.classification_profile)
+                    if self.components.classification_profile
+                    else self.components.extraction_profile
+                ),
             )
             result = pipeline.process(claim.inputs)
             if time.monotonic() >= deadline:

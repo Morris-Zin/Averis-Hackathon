@@ -14,8 +14,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Protocol, cast, get_args
 
-from typesafe_sdk import ChoiceAnswer
-
 from averis.contracts import FIELDS, Category, Field
 from averis.domain import Classification, DocumentEvidence, Reading, issue_is_blocking
 
@@ -88,31 +86,6 @@ class ProviderTransientError(RuntimeError):
 
 class ProviderCapacityError(RuntimeError):
     """Capacity limitation: visible unsupported-input review outcome."""
-
-
-def validate_choice_answer(
-    answer: ChoiceAnswer,
-    allowed: frozenset[str],
-) -> tuple[str, float, dict[str, float]]:
-    """Reject malformed provider state rather than converting it into a decision."""
-
-    if answer.choice not in allowed:
-        raise ValueError(f"Invalid choice response: {answer.choice}")
-    if not math.isfinite(answer.confidence) or not 0 <= answer.confidence <= 1:
-        raise ValueError("Invalid choice confidence")
-    probabilities = dict(answer.probabilities)
-    if set(probabilities) != set(allowed):
-        raise ValueError("Choice probabilities do not match the requested criteria")
-    if any(
-        not math.isfinite(probability) or not 0 <= probability <= 1
-        for probability in probabilities.values()
-    ):
-        raise ValueError("Invalid choice probabilities")
-    if not math.isclose(sum(probabilities.values()), 1.0, abs_tol=0.02):
-        raise ValueError("Choice probabilities do not sum to one")
-    if probabilities[answer.choice] < max(probabilities.values()):
-        raise ValueError("Selected choice is not the highest-probability criterion")
-    return answer.choice, answer.confidence, probabilities
 
 
 def validate_extraction_proposal(

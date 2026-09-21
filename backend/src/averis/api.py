@@ -177,7 +177,7 @@ def create_app(
             if resolved.is_relative_to(root) and resolved.is_file():
                 return FileResponse(resolved)
         raise HTTPException(
-            404, "Frontend build unavailable. Run pnpm build in apps/web."
+            404, "Frontend build unavailable. Run pnpm build in frontend."
         )
 
     return application
