@@ -40,9 +40,9 @@ def test_party_layout_equivalence_preserves_real_address_differences():
     assert normalize("consignee", "A-B LTD") != normalize("consignee", "AB LTD")
 
 
-def test_weight_label_establishes_unit_but_bare_number_does_not():
+def test_weight_label_or_documented_default_establishes_unit():
     assert normalize("gross_weight_kg", "Gross Wt (kgs): 243,588") == "243588"
-    assert normalize("gross_weight_kg", "Gross Wt: 243,588") is None
+    assert normalize("gross_weight_kg", "Gross Wt: 243,588") == "243588"
 
 
 def test_inline_pdf_columns_are_not_a_trustworthy_party_reading():

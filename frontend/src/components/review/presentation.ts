@@ -2,6 +2,9 @@ import type { CaseView, Finding } from "@/lib/contracts";
 import { CATEGORY_LABELS } from "@/lib/contracts";
 
 export function readingDisplayValue(reading?: Finding["si"]) {
+  if (reading?.unit_source === "default_kg" && reading.normalized != null) {
+    return `${reading.normalized} kg (assumed—unit not supplied)`;
+  }
   if (reading?.numeric_selection && reading.normalized != null) {
     return `${reading.normalized}${reading.field === "gross_weight_kg" ? " kg" : ""}`;
   }

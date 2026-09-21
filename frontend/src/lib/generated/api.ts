@@ -841,6 +841,8 @@ export interface components {
             text?: string | null;
             /** Normalized */
             normalized?: string | null;
+            /** Unit Source */
+            unit_source?: ("explicit" | "default_kg") | null;
             /**
              * Confidence
              * @default 0

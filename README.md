@@ -24,6 +24,14 @@ weak OCR and uncertain shipment pairing remain review work. Optional DeepSeek
 assistance supplements unresolved Jev field readings. Code owns source validation,
 unit conversion and comparison; provider confidence is not measured accuracy.
 
+Gross-weight policy: a complete numeric weight with no unit defaults to kilograms,
+independently for each document. The reading records `unit_source: default_kg`
+and the UI shows “kg (assumed—unit not supplied)”. Explicit kg, pounds, grams and
+metric tonnes are converted to kg; contradictory or unsupported units, missing
+values and uncertain readings still require review. This is a business default,
+not proof of the source unit: an unlabeled pounds value will be interpreted as kg.
+Isolated numeric fragments selected from complex PDF blocks still require a unit.
+
 ## Run locally
 
 Requires Python 3.12+, uv, Node 24, pnpm 10.26.2 and PostgreSQL. Scans require

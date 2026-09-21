@@ -119,8 +119,18 @@ def bind_numeric_selection(
         location.kind != "pdf" for location in block.locations
     ):
         raise ValueError("Numeric assistance requires native PDF evidence")
-    value = normalize(field, candidate.source_value)
+    # Fragment selection cannot establish that a unit is absent from the field.
+    # Keep this assistance path explicit-unit-only; defaulting belongs to a
+    # complete field reading, not a number isolated from a complex PDF block.
+    value = (
+        None
+        if field == "gross_weight_kg" and candidate.unit is None
+        else normalize(field, candidate.source_value)
+    )
     reading.normalized = value
+    reading.unit_source = (
+        "explicit" if field == "gross_weight_kg" and value is not None else None
+    )
     reading.numeric_selection = selection
     reading.issue = (
         "missing_or_ambiguous_value"

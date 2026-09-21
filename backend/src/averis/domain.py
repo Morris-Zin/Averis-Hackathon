@@ -155,6 +155,7 @@ class Reading(Model):
     )
     text: str | None = None
     normalized: str | None = None
+    unit_source: Literal["explicit", "default_kg"] | None = None
     confidence: float | None = PydanticField(default=0, ge=0, le=1)
     acceptance_basis: Literal["probability", "explicit_source"] = "probability"
     selection_model: str | None = None

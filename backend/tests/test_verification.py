@@ -69,16 +69,16 @@ def test_normalize_handles_official_container_labels_and_equipment_suffixes() ->
     [
         ("Gross Weight (KG): 1,250 KG", "1250"),
         ("Gross Weight毛重(KGS): 67,311 KG", "67311"),
-        ("Gross Wt (kgs): 1.25 MT", "1250"),
+        ("Gross Wt (MT): 1.25 MT", "1250"),
     ],
 )
 def test_normalize_converts_explicit_weight_units(source: str, expected: str) -> None:
     assert normalize("gross_weight_kg", source) == expected
 
 
-def test_normalize_does_not_guess_units_for_a_bare_weight() -> None:
-    assert normalize("gross_weight_kg", "Gross Weight: 243588") is None
-    assert normalize("gross_weight_kg", "Gross Weight: 10 pounds") is None
+def test_normalize_defaults_bare_weight_to_kg_and_respects_pounds() -> None:
+    assert normalize("gross_weight_kg", "Gross Weight: 243588") == "243588"
+    assert normalize("gross_weight_kg", "Gross Weight: 10 pounds") == "4.5359237"
 
 
 def test_source_value_accepts_safe_label_space_and_total_weight_aliases() -> None:
@@ -473,3 +473,84 @@ def test_provisional_comparison_preserves_missing_fields():
     assert outcomes["container_count"] == "mismatch"
     assert outcomes["gross_weight_kg"] == "unresolved"
     assert all(f.outcome == "unresolved" for f in report.findings)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("216950", "216950"),
+        ("Gross Weight: 1,234.50", "1234.5"),
+        ("Gross Weight (LBS): 10000", "4535.9237"),
+        ("Gross Weight (MT): 1.5", "1500"),
+        ("Gross Weight: 1000 g", "1"),
+        ("Gross Weight (KG): 10 lbs", None),
+        ("Gross Weight (LBS): 10 kg", None),
+        ("Gross Weight (oz): 10", None),
+        ("Gross Weight (oz): 10 ", None),
+        ("Gross Weight: 10 oz", None),
+        ("Gross Weight: 10 tons", None),
+        ("Gross Weight: 10 containers", None),
+        ("Gross Weight: ____MT", None),
+        ("Gross Weight:", None),
+        ("Gross Weight: 10 / 20", None),
+    ],
+)
+def test_weight_default_and_explicit_unit_boundaries(source, expected):
+    assert normalize("gross_weight_kg", source) == expected
+
+
+def test_weight_assumption_provenance_and_uncertainty():
+    doc = evidence("si", "Gross Weight: 10000")
+    result = reading_from_evidence("gross_weight_kg", doc, ["si:b1"])
+    assert result.normalized == "10000"
+    assert result.unit_source == "default_kg"
+    assert result.text == "Gross Weight: 10000"
+    assert result.issue is None
+    uncertain = reading_from_evidence("gross_weight_kg", doc, ["si:b1"], confidence=0.2)
+    assert uncertain.issue == "low_field_confidence"
+    lbs = evidence("bl", "Gross Weight: 10000 lb")
+    other = reading_from_evidence("gross_weight_kg", lbs, ["bl:b1"])
+    assert other.unit_source == "explicit"
+    si = {f: reading(f, "si", "same") for f in _TYPED_FIELDS}
+    bl = {f: reading(f, "bl", "same") for f in _TYPED_FIELDS}
+    si["gross_weight_kg"] = result
+    bl["gross_weight_kg"] = other
+    report = compare(si, bl, 1, True)
+    assert (
+        next(f for f in report.findings if f.field == "gross_weight_kg").outcome
+        == "mismatch"
+    )
+
+
+@pytest.mark.parametrize(
+    ("left", "right", "expected"),
+    [
+        ("10000", "10000", "match"),
+        ("10000", "10001", "mismatch"),
+        ("10000", "10 MT", "match"),
+        ("10000", "10000 lb", "mismatch"),
+        ("10000", "N/A", "unresolved"),
+        ("10000", "Gross Weight (kg): 10 lb", "unresolved"),
+    ],
+)
+def test_weight_default_comparison_policy(left, right, expected):
+    si = {f: reading(f, "si", "same") for f in _TYPED_FIELDS}
+    bl = {f: reading(f, "bl", "same") for f in _TYPED_FIELDS}
+    for target, name, text in [(si, "si", left), (bl, "bl", right)]:
+        doc = evidence(name, text)
+        target["gross_weight_kg"] = reading_from_evidence(
+            "gross_weight_kg", doc, [name + ":b1"]
+        )
+    result = compare(si, bl, 1, True)
+    assert (
+        next(f for f in result.findings if f.field == "gross_weight_kg").outcome
+        == expected
+    )
+
+
+def test_default_kg_does_not_clear_weak_ocr():
+    doc = evidence("si", "Gross Weight: 10000", method="ocr", ocr_confidence=0.5)
+    result = reading_from_evidence("gross_weight_kg", doc, ["si:b1"])
+    assert result.normalized == "10000"
+    assert result.unit_source == "default_kg"
+    assert result.issue == "low_ocr_confidence"

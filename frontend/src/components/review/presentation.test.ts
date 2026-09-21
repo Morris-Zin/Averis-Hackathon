@@ -121,3 +121,19 @@ describe("numeric source readings", () => {
     expect(readingDisplayValue()).toBe("Not found");
   });
 });
+
+it("discloses the kilogram default without changing the source text", async () => {
+  const { readingDisplayValue } = await import("./presentation");
+  expect(
+    readingDisplayValue({
+      field: "gross_weight_kg",
+      document_id: "si",
+      normalized: "10000",
+      text: "Gross Weight: 10000",
+      unit_source: "default_kg",
+      confidence: 1,
+      provenance: "machine",
+      acceptance_basis: "probability",
+    }),
+  ).toBe("10000 kg (assumed—unit not supplied)");
+});

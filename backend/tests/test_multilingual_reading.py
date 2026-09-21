@@ -100,9 +100,7 @@ def test_multilingual_mixed_field_evidence_cannot_clear_a_reading():
     assert reading.issue == "ambiguous_source_fields"
 
 
-@pytest.mark.parametrize(
-    "source", ["毛重：22000", "Berat kasar: 22000", "毛重：不详", "毛重：22 tons"]
-)
+@pytest.mark.parametrize("source", ["毛重：不详", "毛重：22 tons"])
 def test_multilingual_weight_never_guesses_missing_or_ambiguous_units(source):
     assert normalize("gross_weight_kg", source) is None
 
@@ -123,3 +121,8 @@ def test_localized_references_prove_pairing_but_conflicts_still_block(label):
     wrong = read_document("wrong", "bl.txt", b"Shipment ID: ABC-5678")
     assert validate_pair(si, bl)
     assert not validate_pair(si, wrong, human_selected=True)
+
+
+@pytest.mark.parametrize("source", ["毛重：22000", "Berat kasar: 22000"])
+def test_multilingual_bare_weight_defaults_to_kg(source):
+    assert normalize("gross_weight_kg", source) == "22000"

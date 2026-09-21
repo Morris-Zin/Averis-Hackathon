@@ -2220,6 +2220,21 @@
             ],
             "title": "Normalized"
           },
+          "unit_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "explicit",
+                  "default_kg"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Source"
+          },
           "confidence": {
             "anyOf": [
               {

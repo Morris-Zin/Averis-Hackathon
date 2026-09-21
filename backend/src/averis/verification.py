@@ -29,7 +29,7 @@ _TYPED_FIELDS = cast(tuple[Field, ...], FIELDS)
 OCR_CONFIDENCE_THRESHOLD: Final = 0.8
 _SIMPLE_NUMBER = re.compile(
     r"([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)\s*"
-    r"(kg|kgs|kilograms?|mt|tonnes?|tons?|公斤|千克|公吨|公噸|吨|噸|kilogram|tan|containers?|units?|kontena|个|個|箱)?",
+    r"(kg|kgs|kilograms?|lb|lbs|pounds?|g|grams?|mt|tonnes?|tons?|公斤|千克|公吨|公噸|吨|噸|kilogram|tan|containers?|units?|kontena|个|個|箱)?",
     re.IGNORECASE,
 )
 _CONTAINER_WITH_EQUIPMENT = re.compile(
@@ -72,8 +72,50 @@ def source_value(field: Field, text: str) -> str:
     return text.strip()
 
 
+_WEIGHT_UNITS = re.compile(
+    r"(?<![a-z])(kgs?|kilograms?|lbs?|pounds?|grams?|g|mt|tonnes?|tons?|tan)(?![a-z])|公斤|千克|公吨|公噸|吨|噸",
+    re.IGNORECASE,
+)
+
+
+def weight_unit_source(text: str) -> Literal["explicit", "default_kg"]:
+    """Describe the unit basis for a successfully normalized weight."""
+    return (
+        "explicit"
+        if _WEIGHT_UNITS.search(unicodedata.normalize("NFKC", text))
+        else "default_kg"
+    )
+
+
+def _weight_factor(text: str, value: str) -> Decimal | None:
+    text = text.strip()
+    factors: set[Decimal] = set()
+    for match in _WEIGHT_UNITS.finditer(text):
+        unit = match.group().casefold()
+        if unit in {"ton", "tons"}:
+            return None  # Short/long/metric ton is not established.
+        if unit in {"lb", "lbs", "pound", "pounds"}:
+            factors.add(Decimal("0.45359237"))
+        elif unit in {"g", "gram", "grams"}:
+            factors.add(Decimal("0.001"))
+        elif unit in {"mt", "tonne", "tonnes", "公吨", "公噸", "吨", "噸", "tan"}:
+            factors.add(Decimal(1000))
+        else:
+            factors.add(Decimal(1))
+    # Do not discard an unsupported unit hidden inside a field-label suffix.
+    prefix = text[: -len(value)] if text.endswith(value) else ""
+    if any(
+        not _WEIGHT_UNITS.fullmatch(part.strip().removeprefix("毛重").strip())
+        for part in re.findall(r"\(([^()]*)\)", prefix)
+    ):
+        return None
+    if len(factors) > 1:
+        return None
+    return next(iter(factors), Decimal(1))
+
+
 def normalize(field: Field, text: str) -> str | None:
-    """Normalize a source value without guessing a missing or ambiguous value."""
+    """Normalize values; missing weight units use the documented kg default."""
 
     normalized_source = unicodedata.normalize("NFKC", text)
     value = source_value(field, normalized_source).strip()
@@ -149,21 +191,12 @@ def normalize(field: Field, text: str) -> str | None:
         ):
             return None
     else:
-        if unit in {"mt", "tonne", "tonnes", "公吨", "公噸", "吨", "噸", "tan"}:
-            number *= 1000
-        elif unit not in {
-            "kg",
-            "kgs",
-            "kilogram",
-            "kilograms",
-            "公斤",
-            "千克",
-        } and not (
-            unit == ""
-            and re.search(r"\bkgs?\b|kilogram|公斤|千克", text, re.IGNORECASE)
-        ):
-            # The value must establish kilograms; an arbitrary bare number is unsafe.
+        if unit and not _WEIGHT_UNITS.fullmatch(unit):
             return None
+        factor = _weight_factor(normalized_source, value)
+        if factor is None:
+            return None
+        number *= factor
     return format(number.normalize(), "f")
 
 
@@ -255,6 +288,11 @@ def reading_from_evidence(
         evidence_ids=evidence_ids,
         text=text,
         normalized=normalized,
+        unit_source=(
+            weight_unit_source(text)
+            if field == "gross_weight_kg" and normalized is not None
+            else None
+        ),
         confidence=confidence,
         acceptance_basis=acceptance_basis,
         selection_model=selection_model,
