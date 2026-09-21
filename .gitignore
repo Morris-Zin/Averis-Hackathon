@@ -19,9 +19,10 @@ outputs/
 AGENTS.md
 CLAUDE.md
 skills-lock.json
-docs/chatgpt-pro-review*.txt
-docs/chatgpt-pro-review*.md
-docs/pro-review-brief.md
+# Local research, historical reports, and presentation assets
+/docs/
+/tools/demo-video/
+/data/
 
 node_modules/
 .next/
@@ -31,7 +32,6 @@ frontend/out/
 playwright-report/
 test-results/
 *.tsbuildinfo
-infra/.terraform/
 *.tfstate*
 *.tfvars
 

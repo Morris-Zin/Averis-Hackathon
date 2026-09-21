@@ -52,5 +52,5 @@ EXPOSE 8080
 USER averis
 
 # The same image serves the public application or the private worker. Cloud
-# Run supplies PORT; AVERIS_ROLE is set per service by Terraform or Compose.
+# Run supplies PORT; AVERIS_ROLE is set per service or by Compose.
 CMD ["sh", "-c", "if [ \"${AVERIS_ROLE}\" = \"worker\" ]; then exec uvicorn averis.worker:app --host 0.0.0.0 --port \"${PORT:-8080}\"; else exec uvicorn averis.api:app --host 0.0.0.0 --port \"${PORT:-8080}\"; fi"]

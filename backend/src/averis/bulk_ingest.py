@@ -5,7 +5,7 @@ This module owns ZIP safety bounds, organizer-style email JSON validation and
 attachment-reference resolution. It never touches the database, object
 storage, the worker, budgets or evaluation ground truth.
 
-Supported input (see docs/bulk-import.md):
+Supported input:
 - An organizer-style ZIP: ``inbox/*.json`` email records plus the attachment
   files they reference (for example ``attachments/email_001_SI.txt``).
 - Loose email JSON files in the same shape, optionally accompanied by loose
@@ -23,7 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # Parser resource bounds, not usage quotas: the full 520-email organizer set
 # fits whenever it stays within the 21 MB transport and 32 MB decompressed
-# byte bounds. See docs/bulk-import.md.
+# byte bounds.
 MAX_ARCHIVE_ENTRIES = 2000
 MAX_ARCHIVE_DECOMPRESSED_BYTES = 32 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 21 * 1024 * 1024

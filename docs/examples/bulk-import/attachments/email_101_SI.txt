@@ -1,7 +1,0 @@
-SYNTHETIC SHIPPING INSTRUCTION SYNTH-101
-Shipper: Synthetic Shipper Co.
-Consignee: Synthetic Consignee Ltd.
-Port of loading: PORT KLANG
-Port of discharge: SINGAPORE
-Container count: 2
-Gross weight: 10000 kg

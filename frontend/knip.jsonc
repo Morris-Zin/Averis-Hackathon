@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // FlatCompat resolves next/core-web-vitals and next/typescript from this package.
+  "ignoreDependencies": ["eslint-config-next"],
+  // Generator-owned API exports describe the full backend contract.
+  "ignoreIssues": {
+    "src/lib/generated/api.ts": ["exports", "types"],
+  },
+}

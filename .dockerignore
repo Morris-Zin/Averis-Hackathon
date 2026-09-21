@@ -21,9 +21,7 @@ skills-lock.json
 frontend/node_modules
 frontend/.next
 frontend/out
-infra/terraform/.terraform
-infra/terraform/*.tfstate
-infra/terraform/*.tfstate.*
+docs
 .local
 tools/demo-video
 *.tfvars

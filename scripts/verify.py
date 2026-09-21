@@ -273,7 +273,7 @@ def main() -> None:
         if pnpm is None:
             raise SystemExit("Install pnpm 10.26.2 to check the frontend")
         check_contracts(pnpm)
-        for command in ("format:check", "typecheck", "lint", "test", "build"):
+        for command in ("format:check", "typecheck", "lint", "knip", "test", "build"):
             run(pnpm, command, cwd=ROOT / "frontend")
     print("Verification passed; paid inference was not enabled.", flush=True)
 

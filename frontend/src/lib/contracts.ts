@@ -11,7 +11,6 @@ export type QueueCase = CasePage["items"][number];
 export type SessionView = components["schemas"]["SessionView"];
 export type BulkPreviewResponse = components["schemas"]["BulkPreviewResponse"];
 export type BulkImportResponse = components["schemas"]["BulkImportResponse"];
-export type BulkItemResult = components["schemas"]["BulkItemResult"];
 export type Action =
   | components["schemas"]["NotSpamAction"]
   | components["schemas"]["CategoryAction"]
