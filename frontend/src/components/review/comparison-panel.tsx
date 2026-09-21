@@ -218,6 +218,14 @@ export function ComparisonPanel({
                             ? outcomeLabel(finding.outcome)
                             : "NOT READ"}
                       </span>
+                      {finding?.port_reference ? (
+                        <small>
+                          Same port location: {finding.port_reference.code}
+                          {" · "}
+                          {finding.port_reference.source}{" "}
+                          {finding.port_reference.version}
+                        </small>
+                      ) : null}
                     </td>
                   </tr>
                 );

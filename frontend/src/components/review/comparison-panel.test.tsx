@@ -5,6 +5,57 @@ import { ComparisonPanel } from "./comparison-panel";
 
 afterEach(cleanup);
 
+it("explains a directory match while keeping both original readings", () => {
+  render(
+    <ComparisonPanel
+      summaryKind="needs_review"
+      activeField="port_of_loading"
+      setActiveField={() => {}}
+      openCorrection={() => {}}
+      report={{
+        input_revision: 1,
+        policy_version: "test",
+        pair_valid: false,
+        findings: [
+          {
+            field: "port_of_loading",
+            outcome: "unresolved",
+            provisional_outcome: "match",
+            port_reference: {
+              code: "SGSIN",
+              source: "UN/LOCODE",
+              version: "2025-1",
+            },
+            si: {
+              field: "port_of_loading",
+              document_id: "si",
+              text: "Singapore",
+              confidence: 1,
+              provenance: "machine",
+              acceptance_basis: "probability",
+            },
+            bl: {
+              field: "port_of_loading",
+              document_id: "bl",
+              text: "SGSIN",
+              confidence: 1,
+              provenance: "machine",
+              acceptance_basis: "probability",
+            },
+          },
+        ],
+      }}
+    />,
+  );
+  expect(screen.getByText("Singapore")).toBeTruthy();
+  expect(screen.getByText("SGSIN")).toBeTruthy();
+  expect(
+    screen.getByText("Same port location: SGSIN · UN/LOCODE 2025-1"),
+  ).toBeTruthy();
+  expect(screen.getByText("MATCH (PROVISIONAL)")).toBeTruthy();
+  expect(screen.queryByText("MATCH")).toBeNull();
+});
+
 it("shows extracted Chinese values while withholding unconfirmed comparisons", () => {
   render(
     <ComparisonPanel

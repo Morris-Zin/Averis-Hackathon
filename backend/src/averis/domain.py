@@ -167,6 +167,12 @@ class Reading(Model):
     evidence_fingerprint: str | None = None
 
 
+class PortReference(Model):
+    code: str
+    version: str
+    source: Literal["UN/LOCODE"] = "UN/LOCODE"
+
+
 class Finding(Model):
     field: Field
     si: Reading
@@ -174,6 +180,7 @@ class Finding(Model):
     outcome: Literal["match", "mismatch", "unresolved"]
     # Informational comparison only; never used for routing or official export.
     provisional_outcome: Literal["match", "mismatch", "unresolved"] | None = None
+    port_reference: PortReference | None = None
 
 
 class PairingEvidence(Model):

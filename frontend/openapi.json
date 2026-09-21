@@ -1671,6 +1671,16 @@
               }
             ],
             "title": "Provisional Outcome"
+          },
+          "port_reference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PortReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -2040,6 +2050,31 @@
           "policy_version"
         ],
         "title": "PairingEvidence"
+      },
+      "PortReference": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "source": {
+            "type": "string",
+            "const": "UN/LOCODE",
+            "title": "Source",
+            "default": "UN/LOCODE"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "version"
+        ],
+        "title": "PortReference"
       },
       "QueueCaseResponse": {
         "properties": {

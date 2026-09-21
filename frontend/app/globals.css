@@ -1933,7 +1933,6 @@ a {
 .comparison-table [data-difference-field] .comparison-value > span {
   background: var(--difference-bg);
   color: var(--difference-ink);
-  border-inline-start: 3px solid var(--difference-ink);
   border-radius: 3px;
   padding: 7px 9px;
   overflow-wrap: anywhere;
@@ -1941,7 +1940,6 @@ a {
 .evidence-pane[data-difference-field] .evidence-block.selected {
   background: var(--difference-bg);
   outline-color: var(--difference-ink);
-  border-inline-start: 3px solid var(--difference-ink);
 }
 .evidence-difference-label {
   display: block;

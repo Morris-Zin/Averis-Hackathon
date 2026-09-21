@@ -650,6 +650,7 @@ export interface components {
             outcome: "match" | "mismatch" | "unresolved";
             /** Provisional Outcome */
             provisional_outcome?: ("match" | "mismatch" | "unresolved") | null;
+            port_reference?: components["schemas"]["PortReference"] | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -771,6 +772,19 @@ export interface components {
             request_id?: string | null;
             /** Policy Version */
             policy_version: string;
+        };
+        /** PortReference */
+        PortReference: {
+            /** Code */
+            code: string;
+            /** Version */
+            version: string;
+            /**
+             * Source
+             * @default UN/LOCODE
+             * @constant
+             */
+            source: "UN/LOCODE";
         };
         /**
          * QueueCaseResponse

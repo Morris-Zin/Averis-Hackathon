@@ -14,10 +14,13 @@ from averis.domain import (
     EvidenceBlock,
     Finding,
     Issue,
+    PortReference,
     Reading,
     Report,
 )
 from averis.fields import FIELD_ALIASES
+from averis.port_directory import VERSION as PORT_DIRECTORY_VERSION
+from averis.port_directory import bundled_directory
 from averis.source_regions import has_omitted_continuation
 
 LABELS: Final[dict[Field, tuple[str, ...]]] = dict(FIELD_ALIASES)
@@ -306,12 +309,14 @@ def compare(
         input_revision=revision,
         pair_valid=pair_valid,
         issues=list(issues or ()),
+        policy_version=f"comparison-v2-unlocode-{PORT_DIRECTORY_VERSION}",
     )
     if not pair_valid:
         report.issues.append("pair_requires_review")
     for name in _TYPED_FIELDS:
         si_reading = si[name]
         bl_reading = bl[name]
+        port_reference: PortReference | None = None
         outcome: Literal["match", "mismatch", "unresolved"]
         if (
             si_reading.issue
@@ -323,7 +328,10 @@ def compare(
         elif si_reading.normalized == bl_reading.normalized:
             outcome = "match"
         else:
-            outcome = "mismatch"
+            port_reference = _port_reference(
+                name, si_reading.normalized, bl_reading.normalized
+            )
+            outcome = "match" if port_reference else "mismatch"
         report.findings.append(
             Finding(
                 field=name,
@@ -331,9 +339,18 @@ def compare(
                 bl=bl_reading,
                 outcome=outcome if pair_valid else "unresolved",
                 provisional_outcome=outcome if not pair_valid else None,
+                port_reference=port_reference,
             )
         )
     return report
+
+
+def _port_reference(field: Field, left: str, right: str) -> PortReference | None:
+    if field not in {"port_of_loading", "port_of_discharge"}:
+        return None
+    directory = bundled_directory()
+    code = directory.equivalent_code(left, right) if directory else None
+    return PortReference(code=code, version=PORT_DIRECTORY_VERSION) if code else None
 
 
 def shipment_references(document: DocumentEvidence) -> set[str]:
