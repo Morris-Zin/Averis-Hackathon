@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from averis.contracts import FIELDS
 from averis.domain import (
+    REVIEWERS,
     AttachmentView,
     AuditEntry,
     CaseView,
@@ -111,7 +112,7 @@ def seed(session: Session, workspace: Workspace, storage: Storage) -> None:
             processing="completed",
             stage="saved_demo",
             workflow="open",
-            assignee="John Tan",
+            assignee=REVIEWERS[index % len(REVIEWERS)],
             review_reasons=["Check category"] if scenario == "uncertain" else [],
             attachments=[],
             history=[
