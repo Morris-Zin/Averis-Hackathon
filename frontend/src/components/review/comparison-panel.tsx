@@ -51,6 +51,11 @@ export function ComparisonPanel({
     report?.findings?.filter((finding) => finding.outcome !== "unresolved")
       .length ?? 0;
   const pairingUnconfirmed = report?.pair_valid === false;
+  const differenceField = (finding?: Finding) =>
+    (pairingUnconfirmed ? finding?.provisional_outcome : finding?.outcome) ===
+    "mismatch"
+      ? finding?.field
+      : undefined;
   return (
     <>
       <section className="comparison-section">
@@ -143,6 +148,11 @@ export function ComparisonPanel({
             </ul>
           ) : null}
           <table className="comparison-table">
+            <caption className="comparison-color-guide">
+              Highlighted values differ. The same color links a field across
+              both documents and its selected evidence; different fields use
+              different colors.
+            </caption>
             <thead>
               <tr>
                 <th>Field</th>
@@ -160,17 +170,19 @@ export function ComparisonPanel({
                   <tr
                     key={field}
                     className={activeField === field ? "active" : ""}
+                    data-difference-field={differenceField(finding)}
                     onClick={() => setActiveField(field)}
                   >
                     <th>
                       <button
                         type="button"
                         onClick={() => setActiveField(field)}
+                        aria-pressed={activeField === field}
                       >
                         {FIELD_LABELS[field]}
                       </button>
                     </th>
-                    <td>
+                    <td className="comparison-value">
                       <span className={!finding?.si.text ? "empty-value" : ""}>
                         {readingDisplayValue(finding?.si)}
                       </span>
@@ -181,7 +193,7 @@ export function ComparisonPanel({
                         </small>
                       ) : null}
                     </td>
-                    <td>
+                    <td className="comparison-value">
                       <span className={!finding?.bl.text ? "empty-value" : ""}>
                         {readingDisplayValue(finding?.bl)}
                       </span>
@@ -230,6 +242,7 @@ export function ComparisonPanel({
             title="Shipping instruction"
             onCorrect={() => openCorrection("si")}
             correctionDisabled={pairingUnconfirmed}
+            differenceField={differenceField(activeFinding)}
           />
           <EvidencePane
             attachment={blAttachment}
@@ -237,6 +250,7 @@ export function ComparisonPanel({
             title="Draft bill of lading"
             onCorrect={() => openCorrection("bl")}
             correctionDisabled={pairingUnconfirmed}
+            differenceField={differenceField(activeFinding)}
           />
         </div>
       </section>

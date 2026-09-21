@@ -1894,3 +1894,58 @@ a {
 .bulk-results > p {
   margin: 12px 0 0;
 }
+
+/* Stable field colors link SI/BL differences without replacing result labels. */
+[data-difference-field="shipper"] {
+  --difference-bg: #fff1f0;
+  --difference-ink: #a12622;
+}
+[data-difference-field="consignee"] {
+  --difference-bg: #f3edff;
+  --difference-ink: #6740a0;
+}
+[data-difference-field="notify_party"] {
+  --difference-bg: #fff0f7;
+  --difference-ink: #9a3166;
+}
+[data-difference-field="port_of_loading"] {
+  --difference-bg: #eaf4ff;
+  --difference-ink: #205f9b;
+}
+[data-difference-field="port_of_discharge"] {
+  --difference-bg: #fff4e5;
+  --difference-ink: #8c510b;
+}
+[data-difference-field="container_count"] {
+  --difference-bg: #e7f5f5;
+  --difference-ink: #226b6b;
+}
+[data-difference-field="gross_weight_kg"] {
+  --difference-bg: #f2f3df;
+  --difference-ink: #626316;
+}
+.comparison-color-guide {
+  padding: 12px;
+  text-align: left;
+  color: var(--subtle-text);
+  font-size: 12px;
+}
+.comparison-table [data-difference-field] .comparison-value > span {
+  background: var(--difference-bg);
+  color: var(--difference-ink);
+  border-inline-start: 3px solid var(--difference-ink);
+  border-radius: 3px;
+  padding: 7px 9px;
+  overflow-wrap: anywhere;
+}
+.evidence-pane[data-difference-field] .evidence-block.selected {
+  background: var(--difference-bg);
+  outline-color: var(--difference-ink);
+  border-inline-start: 3px solid var(--difference-ink);
+}
+.evidence-difference-label {
+  display: block;
+  color: var(--difference-ink);
+  font-size: 11px;
+  padding-inline-end: 24px;
+}

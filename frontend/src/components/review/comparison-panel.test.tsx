@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
+import type { Finding, Field } from "@/lib/contracts";
 import { ComparisonPanel } from "./comparison-panel";
 
 afterEach(cleanup);
@@ -134,4 +135,82 @@ it("shows source-bound pairing separately from the field comparison", () => {
   expect(disclosure?.textContent).toContain("BL INSTRUCTION: ORD-123456");
   expect(disclosure?.textContent).toContain("Order No: ORD-123456");
   expect(screen.queryByText("No mismatch detected")).toBeNull();
+});
+
+it("links difference pairs and clears highlights after correction", () => {
+  const finding = (field: Field, outcome: Finding["outcome"]): Finding => ({
+    field,
+    outcome,
+    si: {
+      field,
+      document_id: "si",
+      text: `${field} reference`,
+      confidence: 1,
+      provenance: "machine",
+      acceptance_basis: "probability",
+    },
+    bl: {
+      field,
+      document_id: "bl",
+      text: `${field} draft`,
+      confidence: 1,
+      provenance: "machine",
+      acceptance_basis: "probability",
+    },
+  });
+  const shipper = finding("shipper", "mismatch");
+  const consignee = finding("consignee", "mismatch");
+  const props = {
+    summaryKind: "mismatch" as const,
+    activeField: "shipper" as const,
+    setActiveField: () => {},
+    openCorrection: () => {},
+    activeFinding: shipper,
+    report: {
+      input_revision: 1,
+      policy_version: "test",
+      pair_valid: true,
+      findings: [
+        shipper,
+        consignee,
+        finding("notify_party", "match"),
+        finding("container_count", "unresolved"),
+      ],
+    },
+  };
+  const { container, rerender } = render(<ComparisonPanel {...props} />);
+  expect(container.querySelectorAll("tr[data-difference-field]")).toHaveLength(
+    2,
+  );
+  expect(
+    screen.getByText("shipper reference").closest("tr")?.dataset
+      .differenceField,
+  ).toBe("shipper");
+  expect(
+    screen.getByText("shipper draft").closest("tr")?.dataset.differenceField,
+  ).toBe("shipper");
+  expect(
+    screen.getByText("consignee draft").closest("tr")?.dataset.differenceField,
+  ).toBe("consignee");
+  expect(
+    container.querySelectorAll(
+      '.evidence-pane[data-difference-field="shipper"]',
+    ),
+  ).toHaveLength(2);
+  expect(screen.getAllByText("MISMATCH")).toHaveLength(2);
+  const corrected = finding("shipper", "match");
+  rerender(
+    <ComparisonPanel
+      {...props}
+      activeFinding={corrected}
+      report={{ ...props.report, findings: [corrected, consignee] }}
+    />,
+  );
+  expect(
+    screen.getByText("shipper reference").closest("tr")?.dataset
+      .differenceField,
+  ).toBeUndefined();
+  expect(
+    container.querySelectorAll(".evidence-pane[data-difference-field]"),
+  ).toHaveLength(0);
 });

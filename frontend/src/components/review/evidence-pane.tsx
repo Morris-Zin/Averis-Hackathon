@@ -2,7 +2,8 @@
 import Image from "next/image";
 import { useState } from "react";
 import { Download, FileText } from "lucide-react";
-import type { AttachmentView, EvidenceBlock } from "@/lib/contracts";
+import type { AttachmentView, EvidenceBlock, Field } from "@/lib/contracts";
+import { FIELD_LABELS } from "@/lib/contracts";
 import { Button } from "../ui";
 
 export function locationLabel(block: EvidenceBlock) {
@@ -25,12 +26,14 @@ export function EvidencePane({
   title,
   onCorrect,
   correctionDisabled = false,
+  differenceField,
 }: {
   attachment?: AttachmentView;
   selectedIds: string[];
   title: string;
   onCorrect: () => void;
   correctionDisabled?: boolean;
+  differenceField?: Field;
 }) {
   const blocks = attachment?.evidence?.blocks ?? [];
   const previewBlock =
@@ -44,7 +47,7 @@ export function EvidencePane({
       ? null
       : Math.round(attachment.role_confidence * 100);
   return (
-    <section className="evidence-pane">
+    <section className="evidence-pane" data-difference-field={differenceField}>
       <header>
         <div>
           <span>
@@ -98,6 +101,11 @@ export function EvidencePane({
                   : "evidence-block"
               }
             >
+              {selectedIds.includes(block.id) && differenceField ? (
+                <strong className="evidence-difference-label">
+                  {FIELD_LABELS[differenceField]} - Difference
+                </strong>
+              ) : null}
               <small>{locationLabel(block)}</small>
               <p>{block.text}</p>
               {block.method === "ocr" ? (
