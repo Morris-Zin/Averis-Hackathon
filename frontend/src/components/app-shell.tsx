@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   AlertCircle,
   Bell,
-  Boxes,
+  Ship,
   CircleHelp,
   FileCheck2,
   Inbox,
@@ -124,7 +124,7 @@ export function AppShell({
         >
           <div className="project-identity">
             <span className="project-icon">
-              <Boxes size={21} />
+              <Ship size={21} strokeWidth={1.8} aria-hidden="true" />
             </span>
             <div>
               <strong>Shipping review</strong>

@@ -1,4 +1,4 @@
-import { History } from "lucide-react";
+import { Clock3 } from "lucide-react";
 import type { CaseView } from "@/lib/contracts";
 
 export function ActivityPanel({ history }: { history: CaseView["history"] }) {
@@ -17,7 +17,7 @@ export function ActivityPanel({ history }: { history: CaseView["history"] }) {
         {history.map((entry, index) => (
           <li key={`${entry.at}-${index}`}>
             <span className="activity-icon">
-              <History size={15} />
+              <Clock3 size={15} aria-hidden="true" />
             </span>
             <div>
               <p>

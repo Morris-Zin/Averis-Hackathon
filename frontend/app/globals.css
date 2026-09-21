@@ -536,7 +536,7 @@ a {
   min-width: 0;
 }
 .project-identity strong,
-.project-identity span {
+.project-identity div > span {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1366,7 +1366,7 @@ a {
 .activity-section li p {
   margin: 0;
 }
-.activity-section li span,
+.activity-section li > div > span,
 .activity-section li small {
   display: block;
   color: var(--subtle-text);

@@ -156,16 +156,7 @@ export function ReviewWorkspace() {
                 </Select>
               </div>
             </header>
-            {controlled ? (
-              <div className="demo-banner compact">
-                <strong>Saved illustrative scenario</strong>
-                <span>
-                  {session?.live_enabled
-                    ? "The email and source documents are synthetic. Live AI can check this saved sample."
-                    : "Classification is illustrative; comparison and corrections are deterministic and persisted in this server session. Live AI and email are off."}
-                </span>
-              </div>
-            ) : !session?.live_enabled ? (
+            {!controlled && !session?.live_enabled ? (
               <div className="demo-banner compact">
                 <strong>Controlled server demo</strong>
                 <span>Live AI and email are off.</span>
@@ -217,18 +208,12 @@ export function ReviewWorkspace() {
                       <p role="status">
                         Classifying… the AI category is not ready yet.
                       </p>
-                    ) : item.classification ? (
-                      <p>
-                        Classification confidence is AI certainty in the
-                        category — not measured accuracy. Field confidences
-                        below describe document readings, not the category.
-                      </p>
-                    ) : (
+                    ) : !item.classification ? (
                       <p>
                         No AI classification is available. Retry processing to
                         continue.
                       </p>
-                    )}
+                    ) : null}
                     {confidence && !classifying ? (
                       <div className="confidence-meter">
                         <p className="confidence-meter-head">
