@@ -231,24 +231,13 @@ def test_disabled_processing_holds_run_before_claim(postgres_db, disabled_settin
         assert row.state["processing"] == "queued"
 
 
-def test_cleanup_failure_does_not_block_run_reconciliation(
-    postgres_db, monkeypatch, caplog
-):
+def test_maintenance_keeps_run_reconciliation(postgres_db):
     db, settings, storage = postgres_db
     _case_id, run_id = add_case_and_run(db)
     processor = Processor(db, settings, storage)
-
-    def fail_cleanup(*_args) -> int:
-        raise RuntimeError("sensitive-storage-detail")
-
-    monkeypatch.setattr("averis.maintenance.expire_workspaces", fail_cleanup)
-    with caplog.at_level("WARNING", logger="averis.maintenance"):
-        assert maintain(processor) == 0
-
+    assert maintain(processor) == 0
     with db.session() as session:
         assert session.get(Outbox, run_id) is not None
-    assert "workspace_expiry_failed error_type=RuntimeError" in caplog.text
-    assert "sensitive-storage-detail" not in caplog.text
 
 
 def test_disabled_processing_still_acknowledges_terminal_and_missing_runs(postgres_db):

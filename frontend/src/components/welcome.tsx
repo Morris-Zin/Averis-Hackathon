@@ -156,7 +156,9 @@ export function Welcome() {
           <ShieldCheck size={16} />
           <span>
             Private demo session with saved scenarios. No mailbox is connected,
-            and workspaces expire after 24 hours.
+            and uploaded documents are retained. Return in this browser to
+            reopen your workspace; clearing cookies or logging out removes
+            access from this browser.
           </span>
         </div>
       </section>

@@ -11,8 +11,9 @@ from sqlalchemy import select
 from averis.case_queries import list_cases
 from averis.config import Settings
 from averis.demo import seed
-from averis.maintenance import expire_workspaces
+from averis.maintenance import maintain
 from averis.persistence import Base, Budget, Case, Database, Document, Workspace, utcnow
+from averis.processing import Processor
 from averis.storage import Storage
 
 
@@ -80,7 +81,7 @@ def test_seed_objects_are_shared_while_workspace_metadata_isolated(demo_store):
     assert all(document.object_key.startswith("seeds/") for document in documents)
 
 
-def test_expired_workspace_cleanup_keeps_shared_seed_objects(demo_store):
+def test_old_workspace_and_shared_seed_objects_are_retained(demo_store):
     db, storage = demo_store
     make_workspace(db, storage, "expired", expired=True)
     with db.session() as session:
@@ -91,11 +92,11 @@ def test_expired_workspace_cleanup_keeps_shared_seed_objects(demo_store):
         original = storage.read(before[0].object_key)
     seed_files = list((Path(storage.settings.storage_dir) / "seeds").glob("*"))
 
-    assert expire_workspaces(db, storage) == 1
+    assert maintain(Processor(db, storage.settings, storage)) == 0
 
     with db.session() as session:
-        assert not session.scalar(select(Workspace).where(Workspace.id == "expired"))
-        assert not session.scalars(
+        assert session.scalar(select(Workspace).where(Workspace.id == "expired"))
+        assert session.scalars(
             select(Document).where(Document.workspace_id == "expired")
         ).all()
     assert list((Path(storage.settings.storage_dir) / "seeds").glob("*")) == seed_files
@@ -156,31 +157,28 @@ def test_case_queries_preserve_team_filters_pagination_and_workspace_scope(demo_
         list_cases(db, "team-a", view="invalid")
 
 
-def test_cleanup_failure_retains_rows_for_retry_and_keeps_budget(
-    demo_store, monkeypatch
-):
+def test_maintenance_retains_private_uploads_and_budget(demo_store, monkeypatch):
     db, storage = demo_store
     make_workspace(db, storage, "expired", expired=True)
     make_workspace(db, storage, "active")
     with db.session() as session, session.begin():
         session.add(Budget(id=1, prior_spend=123, development=456, demo=789))
-
-    def fail_delete(_key):
-        raise OSError("storage unavailable")
-
-    with monkeypatch.context() as patch:
-        patch.setattr(storage, "delete", fail_delete)
-        with pytest.raises(OSError):
-            expire_workspaces(db, storage)
-    with db.session() as session:
-        assert session.get(Workspace, "expired") is not None
-        assert session.scalar(
+        original = session.scalar(
             select(Document).where(Document.workspace_id == "expired")
         )
-    assert expire_workspaces(db, storage) == 1
-    assert expire_workspaces(db, storage) == 0
+        key, digest = storage.put(b"private upload retention fixture")
+        original.object_key, original.sha256 = key, digest
+
+    def fail_delete(_key):
+        raise AssertionError("Maintenance must not delete stored originals")
+
+    monkeypatch.setattr(storage, "delete", fail_delete)
+    assert maintain(Processor(db, storage.settings, storage)) == 0
+    assert storage.read(key) == b"private upload retention fixture"
     with db.session() as session:
-        assert session.get(Workspace, "expired") is None
+        assert session.get(Workspace, "expired") is not None
         assert session.get(Workspace, "active") is not None
+        assert session.scalar(select(Case).where(Case.workspace_id == "expired"))
+        assert session.scalar(select(Document).where(Document.object_key == key))
         budget = session.get(Budget, 1)
         assert (budget.prior_spend, budget.development, budget.demo) == (123, 456, 789)

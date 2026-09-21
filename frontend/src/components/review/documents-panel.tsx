@@ -1,6 +1,6 @@
 import { Download, FileText, RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { PAIR_REVIEW_REASON } from "./presentation";
+import { DOCUMENT_RECOVERY_GUIDANCE, PAIR_REVIEW_REASON } from "./presentation";
 import type { ActionDraft, AttachmentView } from "@/lib/contracts";
 import { Button, Select, SelectItem } from "../ui";
 
@@ -178,9 +178,7 @@ export function DocumentsPanel({
           Attach controlled revised draft
         </Button>
       ) : (
-        <p className="readonly-note">
-          New source versions require the authorized operator upload workflow.
-        </p>
+        <p className="readonly-note">{DOCUMENT_RECOVERY_GUIDANCE}</p>
       )}
     </section>
   );

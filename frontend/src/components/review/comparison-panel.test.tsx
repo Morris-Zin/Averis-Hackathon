@@ -5,6 +5,29 @@ import { ComparisonPanel } from "./comparison-panel";
 
 afterEach(cleanup);
 
+it.each(["spam", "suspected_spam"] as const)(
+  "keeps %s out of the shipment comparison UI",
+  (summaryKind) => {
+    render(
+      <ComparisonPanel
+        summaryKind={summaryKind}
+        report={null}
+        activeField="shipper"
+        setActiveField={() => {}}
+        openCorrection={() => {}}
+      />,
+    );
+    expect(
+      screen.getByText("Shipment comparison paused for spam"),
+    ).toBeTruthy();
+    expect(screen.getByText(/choose Not spam/)).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Correct our reading" }),
+    ).toBeNull();
+  },
+);
+
 it("explains a directory match while keeping both original readings", () => {
   render(
     <ComparisonPanel

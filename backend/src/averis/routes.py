@@ -38,11 +38,13 @@ from averis.email_intake import BulkEmailRequest, BulkOutcome, import_many
 from averis.email_intake import import_email as persist_import
 from averis.http_context import (
     COOKIE,
+    SESSION_COOKIE_SECONDS,
     ApplicationServices,
     Services,
     identity,
     mutation,
     session_view,
+    set_session_cookie,
 )
 from averis.persistence import (
     BrowserSession,
@@ -128,7 +130,7 @@ def start(services: Services, request: Request, response: Response) -> SessionVi
     if request.headers.get("origin") != services.config.origin:
         raise HTTPException(403, "Origin not allowed")
     raw, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-    expires = utcnow() + timedelta(hours=24)
+    expires = utcnow() + timedelta(seconds=SESSION_COOKIE_SECONDS)
     with services.db.session() as session, session.begin():
         workspace = Workspace(id=uid(), expires_at=expires)
         session.add(workspace)
@@ -141,15 +143,7 @@ def start(services: Services, request: Request, response: Response) -> SessionVi
         )
         session.add(actor)
         seed(session, workspace, services.storage)
-    response.set_cookie(
-        COOKIE,
-        raw,
-        max_age=86400,
-        httponly=True,
-        secure=services.config.env == "production",
-        samesite="lax",
-        path="/",
-    )
+    set_session_cookie(response, raw, services.config)
     return session_view(actor, services.config)
 
 

@@ -2,11 +2,12 @@
 
 import secrets
 from dataclasses import dataclass, field
+from datetime import timedelta
 from hashlib import sha256
 from threading import BoundedSemaphore
 from typing import Annotated, cast
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, Response
 
 from averis.config import Settings
 from averis.domain import SessionView
@@ -16,6 +17,21 @@ from averis.storage import Storage
 from averis.workflow import Workflow
 
 COOKIE = "averis_session"
+# Browser retention horizon, renewed on authenticated requests. Workspace data
+# is persistent; legacy expires_at columns no longer schedule deletion/revocation.
+SESSION_COOKIE_SECONDS = 400 * 24 * 60 * 60
+
+
+def set_session_cookie(response: Response, raw: str, config: Settings) -> None:
+    response.set_cookie(
+        COOKIE,
+        raw,
+        max_age=SESSION_COOKIE_SECONDS,
+        httponly=True,
+        secure=config.env == "production",
+        samesite="lax",
+        path="/",
+    )
 
 
 @dataclass(frozen=True)
@@ -40,10 +56,13 @@ def identity(request: Request) -> BrowserSession:
     db = get_services(request).db
     raw = request.cookies.get(COOKIE, "")
     digest = sha256(raw.encode()).hexdigest()
-    with db.session() as session:
+    with db.session() as session, session.begin():
         actor = session.get(BrowserSession, digest)
-        if actor is None or assume_utc_if_naive(actor.expires_at) <= utcnow():
+        if actor is None:
             raise HTTPException(401, "Enter a demo workspace to continue")
+        if assume_utc_if_naive(actor.expires_at) < utcnow() + timedelta(days=30):
+            actor.expires_at = utcnow() + timedelta(seconds=SESSION_COOKIE_SECONDS)
+        request.state.authenticated_session_token = raw
         return actor
 
 

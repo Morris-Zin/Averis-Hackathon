@@ -31,6 +31,22 @@ export function ComparisonPanel({
   blAttachment,
   openCorrection,
 }: Props) {
+  if (summaryKind === "spam" || summaryKind === "suspected_spam") {
+    return (
+      <section className="comparison-section">
+        <div className="section-heading">
+          <div>
+            <h2>Shipment comparison paused for spam</h2>
+            <p>
+              Review the original email in Source documents. If this message
+              belongs in the shipping queue, choose Not spam and select its
+              category. Its history remains available.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
   if (summaryKind === "categorized") {
     return (
       <section className="comparison-section">

@@ -48,8 +48,13 @@ uv run --project backend uvicorn averis.api:app --host 127.0.0.1 --port 8000
 ```
 
 Open **http://localhost:8000** and choose **Enter demo workspace**. Each session
-gets an isolated 24-hour workspace with illustrative saved cases and simulated
-reviewer identities. No mailbox connection is required. SQLite is also available
+gets an isolated persistent workspace with illustrative saved cases and simulated
+reviewer identities. Uploaded documents and cases are not automatically deleted.
+The private browser cookie is renewed on authenticated requests for up to 400 days
+(subject to browser policies). Existing stored session tokens retain access past
+the old 24-hour cutoff. Logging out revokes that token; clearing cookies or prior
+deletion cannot be recovered automatically. New sessions remain separate workspaces.
+No mailbox connection is required. SQLite is also available
 for quick local UI development; deployment and concurrency tests use PostgreSQL.
 Configuration is documented in [.env.example](.env.example); keep secrets in
 server-side environment variables or an ignored `.env` file.
@@ -74,8 +79,8 @@ AI adapters can be replaced without moving comparison rules into HTTP or UI code
 Document formats, OCR, previews and subprocess limits live inside
 `backend/src/averis/documents/`, behind the public evidence-reading interface.
 `case_queries.py` owns workspace-scoped queue filters, pagination and counts;
-HTTP routes translate its results into API responses. `maintenance.py` owns
-expired demo workspace cleanup and invokes run recovery even if cleanup fails.
+HTTP routes translate its results into API responses. `maintenance.py` invokes
+run recovery without deleting workspace data or original documents.
 The processor owns job leases, checkpoints and publication of current results.
 
 Railway uses the root [Dockerfile](Dockerfile) for both services:

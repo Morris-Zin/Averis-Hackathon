@@ -17,6 +17,7 @@ from averis.http_context import (
     get_services,
     identity,
     mutation,
+    set_session_cookie,
 )
 from averis.persistence import Database
 from averis.processing import Processor
@@ -112,6 +113,10 @@ async def security_headers(
                 status_code=413, content={"detail": "Upload request too large"}
             )
     response = await call_next(request)
+    # Renew only an authenticated bearer cookie; never reissue it after logout.
+    token = getattr(request.state, "authenticated_session_token", None)
+    if token and path != "/api/session/logout":
+        set_session_cookie(response, token, config)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"

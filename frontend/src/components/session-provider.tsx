@@ -43,7 +43,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setUnavailableMessage("");
     setSessionActionError("");
     setSessionMessage(
-      "Your workspace session expired. Its saved cases are no longer shown. Enter a new demo workspace to continue.",
+      "This browser no longer has access to its workspace. Saved data is not automatically deleted. Entering a new demo creates a separate workspace.",
     );
   }, []);
 

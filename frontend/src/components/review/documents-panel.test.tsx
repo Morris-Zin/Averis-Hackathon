@@ -89,4 +89,10 @@ it("does not offer a redundant recompute for an unchanged valid pair", () => {
       }) as HTMLButtonElement
     ).disabled,
   ).toBe(true);
+  expect(screen.getByText(/Ask the document operator/).textContent).toContain(
+    "case reference",
+  );
+  expect(
+    screen.queryByRole("button", { name: /Attach controlled revised/ }),
+  ).toBeNull();
 });

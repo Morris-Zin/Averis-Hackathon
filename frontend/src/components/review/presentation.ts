@@ -14,6 +14,26 @@ export function readingDisplayValue(reading?: Finding["si"]) {
 export const PAIR_REVIEW_REASON =
   "Human review requested: we could not verify a shared shipment reference between the SI and draft BL.";
 
+export const DOCUMENT_RECOVERY_GUIDANCE =
+  "Ask the document operator to add or replace the files for this case. Share the case reference shown above and a readable, complete SI and draft BL. Reviewers can select existing files in Source documents.";
+
+function documentIssueLabel(reason: string): string | undefined {
+  if (
+    reason.startsWith("document_unreadable") ||
+    reason === "Document cannot be reliably extracted" ||
+    reason.startsWith("A comparison document could not be read.")
+  )
+    return `A comparison document could not be read. ${DOCUMENT_RECOVERY_GUIDANCE}`;
+  if (reason.startsWith("Waiting for documents:"))
+    return `Shipping documents are missing. Not checked yet. ${DOCUMENT_RECOVERY_GUIDANCE}`;
+  if (
+    /^No (draft BL|Shipping Instruction|SI and draft BL) identified\./.test(
+      reason,
+    )
+  )
+    return `The required SI and draft BL have not both been identified. Check the selected files in Source documents. ${DOCUMENT_RECOVERY_GUIDANCE}`;
+}
+
 const READING_ISSUES: Record<string, string> = {
   ambiguous_source_fields:
     "Several fields appear together in the selected text. Select this field and check its source before correcting our reading.",
@@ -28,7 +48,7 @@ const READING_ISSUES: Record<string, string> = {
   low_field_confidence:
     "The AI is unsure which text belongs to this field. Check the selected evidence.",
   low_ocr_confidence:
-    "The scanned text was not read reliably. Check the image and verify the reading, or upload a clearer document.",
+    "The scanned text was not read reliably. Check the image and verify the reading, or ask the document operator for a clearer document.",
   unknown_ocr_confidence:
     "We could not verify the scanned text's reading quality. Check the image and verify the reading.",
   unverified_transcription:
@@ -48,12 +68,15 @@ export function issueLabel(
   issue: NonNullable<NonNullable<CaseView["report"]>["issues"]>[number],
 ) {
   if (typeof issue === "string")
-    return issue === "pair_requires_review"
-      ? PAIR_REVIEW_REASON
-      : issue.replaceAll("_", " ");
+    return (
+      documentIssueLabel(issue) ??
+      (issue === "pair_requires_review"
+        ? PAIR_REVIEW_REASON
+        : issue.replaceAll("_", " "))
+    );
   const scope =
     issue.scope === "unused_attachment" ? "Unused attachment: " : "";
-  return `${scope}${issue.code.replaceAll("_", " ")}${issue.detail ? `: ${issue.detail}` : ""}`;
+  return `${scope}${documentIssueLabel(issue.code) ?? `${issue.code.replaceAll("_", " ")}${issue.detail ? `: ${issue.detail}` : ""}`}`;
 }
 
 export function confidenceDisplay(classification: CaseView["classification"]) {
@@ -200,7 +223,13 @@ export function resultSummary(item: CaseView) {
         detail:
           item.report?.pair_valid === false
             ? `${PAIR_REVIEW_REASON} Open Source documents to check whether they belong to the same shipment.`
-            : item.review_reasons.join(" · ") ||
+            : [
+                ...new Set(
+                  item.review_reasons.map(
+                    (reason) => documentIssueLabel(reason) ?? reason,
+                  ),
+                ),
+              ].join(" · ") ||
               item.report?.issues?.map(issueLabel).join(" · ") ||
               "The report is incomplete or contains uncertain evidence.",
       };

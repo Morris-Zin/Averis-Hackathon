@@ -11,7 +11,16 @@ from sqlalchemy import func, select
 from averis.api import COOKIE, create_app
 from averis.config import Settings
 from averis.domain import AttachmentView, CaseView
-from averis.persistence import BrowserSession, Case, Database, Document, utcnow
+from averis.http_context import SESSION_COOKIE_SECONDS
+from averis.persistence import (
+    BrowserSession,
+    Case,
+    Database,
+    Document,
+    Workspace,
+    utcnow,
+)
+from averis.processing import assume_utc_if_naive
 
 
 @pytest.fixture
@@ -32,7 +41,7 @@ def workspace(tmp_path):
         yield client, headers, db, settings
 
 
-def test_workspace_isolation_csrf_and_expiration(workspace):
+def test_workspace_isolation_csrf_and_legacy_session_renewal(workspace):
     client, _headers, db, settings = workspace
     item = client.get("/api/cases").json()["items"][0]
     item = client.get(f"/api/cases/{item['id']}").json()
@@ -53,7 +62,7 @@ def test_workspace_isolation_csrf_and_expiration(workspace):
     with db.session() as session, session.begin():
         row = session.get(BrowserSession, token)
         row.expires_at = utcnow() - timedelta(seconds=1)
-    assert client.get("/api/cases").status_code == 401
+    assert client.get("/api/cases").status_code == 200
 
 
 def test_queue_is_compact_and_matches_case_detail(workspace):
@@ -406,7 +415,7 @@ def test_two_sessions_in_one_workspace_enforce_expected_revision(workspace):
         assert stale_update.status_code == 409
 
 
-def test_expired_session_cannot_read_evidence_but_fresh_same_workspace_session_can(
+def test_legacy_session_and_fresh_same_workspace_session_can_read_evidence(
     workspace,
 ):
     client, _, db, _ = workspace
@@ -431,7 +440,7 @@ def test_expired_session_cannot_read_evidence_but_fresh_same_workspace_session_c
             )
         )
 
-    assert client.get(f"/api/documents/{document_id}/content").status_code == 401
+    assert client.get(f"/api/documents/{document_id}/content").content == expected
     client.cookies.set(COOKIE, fresh_raw)
     refreshed = client.get(f"/api/documents/{document_id}/content")
     assert refreshed.status_code == 200
@@ -710,3 +719,36 @@ def test_unverified_ocr_correction_cannot_remove_existing_mismatch(workspace):
     assert response.status_code == 422
     assert client.get(f"/api/cases/{item['id']}").json() == before
     assert client.get("/api/cases?view=mismatches").json()["total"] == 1
+
+
+def test_legacy_session_refresh_preserves_identity_and_logout_revokes(workspace):
+    client, headers, db, _ = workspace
+    original_token = client.cookies[COOKIE]
+    token_hash = sha256(original_token.encode()).hexdigest()
+    before = client.get("/api/cases").json()
+    with db.session() as session, session.begin():
+        actor = session.get(BrowserSession, token_hash)
+        workspace_id = actor.workspace_id
+        actor.expires_at = utcnow() - timedelta(days=2)
+        session.get(Workspace, workspace_id).expires_at = utcnow() - timedelta(days=2)
+    response = client.get("/api/session")
+    assert response.status_code == 200
+    assert response.json()["csrf_token"] == headers["x-csrf-token"]
+    assert f"Max-Age={SESSION_COOKIE_SECONDS}" in response.headers["set-cookie"]
+    assert "HttpOnly" in response.headers["set-cookie"]
+    assert "SameSite=lax" in response.headers["set-cookie"]
+    assert client.cookies[COOKIE] == original_token
+    assert client.get("/api/cases").json() == before
+    with db.session() as session:
+        actor = session.get(BrowserSession, token_hash)
+        assert actor.workspace_id == workspace_id
+        assert assume_utc_if_naive(actor.expires_at) > utcnow() + timedelta(days=399)
+    response = client.post("/api/session/logout", headers=headers)
+    assert response.status_code == 200
+    assert "Max-Age=0" in response.headers["set-cookie"]
+    assert f"Max-Age={SESSION_COOKIE_SECONDS}" not in response.headers["set-cookie"]
+    client.cookies.set(COOKIE, original_token)
+    assert client.get("/api/session").status_code == 401
+    with db.session() as session:
+        assert session.get(Workspace, workspace_id) is not None
+        assert session.get(BrowserSession, token_hash) is None

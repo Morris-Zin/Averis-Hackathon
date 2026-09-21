@@ -1,9 +1,81 @@
 import { describe, expect, it } from "vitest";
+import type { CaseView } from "@/lib/contracts";
 import {
   confidenceDisplay,
   readingProvenanceLabel,
   readingIssueLabel,
+  issueLabel,
+  resultSummary,
 } from "./presentation";
+
+const unreadableCase: CaseView = {
+  id: "broken",
+  subject: "Unreadable source",
+  sender: "test@example.test",
+  body: "Compare documents",
+  received_at: "2026-09-22T00:00:00Z",
+  revision: 1,
+  input_revision: 1,
+  processing: "completed",
+  stage: "complete",
+  processing_attempts: 1,
+  workflow: "open",
+  assignee: "John Tan",
+  attachments: [],
+  history: [],
+  summary: { kind: "needs_review", mismatches: 0 },
+  review_reasons: [
+    "A comparison document could not be read. Replace it with a readable SI or draft BL.",
+    "Document cannot be reliably extracted",
+    "document_unreadable:PdfminerException",
+  ],
+};
+
+it("explains stored parser failures without exposing diagnostics or changing data", () => {
+  const original = structuredClone(unreadableCase);
+  const detail = resultSummary(unreadableCase).detail;
+  expect(detail).toContain("Ask the document operator");
+  expect(detail).toContain("case reference");
+  expect(detail).not.toContain("PdfminerException");
+  expect(detail).not.toContain("document_unreadable");
+  expect(detail.match(/could not be read/g)).toHaveLength(1);
+  expect(unreadableCase).toEqual(original);
+  expect(
+    issueLabel({
+      code: "document_unreadable",
+      detail: "PdfminerException",
+      scope: "unused_attachment",
+      blocking: false,
+    }),
+  ).toContain("Unused attachment:");
+  expect(
+    issueLabel({
+      code: "document_unreadable",
+      detail: "PdfminerException",
+      scope: "document",
+      blocking: true,
+    }),
+  ).not.toContain("PdfminerException");
+});
+
+it("gives missing-document recovery guidance while preserving other review reasons", () => {
+  const detail = resultSummary({
+    ...unreadableCase,
+    review_reasons: [
+      "Waiting for documents: attach a Shipping Instruction and draft BL. Not checked yet.",
+      "Another unresolved source issue",
+    ],
+  }).detail;
+  expect(detail).toContain("Shipping documents are missing");
+  expect(detail).toContain("Ask the document operator");
+  expect(detail).toContain("Another unresolved source issue");
+  expect(
+    resultSummary({
+      ...unreadableCase,
+      summary: { kind: "mismatch_review", mismatches: 1 },
+    }).label,
+  ).toBe("1 mismatch; review also required");
+});
 
 it("keeps high AI certainty separate from failed source validation", () => {
   const reading = {
