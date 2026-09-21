@@ -9,13 +9,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from threading import Event
 from time import monotonic
+from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, or_, select
-
-from averis.config import Settings
-from averis.persistence import Database, Outbox, Run, utcnow
-from averis.processing import DeliveryOutcome, Processor
-from averis.storage import Storage
+if TYPE_CHECKING:
+    from averis.processing import DeliveryOutcome, Processor
 
 log = logging.getLogger(__name__)
 
@@ -90,6 +87,10 @@ class DurableRunner:
 
     def _claim(self, limit: int) -> list[str]:
         """Claim eligible outbox entries without owning domain run state."""
+        from sqlalchemy import and_, or_, select
+
+        from averis.persistence import Outbox, Run, utcnow
+
         if limit <= 0:
             return []
         claimed: list[str] = []
@@ -223,6 +224,13 @@ class DurableRunner:
 
 def main() -> None:
     """Run the private polling worker as a Railway background process."""
+    # Spawned document readers re-import this entry module. They do not need
+    # application clients; load those only in the parent worker process.
+    from averis.config import Settings
+    from averis.persistence import Database
+    from averis.processing import Processor
+    from averis.storage import Storage
+
     logging.basicConfig(level=logging.INFO)
     settings = Settings()
     settings.validate_deployment()
