@@ -4,6 +4,8 @@ A Jira-inspired shipping operations workspace. It classifies incoming messages, 
 
 Native text recognises common Chinese and Malay shipment labels and units. Scans now use language-directed OCR: Tesseract for English/Malay and bundled RapidOCR for Chinese, with uncertain readings still requiring review. See [measured results and limits](docs/ocr-evaluation-2026-09-21.md).
 
+Word reading includes supported text boxes, content controls and merged-cell handling. Ambiguous labels and unsupported content remain visible review reasons. See the [Word reader fixes and regression results](docs/word-reader-evaluation-2026-09-21.md).
+
 Optional DeepSeek field assistance supplements unresolved Jev readings without replacing classification, document roles, or deterministic comparison. See the [measured comparison, safeguards and setup](docs/deepseek-evaluation-2026-09-21.md). Vision extraction remains experimental and is not enabled.
 
 **Live demo:** https://averis-hackathon-production.up.railway.app/

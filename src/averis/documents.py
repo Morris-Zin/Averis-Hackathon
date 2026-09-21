@@ -1006,94 +1006,102 @@ def _make_ocr_block(
 
 
 def _read_docx(document_id: str, content: bytes) -> DocumentEvidence:
-    from docx import Document
-    from docx.table import Table
+    from averis.word_structure import read_word_content
 
     result = DocumentEvidence(document_id=document_id)
-    document = Document(BytesIO(content))
+    document = read_word_content(content)
+    result.issues.extend(document.issues)
     block_number = 0
-    paragraph_number = 0
-    party_paragraphs: list[EvidenceBlock] = []
+    field_paragraphs: list[EvidenceBlock] = []
 
-    def flush_party() -> None:
-        if not party_paragraphs:
+    def flush_field() -> None:
+        if not field_paragraphs:
             return
-        first = party_paragraphs[0]
+        first = field_paragraphs[0]
         result.blocks.append(
             first.model_copy(
                 update={
-                    "text": "\n".join(block.text for block in party_paragraphs),
+                    "text": "\n".join(block.text for block in field_paragraphs),
                     "locations": [
                         location
-                        for block in party_paragraphs
+                        for block in field_paragraphs
                         for location in block.locations
                     ],
                 }
             )
         )
-        party_paragraphs.clear()
+        field_paragraphs.clear()
 
-    for item in document.iter_inner_content():
-        if isinstance(item, Table):
-            flush_party()
-            for row in item.rows:
-                cell_texts: list[str] = []
-                locations: list[Location] = []
-                for cell in row.cells:
-                    paragraphs: list[str] = []
-                    for paragraph in cell.paragraphs:
-                        paragraph_number += 1
-                        if paragraph.text.strip():
-                            paragraphs.append(paragraph.text)
-                            locations.append(
-                                Location(kind="docx", paragraph=paragraph_number)
-                            )
-                    if paragraphs:
-                        cell_texts.append("\n".join(paragraphs))
-                if cell_texts:
-                    block_number += 1
-                    result.blocks.append(
-                        EvidenceBlock(
-                            id=_block_id(document_id, block_number),
-                            text=" | ".join(cell_texts),
-                            locations=locations,
+    for item in document.items:
+        if item.boundary:
+            flush_field()
+            continue
+        if item.table:
+            flush_field()
+            cell_texts: list[str] = []
+            locations: list[Location] = []
+            for cell in item.cells:
+                paragraphs: list[str] = []
+                for paragraph in cell:
+                    if paragraph.text.strip():
+                        paragraphs.append(paragraph.text)
+                        locations.append(
+                            Location(kind="docx", paragraph=paragraph.number)
                         )
+                if paragraphs:
+                    cell_texts.append("\n".join(paragraphs))
+            if cell_texts:
+                block_number += 1
+                result.blocks.append(
+                    EvidenceBlock(
+                        id=_block_id(document_id, block_number),
+                        text=" | ".join(cell_texts),
+                        locations=locations,
                     )
+                )
         else:
-            paragraph_number += 1
-            if item.text.strip():
+            paragraph = item.cells[0][0]
+            if paragraph.text.strip():
                 block_number += 1
                 block = EvidenceBlock(
                     id=_block_id(document_id, block_number),
-                    text=item.text,
-                    locations=[Location(kind="docx", paragraph=paragraph_number)],
+                    text=paragraph.text,
+                    locations=[Location(kind="docx", paragraph=paragraph.number)],
                 )
                 label_only = any(
                     re.fullmatch(
                         r"\s*" + re.escape(label) + r"\s*:?[ \t]*",
-                        item.text,
+                        paragraph.text,
                         re.IGNORECASE,
                     )
                     for aliases in _SHARED_FIELD_ALIASES.values()
                     for label in aliases
                 )
-                if _starts_text_field(item.text) or label_only:
-                    flush_party()
+                if _starts_text_field(paragraph.text) or label_only:
+                    flush_field()
                 party_label = any(
                     re.match(
-                        r"^\s*" + re.escape(label) + r"\s*(?::|$)",
-                        item.text,
+                        r"^\s*" + re.escape(label) + r"(?=\s|[:=|]|$)",
+                        unicodedata.normalize("NFKC", paragraph.text),
                         re.IGNORECASE,
                     )
                     for field in ("shipper", "consignee", "notify_party")
                     for label in _SHARED_FIELD_ALIASES[field]
                 )
-                if party_label or party_paragraphs:
-                    party_paragraphs.append(block)
+                ambiguous_label_only = (
+                    re.fullmatch(
+                        r"\s*container\s+(?:number|no\.?|id)\s*[:=|]?\s*",
+                        unicodedata.normalize("NFKC", paragraph.text),
+                        re.IGNORECASE,
+                    )
+                    is not None
+                )
+                if party_label or ambiguous_label_only or field_paragraphs:
+                    field_paragraphs.append(block)
                 else:
                     result.blocks.append(block)
 
-    flush_party()
+    flush_field()
 
     if not result.blocks:
         result.issues.append("document_has_no_readable_text")

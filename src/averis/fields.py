@@ -58,6 +58,7 @@ FIELD_ALIASES: Final[dict[Field, tuple[str, ...]]] = {
         "port of loading",
         "portof loading",
         "load port",
+        "loading port",
         "pol",
         "装货港",
         "裝貨港",

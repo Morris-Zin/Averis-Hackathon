@@ -44,7 +44,7 @@ _INLINE_FIELD_LABELS = re.compile(
             reverse=True,
         )
     )
-    + r")\s*[:=]",
+    + r")\s*[:=|]",
     re.IGNORECASE,
 )
 
@@ -94,6 +94,13 @@ def normalize(field: Field, text: str) -> str | None:
         "to be determined",
     }:
         return None
+    if field in {"port_of_loading", "port_of_discharge"} and any(
+        separator in value for separator in ":=|"
+    ):
+        # A leftover labelled expression is not a clean port reading. In
+        # particular, a provider selecting an unfamiliar "Port ...:" label
+        # must not turn that whole label into a confident port value.
+        return None
     if field not in {"container_count", "gross_weight_kg"}:
         if field in {"shipper", "consignee", "notify_party"}:
             # Table-cell and address-line separators are layout, not content.
@@ -115,6 +122,13 @@ def normalize(field: Field, text: str) -> str | None:
         return None
     unit = (match[2] or "").lower()
     if field == "container_count":
+        ambiguous_label = any(
+            "packages" in label
+            and normalized_source.casefold().lstrip().startswith(label)
+            for label in LABELS[field]
+        )
+        if ambiguous_label and unit not in {"container", "containers", "kontena"}:
+            return None
         if (
             unit
             not in {
@@ -250,7 +264,7 @@ def _source_field_issue(field: Field, selected: Sequence[EvidenceBlock]) -> str 
             for match in _INLINE_FIELD_LABELS.finditer(
                 unicodedata.normalize("NFKC", stripped)
             ):
-                label = match[0].rstrip(":= ").casefold()
+                label = match[0].rstrip(":=| ").casefold()
                 detected.update(
                     candidate
                     for candidate, aliases in LABELS.items()
