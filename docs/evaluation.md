@@ -1,6 +1,6 @@
 # Evaluation preparation and bounded runs
 
-`scripts/evaluate.py` prepares a reproducible evaluation workspace without calling Jev. The default mode reads the organizer inbox, imports each source email through the same `averis.intake.import_email` capability used by the API, holds the resulting runs out of outbox delivery, and writes a manifest plus a source-keyed case snapshot.
+`scripts/evaluate.py` prepares a reproducible evaluation workspace without calling Jev. The default mode reads the organizer inbox, imports each source email through the same `averis.email_intake.import_email` capability used by the API, holds the resulting runs out of outbox delivery, and writes a manifest plus a source-keyed case snapshot.
 
 Use an evaluation database that has no public worker or reconciler pointed at it. The CLI defaults preparation to an isolated SQLite database at `outputs/evaluation/evaluation.db`; a live run must name this case database with `--database-url` and the application’s authoritative PostgreSQL budget database with `--budget-database-url`. Evaluation cases never create a second budget ledger. The evaluation case database must use `AVERIS_ENV=evaluation` (the offline tests use `test`) and an empty `AVERIS_TASKS_QUEUE`. Before a live run, an operator must verify the shared application ledger and set `AVERIS_BUDGET_VERIFIED=true`.
 

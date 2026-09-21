@@ -3,8 +3,8 @@
 Averis uses explicit, trusted adapters in one backend package. It does not load
 arbitrary third-party code, discover plugins dynamically, or need a plugin service.
 
-`runtime.application_components` selects the shipped implementation set.
-`components.Components` carries the reader, a per-run intelligence factory,
+`processing_setup.application_components` selects the shipped implementation set.
+`processing_components.Components` carries the reader, a per-run intelligence factory,
 checkpoint identities and execution reserve. The factory returns both intelligence
 and an optional pairing judge. `Processor` manages delivery and publication;
 `ShipmentPipeline` validates source evidence and computes shipment findings.

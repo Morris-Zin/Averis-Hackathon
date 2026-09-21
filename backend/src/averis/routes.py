@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from starlette.concurrency import run_in_threadpool
 
+from averis.api_responses import CasePageResponse, CaseResponse, QueueCaseResponse
 from averis.bulk_ingest import (
     MAX_ARCHIVE_BYTES,
     MAX_EMAIL_JSON_BYTES,
@@ -32,6 +33,8 @@ from averis.bulk_ingest import (
 )
 from averis.demo import seed
 from averis.domain import REVIEWERS, Action, CaseView, SessionView
+from averis.email_intake import BulkEmailRequest, BulkOutcome, import_many
+from averis.email_intake import import_email as persist_import
 from averis.http_context import (
     COOKIE,
     ApplicationServices,
@@ -40,10 +43,7 @@ from averis.http_context import (
     mutation,
     session_view,
 )
-from averis.intake import BulkEmailRequest, BulkOutcome, import_many
-from averis.intake import import_email as persist_import
 from averis.persistence import BrowserSession, Case, Document, Workspace, uid, utcnow
-from averis.responses import CasePageResponse, CaseResponse, QueueCaseResponse
 from averis.storage import MAX_CONTENT_BYTES
 from averis.workflow import view_of
 

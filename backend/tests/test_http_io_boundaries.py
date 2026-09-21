@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from averis.api import create_app
 from averis.config import Settings
-from averis.intake import import_email
+from averis.email_intake import import_email
 
 
 def test_import_persistence_and_dispatch_run_outside_event_loop(tmp_path, monkeypatch):

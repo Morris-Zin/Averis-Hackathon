@@ -1,5 +1,5 @@
-// OCR attestation: any transcription or evidence edit revokes verification.
-export function shouldResetVerification(
+// OCR verification: any transcription or evidence edit revokes verification.
+export function shouldResetOcrVerification(
   previousTranscription: string,
   nextTranscription: string,
   previousEvidence: readonly string[],

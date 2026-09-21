@@ -55,7 +55,7 @@ For browser acceptance, use the built app through its real API: enter a workspac
 
 - `backend/src/averis/domain.py`: typed public contracts.
 - `intelligence.py`: provider-neutral classification and extraction contracts.
-- `components.py`, `runtime.py`: versioned adapter bindings and application composition.
+- `processing_components.py`, `processing_setup.py`: versioned adapter bindings and application composition.
 - `jev.py`, `jev_prompts.py`, `deepseek.py`: budgeted provider adapters and replaceable Jev questions.
 - `documents.py`: bounded TXT/PDF/DOCX/XLSX/OCR reading and previews.
 - `verification.py`: source validation, numeric units and seven-field comparison.
@@ -63,10 +63,10 @@ For browser acceptance, use the built app through its real API: enter a workspac
 - `workflow.py`: transactions, immutable revisions, conflict handling and scheduling review work.
 - `pipeline.py`: typed checkpoints, classification, independent document preparation and comparison.
 - `processing.py`: durable run ownership, leases, publication, outbox dispatch and recovery.
-- `case_status.py` and `responses.py`: authoritative report summaries and HTTP projections, separate from persisted case state.
+- `case_status.py` and `api_responses.py`: authoritative report summaries and HTTP projections, separate from persisted case state.
 - `api.py`, `http_context.py`, `routes.py`: application composition, authentication and HTTP adapters.
 - `frontend/`: Next.js static frontend; generated API types, review state hook and focused panels.
-- `migrations/`, `infra/`: database migration and deployment configuration.
+- `backend/migrations/`, `infra/`: database migration and deployment configuration.
 
 Read [replaceable components](docs/component-architecture.md), [architecture](docs/build-plan.md), [module contracts](docs/module-contracts.md), [organizer brief](docs/hackathon-brief.md), and [submission checklist](docs/submission.md). Agent-specific instructions and skills are local-only.
 

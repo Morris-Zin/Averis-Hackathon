@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import select
 
 from averis.config import Settings
-from averis.intake import import_email
+from averis.email_intake import import_email
 from averis.persistence import Base, Case, Database, Document, Outbox, Workspace, utcnow
 from averis.storage import Storage
 
@@ -62,7 +62,7 @@ def test_import_failure_cleans_objects_and_metadata(intake_fixture, monkeypatch)
     def fail_enqueue(*_args, **_kwargs):
         raise RuntimeError("synthetic transaction failure")
 
-    monkeypatch.setattr("averis.intake.create_processing_run", fail_enqueue)
+    monkeypatch.setattr("averis.email_intake.create_processing_run", fail_enqueue)
     with pytest.raises(RuntimeError, match="transaction failure"):
         call_import(db, storage)
 

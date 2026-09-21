@@ -6,14 +6,14 @@ from unittest.mock import Mock
 import pytest
 from test_case_status import complete_case
 
-from averis.components import RunIntelligence
 from averis.config import Settings
 from averis.domain import AttachmentView, Classification
 from averis.intelligence import ExtractionResult
 from averis.jev_prompts import DEFAULT_PROMPTS
 from averis.pipeline import Checkpoints, InvalidCheckpoint, ShipmentPipeline
 from averis.processing import Processor
-from averis.runtime import application_components
+from averis.processing_components import RunIntelligence
+from averis.processing_setup import application_components
 from averis.verification import reading_from_evidence
 from tests.test_component_contracts import doc
 

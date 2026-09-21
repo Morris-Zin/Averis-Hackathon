@@ -14,13 +14,13 @@ Parallel reviews covered document reading/verification/reviewer workflow, durabl
 - Processing eligibility belongs to `Processor`, shared by polling and HTTP delivery. Disabled work stays queued without consuming an attempt; completed duplicates remain acknowledged. Failed expired-workspace cleanup is logged without blocking run reconciliation.
 - Shipment references stop at line boundaries and tolerate common table/punctuation delimiters. Repeated evidence selections are deduplicated before constructing readings.
 - OCR corrections require explicit verification, including mixed native/OCR selections. Current-report and source-pair checks prevent a correction from promoting stale evidence. Unresolved issues from both documents remain visible.
-- Frontend queue changes update the URL. Session changes have pending/error state shared with mutation controls. OCR evidence changes invalidate previous attestation; review tabs identify their panels.
+- Frontend queue changes update the URL. Session changes have pending/error state shared with mutation controls. OCR evidence changes invalidate previous confirmation against the original image; review tabs identify their panels.
 
 ## Acceptance evidence
 
 Browser control against an isolated local SQLite workspace verified queue URL changes, refresh persistence and browser Back, a reviewer switch followed by a correctly attributed workflow-history entry, and a failed reviewer change while the test server was stopped. The failed change displayed an error and preserved the previous reviewer. A source-bound native correction also recomputed successfully while preserving the two real shipment mismatches and the employee's Waiting workflow state. No paid processing or production writes occurred.
 
-Final `uv run --project backend python scripts/verify.py` with isolated real-PostgreSQL acceptance schemas passed **213 tests**, with two expected skips (Linux-only resource limit and separately opt-in natural-lease recovery). Module boundaries, Ruff formatting/lint/complexity, Pyright strict, generated API contract drift, frontend formatting/strict types/lint and production static export all passed. The existing Starlette/AnyIO deprecation warning remains. Browser OCR attestation interactions and deliberate slow-network race timing were not separately exercised; backend OCR verification regressions pass.
+Final `uv run --project backend python scripts/verify.py` with isolated real-PostgreSQL acceptance schemas passed **213 tests**, with two expected skips (Linux-only resource limit and separately opt-in natural-lease recovery). Module boundaries, Ruff formatting/lint/complexity, Pyright strict, generated API contract drift, frontend formatting/strict types/lint and production static export all passed. The existing Starlette/AnyIO deprecation warning remains. Browser OCR confirmation against the original image interactions and deliberate slow-network race timing were not separately exercised; backend OCR verification regressions pass.
 
 ## Limits of this review
 

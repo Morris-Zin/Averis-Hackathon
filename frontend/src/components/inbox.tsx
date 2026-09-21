@@ -103,7 +103,7 @@ export function InboxView() {
   const [data, setData] = useState<CasePage | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const requestVersion = useRef(0);
+  const requestSequence = useRef(0);
   const requestController = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -123,7 +123,7 @@ export function InboxView() {
       requestController.current?.abort();
       const controller = new AbortController();
       requestController.current = controller;
-      const version = ++requestVersion.current;
+      const sequence = ++requestSequence.current;
       const abortForPolling = () => controller.abort();
       pollingSignal?.addEventListener("abort", abortForPolling, { once: true });
       if (!background) {
@@ -139,12 +139,12 @@ export function InboxView() {
           assignee === ALL_FILTERS ? undefined : assignee,
           controller.signal,
         );
-        if (controller.signal.aborted || version !== requestVersion.current)
+        if (controller.signal.aborted || sequence !== requestSequence.current)
           return false;
         setData(value);
         return true;
       } catch (reason) {
-        if (controller.signal.aborted || version !== requestVersion.current)
+        if (controller.signal.aborted || sequence !== requestSequence.current)
           return false;
         if (!background)
           setError(
@@ -155,7 +155,7 @@ export function InboxView() {
         return false;
       } finally {
         pollingSignal?.removeEventListener("abort", abortForPolling);
-        if (version === requestVersion.current) {
+        if (sequence === requestSequence.current) {
           requestController.current = null;
           if (!background) setLoading(false);
         }
@@ -170,7 +170,7 @@ export function InboxView() {
 
   useEffect(
     () => () => {
-      requestVersion.current += 1;
+      requestSequence.current += 1;
       requestController.current?.abort();
     },
     [],

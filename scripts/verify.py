@@ -68,7 +68,7 @@ def check_boundaries() -> None:
             "averis.processing",
             "averis.workflow",
         },
-        "intake": {"fastapi", "averis.api", "averis.worker"},
+        "email_intake": {"fastapi", "averis.api", "averis.worker"},
         "workflow": {"fastapi", "averis.api", "averis.worker", "averis.jev"},
         "processing": {"fastapi", "averis.api", "averis.worker"},
         "runner": {"fastapi", "averis.api", "averis.worker", "averis.intelligence"},
@@ -97,7 +97,7 @@ def check_boundaries() -> None:
     for module in (
         "review",
         "case_status",
-        "responses",
+        "api_responses",
         "pipeline",
         "fields",
         "versions",
@@ -120,15 +120,15 @@ def check_boundaries() -> None:
     prohibited["jev_classification"] = set(prohibited["jev"])
     prohibited["deepseek"] = set(prohibited["jev"])
     prohibited["processing"].update({"averis.jev", "averis.deepseek"})
-    prohibited["components"] = set(prohibited["pipeline"])
+    prohibited["processing_components"] = set(prohibited["pipeline"])
     for forbidden in prohibited.values():
         if "averis.jev" in forbidden:
             forbidden.add("typesafe_sdk")
             forbidden.add("averis.jev_prompts")
-            forbidden.add("averis.runtime")
+            forbidden.add("averis.processing_setup")
             forbidden.add("averis.jev_classification")
             forbidden.add("averis.deepseek")
-    prohibited["processing"].discard("averis.runtime")
+    prohibited["processing"].discard("averis.processing_setup")
     parser_libraries = {
         "pdfplumber",
         "pypdfium2",
@@ -169,8 +169,8 @@ def check_boundaries() -> None:
                     raise SystemExit(
                         f"Module boundary violation: {path.name} loads Jev/parser {name}"
                     )
-                if path.stem not in {"cli", "dataset"} and name in {
-                    "averis.dataset",
+                if path.stem not in {"cli", "evaluation_dataset"} and name in {
+                    "averis.evaluation_dataset",
                     "averis.cli",
                 }:
                     raise SystemExit(

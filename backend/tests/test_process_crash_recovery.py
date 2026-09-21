@@ -18,7 +18,7 @@ from sqlalchemy import create_engine, event, text
 
 from averis.domain import AuditEntry, CaseView, Report
 from averis.persistence import Base, Case, Database, Outbox, Run, utcnow
-from averis.processing import aware
+from averis.processing import assume_utc_if_naive
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = Path(__file__).with_name("_crash_worker_helper.py")
@@ -208,7 +208,7 @@ def _exercise_crash_recovery(
             assert interrupted.attempts == 1
             assert interrupted.result is None
             assert interrupted.lease_until is not None
-            assert aware(interrupted.lease_until) > utcnow()
+            assert assume_utc_if_naive(interrupted.lease_until) > utcnow()
             assert set(interrupted.checkpoint) == {"classification"}
             assert CaseView.model_validate(row.state).report is None
 
@@ -228,7 +228,7 @@ def _exercise_crash_recovery(
                     interrupted = session.get(Run, run_id)
                     assert interrupted is not None
                     assert interrupted.lease_until is not None
-                    if aware(interrupted.lease_until) <= utcnow():
+                    if assume_utc_if_naive(interrupted.lease_until) <= utcnow():
                         break
                 time.sleep(0.25)
             else:

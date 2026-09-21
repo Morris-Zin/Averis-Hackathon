@@ -2,10 +2,10 @@
 
 import pytest
 
+from averis.api_responses import CaseResponse
 from averis.case_status import summarize_case
 from averis.contracts import FIELDS
 from averis.domain import CaseView, Classification, Finding, Reading, Report
-from averis.responses import CaseResponse
 
 
 def complete_case():

@@ -16,7 +16,6 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from averis.budget import BudgetUnavailable
-from averis.components import Components
 from averis.config import Settings
 from averis.documents import read_document_bounded
 from averis.domain import AuditEntry, CaseView, Classification
@@ -42,7 +41,8 @@ from averis.pipeline import (
     ProcessingResult,
     ShipmentPipeline,
 )
-from averis.runtime import application_components, injected_components
+from averis.processing_components import Components
+from averis.processing_setup import application_components, injected_components
 from averis.storage import Storage
 from averis.timing import measure, processing_trace, timed
 
@@ -53,7 +53,7 @@ class LostLease(RuntimeError):
     pass
 
 
-def aware(value: datetime) -> datetime:
+def assume_utc_if_naive(value: datetime) -> datetime:
     return value.replace(tzinfo=utcnow().tzinfo) if value.tzinfo is None else value
 
 
@@ -78,11 +78,11 @@ def owns_lease(run: Run | None, token: str) -> TypeGuard[Run]:
         and run.token == token
         and run.status == "running"
         and run.lease_until
-        and aware(run.lease_until) > utcnow()
+        and assume_utc_if_naive(run.lease_until) > utcnow()
     )
 
 
-def current_input(case: Case, run: Run) -> bool:
+def is_current_run(case: Case, run: Run) -> bool:
     return case.input_revision == run.input_revision and case.active_run_id == run.id
 
 
@@ -200,7 +200,7 @@ class Processor:
             case = session.scalar(
                 select(Case).where(Case.id == run.case_id).with_for_update()
             )
-            if case is None or not current_input(case, run):
+            if case is None or not is_current_run(case, run):
                 raise LostLease()
             run.checkpoint = {**run.checkpoint, key: value}
             run.lease_until = utcnow() + timedelta(seconds=LEASE_SECONDS)
@@ -250,7 +250,7 @@ class Processor:
                     if not owns_lease(run, token):
                         return
                     case = session.get(Case, run.case_id)
-                    if case is None or not current_input(case, run):
+                    if case is None or not is_current_run(case, run):
                         return
                     run.lease_until = utcnow() + timedelta(seconds=LEASE_SECONDS)
             except Exception:  # noqa: BLE001 - lease expires instead of granting unsafe ownership
@@ -313,7 +313,7 @@ class Processor:
             "attempts": attempts,
             "retried_runs": retried,
             "oldest_queued_seconds": max(
-                0, int((utcnow() - aware(oldest)).total_seconds())
+                0, int((utcnow() - assume_utc_if_naive(oldest)).total_seconds())
             )
             if oldest
             else 0,
@@ -337,7 +337,7 @@ class Processor:
             if (
                 run.status == "running"
                 and run.lease_until
-                and aware(run.lease_until) > utcnow()
+                and assume_utc_if_naive(run.lease_until) > utcnow()
             ):
                 return "busy"
             if run.attempts >= MAX_ATTEMPTS:
@@ -450,7 +450,7 @@ class Processor:
                 select(Case).where(Case.id == run.case_id).with_for_update()
             )
             run.result = result.apply_to(claim.inputs.case).model_dump(mode="json")
-            if row is None or not current_input(row, run):
+            if row is None or not is_current_run(row, run):
                 run.status = "superseded"
                 return
             current = result.apply_to(CaseView.model_validate(row.state))

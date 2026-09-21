@@ -29,7 +29,7 @@ const READING_ISSUES: Record<string, string> = {
   unknown_ocr_confidence:
     "We could not verify the scanned text's reading quality. Check the image and verify the reading.",
   unverified_transcription:
-    "This typed reading has not been verified against the image. Check it and attest that it matches the source.",
+    "This typed reading has not been verified against the image. Check it and confirm it matches the original image.",
   destination_port_requires_review:
     "The document also lists a discharge port. Check that field; the final destination may be a different port.",
 };

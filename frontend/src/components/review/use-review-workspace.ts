@@ -9,7 +9,10 @@ import type {
 } from "@/lib/contracts";
 import { ApiError } from "@/lib/api";
 import { useActivePolling } from "@/lib/use-active-polling";
-import { isActionAllowed, shouldIgnoreLateResponse } from "@/lib/case-binding";
+import {
+  isRequestedCaseLoaded,
+  shouldIgnoreLateResponse,
+} from "@/lib/case-request-guards";
 import { useSession } from "../session-provider";
 import { resultSummary } from "./presentation";
 
@@ -29,12 +32,12 @@ export function useReviewWorkspace(id: string) {
   const [categoryOverride, setCategoryDraft] = useState<Category | null>(null);
   const [pairSiOverride, setPairSi] = useState<string | null>(null);
   const [pairBlOverride, setPairBl] = useState<string | null>(null);
-  const requestVersion = useRef(0);
+  const requestSequence = useRef(0);
   const requestController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (status === "ready") return;
-    requestVersion.current += 1;
+    requestSequence.current += 1;
     requestController.current?.abort();
     requestController.current = null;
     setItem(null);
@@ -64,7 +67,7 @@ export function useReviewWorkspace(id: string) {
       requestController.current?.abort();
       const controller = new AbortController();
       requestController.current = controller;
-      const version = ++requestVersion.current;
+      const sequence = ++requestSequence.current;
       const abortForPolling = () => controller.abort();
       pollingSignal?.addEventListener("abort", abortForPolling, { once: true });
       if (!background) {
@@ -78,8 +81,8 @@ export function useReviewWorkspace(id: string) {
           shouldIgnoreLateResponse(
             id,
             value.id,
-            version,
-            requestVersion.current,
+            sequence,
+            requestSequence.current,
           )
         )
           return false;
@@ -95,7 +98,7 @@ export function useReviewWorkspace(id: string) {
         }
         return true;
       } catch (reasonValue) {
-        if (controller.signal.aborted || version !== requestVersion.current)
+        if (controller.signal.aborted || sequence !== requestSequence.current)
           return false;
         if (!background)
           setError(
@@ -106,7 +109,7 @@ export function useReviewWorkspace(id: string) {
         return false;
       } finally {
         pollingSignal?.removeEventListener("abort", abortForPolling);
-        if (version === requestVersion.current) {
+        if (sequence === requestSequence.current) {
           requestController.current = null;
           if (!background) setLoading(false);
         }
@@ -128,7 +131,7 @@ export function useReviewWorkspace(id: string) {
     setPairBl(null);
     void load(false, true);
     return () => {
-      requestVersion.current += 1;
+      requestSequence.current += 1;
       requestController.current?.abort();
     };
   }, [load]);
@@ -139,15 +142,15 @@ export function useReviewWorkspace(id: string) {
       // preserves drafts; a stale view for another case can never mutate.
       if (
         !item ||
-        !isActionAllowed(id, item.id) ||
+        !isRequestedCaseLoaded(id, item.id) ||
         !session ||
         sessionActionPending
       )
         return false;
-      requestVersion.current += 1;
+      requestSequence.current += 1;
       requestController.current?.abort();
       requestController.current = null;
-      const mutationVersion = requestVersion.current;
+      const mutationSequence = requestSequence.current;
       setPending(true);
       setError("");
       setNotice("");
@@ -162,7 +165,7 @@ export function useReviewWorkspace(id: string) {
           } as unknown as Action,
           session.csrf_token,
         );
-        if (mutationVersion !== requestVersion.current) return false;
+        if (mutationSequence !== requestSequence.current) return false;
         // Ignore late mutation responses that no longer match the requested case.
         if (updated.id !== id) return false;
         setItem(updated);
@@ -177,7 +180,7 @@ export function useReviewWorkspace(id: string) {
         setNotice(success);
         return true;
       } catch (reasonValue) {
-        if (mutationVersion !== requestVersion.current) return false;
+        if (mutationSequence !== requestSequence.current) return false;
         if (reasonValue instanceof ApiError && reasonValue.status === 409) {
           setPending(false);
           const refreshed = await load(false, false);
@@ -193,7 +196,7 @@ export function useReviewWorkspace(id: string) {
           );
         return false;
       } finally {
-        if (mutationVersion === requestVersion.current) setPending(false);
+        if (mutationSequence === requestSequence.current) setPending(false);
       }
     },
     [api, id, item, load, session, sessionActionPending],

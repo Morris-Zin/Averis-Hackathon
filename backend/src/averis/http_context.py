@@ -11,7 +11,7 @@ from fastapi import Depends, HTTPException, Request
 from averis.config import Settings
 from averis.domain import SessionView
 from averis.persistence import BrowserSession, Database, utcnow
-from averis.processing import Processor, aware
+from averis.processing import Processor, assume_utc_if_naive
 from averis.storage import Storage
 from averis.workflow import Workflow
 
@@ -42,7 +42,7 @@ def identity(request: Request) -> BrowserSession:
     digest = sha256(raw.encode()).hexdigest()
     with db.session() as session:
         actor = session.get(BrowserSession, digest)
-        if actor is None or aware(actor.expires_at) <= utcnow():
+        if actor is None or assume_utc_if_naive(actor.expires_at) <= utcnow():
             raise HTTPException(401, "Enter a demo workspace to continue")
         return actor
 

@@ -18,7 +18,7 @@ from averis.bulk_ingest import (
     parse_email_files,
 )
 from averis.config import Settings
-from averis.intake import BulkEmailRequest, import_many
+from averis.email_intake import BulkEmailRequest, import_many
 from averis.persistence import Base, Case, Database, Workspace, utcnow
 from averis.storage import Storage
 
@@ -370,7 +370,7 @@ def bulk_request(ref="email_001"):
 def test_import_many_keeps_validated_failure_detail(bulk_intake, monkeypatch):
     db, storage = bulk_intake
     monkeypatch.setattr(
-        "averis.intake.import_email",
+        "averis.email_intake.import_email",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             ValueError("Workspace quota detail")
         ),
@@ -390,7 +390,7 @@ def test_import_many_returns_stable_message_for_unexpected_failures(
 ):
     db, storage = bulk_intake
     monkeypatch.setattr(
-        "averis.intake.import_email",
+        "averis.email_intake.import_email",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             RuntimeError("connection conninfo=secret password=hunter2")
         ),

@@ -1,5 +1,5 @@
 // Pure guards for case identity; the review hook consumes these rules.
-export function isActionAllowed(
+export function isRequestedCaseLoaded(
   requestedId: string,
   loadedId: string | null,
 ): boolean {
@@ -9,11 +9,11 @@ export function isActionAllowed(
 export function shouldIgnoreLateResponse(
   requestedId: string,
   responseId: string,
-  responseVersion: number,
-  currentVersion: number,
+  responseSequence: number,
+  currentSequence: number,
 ): boolean {
   return (
-    responseVersion !== currentVersion ||
+    responseSequence !== currentSequence ||
     !requestedId ||
     responseId !== requestedId
   );

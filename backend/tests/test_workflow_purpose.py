@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from averis.config import Settings
 from averis.domain import AuditEntry, CaseView, RetryAction
-from averis.intake import import_email
+from averis.email_intake import import_email
 from averis.persistence import Base, Case, Database, Run, Workspace, utcnow
 from averis.storage import Storage
 from averis.workflow import Workflow

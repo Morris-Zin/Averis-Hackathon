@@ -2,10 +2,10 @@ import pytest
 from test_case_status import complete_case
 from test_documents import _text_pdf
 
+from averis.api_responses import QueueCaseResponse
 from averis.documents import read_document
 from averis.domain import AttachmentView
 from averis.pipeline import _pair_selection_reason, _PreparedDocument
-from averis.responses import QueueCaseResponse
 from averis.verification import reading_from_evidence
 
 

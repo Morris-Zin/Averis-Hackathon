@@ -8,7 +8,7 @@ import type {
   Finding,
 } from "@/lib/contracts";
 import { FIELD_LABELS } from "@/lib/contracts";
-import { shouldResetVerification } from "@/lib/attestation";
+import { shouldResetOcrVerification } from "@/lib/ocr-verification";
 import { Button, Dialog, Input, Textarea } from "../ui";
 import { locationLabel } from "./evidence-pane";
 
@@ -90,9 +90,9 @@ export function CorrectionDialog({
             <Textarea
               value={transcription}
               onChange={(event) => {
-                // Any transcription edit revokes the original-image attestation.
+                // Any transcription edit revokes the confirmation against the original image.
                 if (
-                  shouldResetVerification(
+                  shouldResetOcrVerification(
                     transcription,
                     event.target.value,
                     evidenceIds,
@@ -135,7 +135,7 @@ export function CorrectionDialog({
                     ? [...evidenceIds, block.id]
                     : evidenceIds.filter((idValue) => idValue !== block.id);
                   if (
-                    shouldResetVerification(
+                    shouldResetOcrVerification(
                       transcription,
                       transcription,
                       evidenceIds,

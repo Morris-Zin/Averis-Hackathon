@@ -8,8 +8,8 @@ from pathlib import Path
 from pydantic import TypeAdapter
 
 from averis.contracts import Prediction
-from averis.dataset import data_root, load_emails
 from averis.domain import CaseView
+from averis.evaluation_dataset import data_root, load_emails
 from averis.exporting import export_submission
 
 

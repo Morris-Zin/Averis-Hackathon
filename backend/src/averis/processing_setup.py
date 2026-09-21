@@ -5,7 +5,6 @@ import json
 from collections.abc import Callable
 
 from averis.budget import BudgetAuthority
-from averis.components import Components, RunIntelligence
 from averis.config import Settings
 from averis.deepseek import MODEL, PROFILE, PROMPT, AssistedIntelligence
 from averis.documents import read_document_bounded
@@ -15,6 +14,7 @@ from averis.jev import Jev, NumericAssistedIntelligence
 from averis.jev_prompts import DEFAULT_PROMPTS, JevPrompts
 from averis.persistence import Database
 from averis.pipeline import DocumentReader
+from averis.processing_components import Components, RunIntelligence
 from averis.versions import (
     ACCEPTANCE_PROFILE,
     CLASSIFICATION_POLICY_VERSION,

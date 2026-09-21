@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
-  isActionAllowed,
+  isRequestedCaseLoaded,
   shouldIgnoreLateResponse,
   shouldInvalidateOnNavigate,
-} from "./case-binding";
+} from "./case-request-guards";
 
-describe("case binding", () => {
+describe("case request guards", () => {
   it("failed A->B navigation never exposes actions against the previous case", () => {
     // Navigating invalidates; a failed load leaves no visible case.
     expect(shouldInvalidateOnNavigate("case-a", "case-b")).toBe(true);
     expect(shouldInvalidateOnNavigate("case-a", "case-a")).toBe(false);
     // Previous case must not remain actionable under the new request.
-    expect(isActionAllowed("case-b", "case-a")).toBe(false);
-    expect(isActionAllowed("case-b", null)).toBe(false);
-    expect(isActionAllowed("case-b", "case-b")).toBe(true);
+    expect(isRequestedCaseLoaded("case-b", "case-a")).toBe(false);
+    expect(isRequestedCaseLoaded("case-b", null)).toBe(false);
+    expect(isRequestedCaseLoaded("case-b", "case-b")).toBe(true);
   });
 
-  it("late responses for another case or version are ignored", () => {
+  it("late responses for another case or sequence are ignored", () => {
     expect(shouldIgnoreLateResponse("case-b", "case-a", 1, 2)).toBe(true);
     expect(shouldIgnoreLateResponse("case-b", "case-b", 1, 2)).toBe(true);
     expect(shouldIgnoreLateResponse("case-b", "case-b", 2, 2)).toBe(false);
@@ -25,7 +25,7 @@ describe("case binding", () => {
   it("mutations bind to the requested case id", () => {
     const requested = "case-b";
     const staleItemId = "case-a";
-    expect(isActionAllowed(requested, staleItemId)).toBe(false);
-    expect(isActionAllowed(requested, requested)).toBe(true);
+    expect(isRequestedCaseLoaded(requested, staleItemId)).toBe(false);
+    expect(isRequestedCaseLoaded(requested, requested)).toBe(true);
   });
 });
