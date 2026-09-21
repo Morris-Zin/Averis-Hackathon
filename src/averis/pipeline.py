@@ -148,6 +148,25 @@ class _PreparedDocument:
     issues: list[str | Issue]
 
 
+def _pair_selection_reason(
+    documents: list[_PreparedDocument], si_count: int, bl_count: int
+) -> str:
+    if not documents:
+        return "Waiting for documents: attach a Shipping Instruction and draft BL. Not checked yet."
+    if any(document.fields is None for document in documents):
+        return "A comparison document could not be read. Replace it with a readable SI or draft BL."
+    if si_count > 1 or bl_count > 1:
+        return "Several possible shipping documents were found. Select one SI and one draft BL."
+    missing = (
+        "draft BL"
+        if si_count == 1
+        else "Shipping Instruction"
+        if bl_count == 1
+        else "SI and draft BL"
+    )
+    return f"No {missing} identified. Attach the missing document or select its correct role. Not checked yet."
+
+
 class ShipmentPipeline:
     def __init__(
         self,
@@ -492,7 +511,7 @@ class ShipmentPipeline:
         sis = [document for document in documents if document.attachment.role == "SI"]
         bls = [document for document in documents if document.attachment.role == "BL"]
         if len(sis) != 1 or len(bls) != 1:
-            return None, ["Select the correct SI and draft BL"]
+            return None, [_pair_selection_reason(documents, len(sis), len(bls))]
         si, bl = sis[0], bls[0]
         if (
             si.fields is None

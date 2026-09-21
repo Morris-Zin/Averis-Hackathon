@@ -35,6 +35,7 @@ def workspace(tmp_path):
 def test_workspace_isolation_csrf_and_expiration(workspace):
     client, _headers, db, settings = workspace
     item = client.get("/api/cases").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     action = {
         "kind": "assign",
         "expected_revision": item["revision"],
@@ -55,11 +56,23 @@ def test_workspace_isolation_csrf_and_expiration(workspace):
     assert client.get("/api/cases").status_code == 401
 
 
+def test_queue_is_compact_and_matches_case_detail(workspace):
+    client, _, _, _ = workspace
+    page = client.get("/api/cases").json()
+    assert page["items"]
+    for item in page["items"]:
+        assert not {"body", "attachments", "history", "report"} & item.keys()
+        detail = client.get(f"/api/cases/{item['id']}").json()
+        assert item["summary"] == detail["summary"]
+        assert item["classification"] == detail["classification"]
+
+
 def test_mismatch_routes_without_confirmation_and_completion_preserves_it(workspace):
     client, headers, _, _ = workspace
     items = client.get("/api/cases?view=mismatches").json()["items"]
     assert len(items) == 1
     item = items[0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     outcomes = {f["field"]: f["outcome"] for f in item["report"]["findings"]}
     assert outcomes["container_count"] == outcomes["port_of_discharge"] == "mismatch"
     result = client.post(
@@ -80,6 +93,7 @@ def test_mismatch_routes_without_confirmation_and_completion_preserves_it(worksp
 def test_correction_is_source_bound_and_does_not_hide_genuine_mismatch(workspace):
     client, headers, _, _ = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     bl = next(a for a in item["attachments"] if a["role"] == "BL")
     payload = {
         "kind": "correct",
@@ -116,6 +130,7 @@ def test_correction_is_source_bound_and_does_not_hide_genuine_mismatch(workspace
 def test_controlled_revision_keeps_original_and_recomputes(workspace):
     client, headers, _, _ = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     old = next(a for a in item["attachments"] if a["role"] == "BL")
     original = client.get(f"/api/documents/{old['id']}/content").content
     result = client.post(
@@ -142,6 +157,7 @@ def test_uncertain_category_is_editable_without_paid_processing(workspace):
         for c in client.get("/api/cases?view=review").json()["items"]
         if c["classification"]["accepted"] is None
     )
+    item = client.get(f"/api/cases/{item['id']}").json()
     result = client.post(
         f"/api/cases/{item['id']}/actions",
         headers=headers,
@@ -184,6 +200,7 @@ def test_operator_import_deduplicates_and_persists_outbox(workspace):
 def test_report_issue_keeps_case_in_review_after_last_field_correction(workspace):
     client, headers, db, _ = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     bl = next(
         attachment for attachment in item["attachments"] if attachment["role"] == "BL"
     )
@@ -233,6 +250,7 @@ def test_report_issue_keeps_case_in_review_after_last_field_correction(workspace
 def test_superseded_document_is_rejected_for_pair_correction_and_revision(workspace):
     client, headers, _, _ = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     old_bl = next(
         attachment for attachment in item["attachments"] if attachment["role"] == "BL"
     )
@@ -346,6 +364,7 @@ def test_operator_import_rejects_combined_attachments_over_twenty_megabytes(work
 def test_two_sessions_in_one_workspace_enforce_expected_revision(workspace):
     client, headers, db, settings = workspace
     item = client.get("/api/cases").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     primary_hash = sha256(client.cookies[COOKIE].encode()).hexdigest()
     second_raw = "second-explicit-browser-session"
     second_csrf = "second-explicit-browser-csrf"
@@ -392,6 +411,7 @@ def test_expired_session_cannot_read_evidence_but_fresh_same_workspace_session_c
 ):
     client, _, db, _ = workspace
     item = client.get("/api/cases").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     document_id = item["attachments"][0]["id"]
     expected = client.get(f"/api/documents/{document_id}/content").content
     primary_hash = sha256(client.cookies[COOKIE].encode()).hexdigest()
@@ -423,6 +443,7 @@ def test_unicode_document_name_keeps_download_available(workspace):
 
     client, _, db, _ = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     document_id = item["attachments"][0]["id"]
     filename = "装运指示.txt"
     with db.session() as session, session.begin():
@@ -439,6 +460,7 @@ def test_unicode_document_name_keeps_download_available(workspace):
 def test_controlled_revision_respects_document_cap_without_creating_objects(workspace):
     client, headers, db, settings = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     with db.session() as session, session.begin():
         row = session.get(Case, item["id"])
         assert row is not None
@@ -494,6 +516,7 @@ def test_non_comparison_category_rejects_pair_correction_and_revisions_without_m
 ):
     client, headers, db, settings = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     si = next(
         attachment for attachment in item["attachments"] if attachment["role"] == "SI"
     )
@@ -594,6 +617,7 @@ def test_successive_category_corrections_preserve_each_transition_and_model_outp
         for case in client.get("/api/cases").json()["items"]
         if case["classification"]["accepted"] == "INVOICE_QUERY"
     )
+    item = client.get(f"/api/cases/{item['id']}").json()
     suggestion = item["classification"]["suggested"]
     probabilities = item["classification"]["probabilities"]
 
@@ -634,6 +658,7 @@ def test_successive_category_corrections_preserve_each_transition_and_model_outp
 def test_controlled_revision_remains_available_after_live_classification(workspace):
     client, headers, db, _ = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     with db.session() as session, session.begin():
         row = session.get(Case, item["id"])
         view = CaseView.model_validate(row.state)
@@ -657,6 +682,7 @@ def test_controlled_revision_remains_available_after_live_classification(workspa
 def test_unverified_ocr_correction_cannot_remove_existing_mismatch(workspace):
     client, headers, db, _ = workspace
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     bl_id = next(a["id"] for a in item["attachments"] if a["role"] == "BL")
     with db.session() as session, session.begin():
         row = session.get(Case, item["id"])

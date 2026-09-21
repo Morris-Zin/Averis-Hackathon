@@ -432,7 +432,7 @@ export interface components {
         /** CasePageResponse */
         CasePageResponse: {
             /** Items */
-            items: components["schemas"]["CaseResponse"][];
+            items: components["schemas"]["QueueCaseResponse"][];
             /** Total */
             total: number;
             /** Page */
@@ -771,6 +771,26 @@ export interface components {
             request_id?: string | null;
             /** Policy Version */
             policy_version: string;
+        };
+        /**
+         * QueueCaseResponse
+         * @description Queue facts only; document evidence and history belong to case detail.
+         */
+        QueueCaseResponse: {
+            /** Id */
+            id: string;
+            /** Subject */
+            subject: string;
+            /** Sender */
+            sender: string;
+            /** Received At */
+            received_at: string;
+            classification: components["schemas"]["Classification"] | null;
+            /** Processing */
+            processing: string;
+            /** Assignee */
+            assignee: string;
+            summary: components["schemas"]["CaseSummary"];
         };
         /** Reading */
         Reading: {

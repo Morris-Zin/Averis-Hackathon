@@ -35,6 +35,9 @@ FIELD_LABELS: Final[dict[Field, str]] = {
 # documents.py; they help grouping but never define shipment values.
 FIELD_ALIASES: Final[dict[Field, tuple[str, ...]]] = {
     "shipper": (
+        "exporter / shipper",
+        "exporter/shipper",
+        "shipper / exporter",
         "shipper/exporter",
         "shipper",
         "exporter",
@@ -44,9 +47,18 @@ FIELD_ALIASES: Final[dict[Field, tuple[str, ...]]] = {
         "發貨人",
         "pengirim",
     ),
-    "consignee": ("to the order of", "consignee", "收货人", "收貨人", "penerima"),
+    "consignee": (
+        "receiving party / consignee",
+        "receiving party/consignee",
+        "to the order of",
+        "consignee",
+        "收货人",
+        "收貨人",
+        "penerima",
+    ),
     "notify_party": (
         "notify party/intermediate consignee",
+        "party to notify",
         "notify party",
         "notify",
         "通知方",
@@ -68,6 +80,7 @@ FIELD_ALIASES: Final[dict[Field, tuple[str, ...]]] = {
         "pelabuhan muat",
     ),
     "port_of_discharge": (
+        "destination port",
         "port of discharge",
         "portof discharge",
         "discharge port",

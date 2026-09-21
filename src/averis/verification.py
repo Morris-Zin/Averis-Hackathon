@@ -193,6 +193,23 @@ def reading_from_evidence(
     ):
         raise ValueError("Transcription is available only for OCR evidence")
     source_issue = _source_field_issue(field, selected)
+    if (
+        field == "port_of_discharge"
+        and any(
+            block.text.casefold().lstrip().startswith("destination port")
+            for block in selected
+        )
+        and any(
+            source_value("port_of_discharge", line.strip()) != line.strip()
+            and not line.casefold().lstrip().startswith("destination port")
+            for block in document.blocks
+            if block.id not in evidence_ids
+            for line in block.text.splitlines()
+        )
+    ):
+        # A destination can be beyond the discharge port on a through shipment.
+        # Prefer explicit discharge evidence instead of silently equating them.
+        source_issue = "destination_port_requires_review"
     if field in {"shipper", "consignee", "notify_party"} and has_omitted_continuation(
         document, evidence_ids
     ):

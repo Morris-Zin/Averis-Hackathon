@@ -31,7 +31,7 @@ from averis.bulk_ingest import (
     parse_email_files,
 )
 from averis.demo import seed
-from averis.domain import REVIEWERS, Action, CasePage, CaseView, SessionView
+from averis.domain import REVIEWERS, Action, CaseView, SessionView
 from averis.http_context import (
     COOKIE,
     ApplicationServices,
@@ -43,7 +43,7 @@ from averis.http_context import (
 from averis.intake import BulkEmailRequest, BulkOutcome, import_many
 from averis.intake import import_email as persist_import
 from averis.persistence import BrowserSession, Case, Document, Workspace, uid, utcnow
-from averis.responses import CasePageResponse, CaseResponse
+from averis.responses import CasePageResponse, CaseResponse, QueueCaseResponse
 from averis.storage import MAX_CONTENT_BYTES
 from averis.workflow import view_of
 
@@ -192,7 +192,7 @@ def cases(
     page_size: int = 25,
     category: str = "",
     assignee: str = "",
-) -> CasePage:
+) -> CasePageResponse:
     if page < 1 or not 1 <= page_size <= 100 or len(q) > 200:
         raise HTTPException(422, "Invalid pagination or search")
     with services.db.session() as session:
@@ -216,14 +216,14 @@ def cases(
             raise HTTPException(422, "Unknown inbox view")
         total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
         items = [
-            view_of(row)
+            QueueCaseResponse.from_case(view_of(row))
             for row in session.scalars(
                 query.order_by(Case.received_at.desc())
                 .offset((page - 1) * page_size)
                 .limit(page_size)
             )
         ]
-    return CasePage(items=items, total=total, page=page, page_size=page_size)
+    return CasePageResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/api/cases/{case_id}", response_model=CaseResponse)

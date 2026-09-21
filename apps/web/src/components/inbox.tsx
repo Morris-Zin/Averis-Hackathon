@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CasePage, CaseView, Category, QueueView } from "@/lib/contracts";
+import type { CasePage, QueueCase, Category, QueueView } from "@/lib/contracts";
 import { CATEGORY_LABELS, displayCaseKey } from "@/lib/contracts";
 import { useActivePolling } from "@/lib/use-active-polling";
 import { AppShell, queueLabels } from "./app-shell";
@@ -29,11 +29,11 @@ const QUEUES: QueueView[] = [
 ];
 const ALL_FILTERS = "all";
 
-function isActiveProcessing(item: CaseView) {
+function isActiveProcessing(item: QueueCase) {
   return item.processing === "queued" || item.processing === "running";
 }
 
-function classificationFor(item: CaseView) {
+function classificationFor(item: QueueCase) {
   if (item.classification)
     return CATEGORY_LABELS[
       item.classification.accepted ?? item.classification.suggested
@@ -42,7 +42,7 @@ function classificationFor(item: CaseView) {
   return "Unclassified";
 }
 
-function confidenceFor(item: CaseView) {
+function confidenceFor(item: QueueCase) {
   const display = confidenceDisplay(item.classification);
   if (!display) {
     if (isActiveProcessing(item)) return "Classifying…";
@@ -52,13 +52,13 @@ function confidenceFor(item: CaseView) {
   return `${display.percent}%`;
 }
 
-function confidenceTitle(item: CaseView) {
+function confidenceTitle(item: QueueCase) {
   const display = confidenceDisplay(item.classification);
   if (!display) return undefined;
   return `${display.headline}. ${display.detail}`;
 }
 
-function resultFor(item: CaseView) {
+function resultFor(item: QueueCase) {
   const labels = {
     failed: ["FAILED", "danger"],
     queued: ["QUEUED", "neutral"],

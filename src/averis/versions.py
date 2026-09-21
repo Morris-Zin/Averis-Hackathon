@@ -7,13 +7,13 @@ bind to an exact evidence-set fingerprint. Unversioned resumable checkpoints
 cannot be reused as verified-compatible results.
 """
 
-READER_VERSION = "reader-v6-word-structure"
+READER_VERSION = "reader-v7-equivalent-labels"
 OCR_PROFILE = "tesseract-language-route-rapid-v6-small-char-v1"
 EVIDENCE_PARSER_VERSION = "evidence-v2"
 CLASSIFICATION_POLICY_VERSION = "classification-v5-document-context"
 EXTRACTION_POLICY_VERSION = "extraction-v5-numeric-source-spans"
 ACCEPTANCE_PROFILE = "jev-acceptance-v1"
-NORMALIZATION_PROFILE = "source-bound-layout-v5-loading-label"
+NORMALIZATION_PROFILE = "source-bound-layout-v6-compound-labels"
 COMPARISON_POLICY_VERSION = "comparison-v1"
 PAIRING_POLICY_VERSION = "pairing-v1-source-reference"
 CHECKPOINT_VERSION = "checkpoint-v1"

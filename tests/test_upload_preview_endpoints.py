@@ -93,6 +93,7 @@ def test_preview_slot_serializes_companion_and_releases_after_failure(
 ):
     client, _ = endpoint_client
     item = client.get("/api/cases?view=mismatches").json()["items"][0]
+    item = client.get(f"/api/cases/{item['id']}").json()
     url = f"/api/documents/{item['attachments'][0]['id']}/preview"
     started, release, waiting = Event(), Event(), Event()
     slot = client.app.state.services.preview_slot

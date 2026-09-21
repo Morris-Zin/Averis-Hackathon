@@ -1103,7 +1103,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/CaseResponse"
+              "$ref": "#/components/schemas/QueueCaseResponse"
             },
             "type": "array",
             "title": "Items"
@@ -2040,6 +2040,60 @@
           "policy_version"
         ],
         "title": "PairingEvidence"
+      },
+      "QueueCaseResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "sender": {
+            "type": "string",
+            "title": "Sender"
+          },
+          "received_at": {
+            "type": "string",
+            "title": "Received At"
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Classification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "processing": {
+            "type": "string",
+            "title": "Processing"
+          },
+          "assignee": {
+            "type": "string",
+            "title": "Assignee"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/CaseSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "sender",
+          "received_at",
+          "classification",
+          "processing",
+          "assignee",
+          "summary"
+        ],
+        "title": "QueueCaseResponse",
+        "description": "Queue facts only; document evidence and history belong to case detail."
       },
       "Reading": {
         "properties": {

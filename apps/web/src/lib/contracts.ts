@@ -7,6 +7,7 @@ export type AttachmentView = components["schemas"]["AttachmentView"];
 export type Finding = components["schemas"]["Finding"];
 export type CaseView = components["schemas"]["CaseResponse"];
 export type CasePage = components["schemas"]["CasePageResponse"];
+export type QueueCase = CasePage["items"][number];
 export type SessionView = components["schemas"]["SessionView"];
 export type BulkPreviewResponse = components["schemas"]["BulkPreviewResponse"];
 export type BulkImportResponse = components["schemas"]["BulkImportResponse"];
