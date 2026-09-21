@@ -20,6 +20,7 @@ from averis.contracts import Field as ShipmentField
 from averis.domain import Classification, DocumentEvidence, Reading, SourceSelection
 from averis.intelligence import ExtractionResult, Intelligence, ProviderPermanentError
 from averis.source_regions import complete_party_selection
+from averis.timing import measure, timed
 from averis.verification import reading_from_evidence
 
 MODEL = "deepseek-flash"
@@ -210,6 +211,7 @@ class AssistedIntelligence:
             }
             return ExtractionResult(primary.role, primary.role_confidence, fields)
 
+    @timed("supplemental_request")
     def _request(
         self, document: DocumentEvidence, *, thinking: bool
     ) -> tuple[str, str] | None:
@@ -246,17 +248,18 @@ class AssistedIntelligence:
             self._run_id, self._purpose, size * 4, MAX_TOKENS, pricing=("0.30", "1.20")
         )
         try:
-            response = requests.post(
-                ENDPOINT,
-                headers={
-                    "Authorization": "Bearer " + self._key,
-                    "Content-Type": "application/json",
-                },
-                data=json.dumps(body, ensure_ascii=False).encode(),
-                timeout=(5, 40),
-            )
-            response.raise_for_status()
-            result = _Response.model_validate(response.json())
+            with measure("http"):
+                response = requests.post(
+                    ENDPOINT,
+                    headers={
+                        "Authorization": "Bearer " + self._key,
+                        "Content-Type": "application/json",
+                    },
+                    data=json.dumps(body, ensure_ascii=False).encode(),
+                    timeout=(5, 40),
+                )
+                response.raise_for_status()
+                result = _Response.model_validate(response.json())
         except (requests.RequestException, ValueError):
             self._budget.retain_for_reconciliation(
                 reservation, "Supplemental provider outcome uncertain"
