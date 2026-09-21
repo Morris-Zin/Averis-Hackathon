@@ -4,6 +4,50 @@ import { ComparisonPanel } from "./comparison-panel";
 
 afterEach(cleanup);
 
+it("shows extracted Chinese values while withholding unconfirmed comparisons", () => {
+  render(
+    <ComparisonPanel
+      summaryKind="needs_review"
+      activeField="shipper"
+      setActiveField={() => {}}
+      openCorrection={() => {}}
+      report={{
+        input_revision: 1,
+        policy_version: "test",
+        pair_valid: false,
+        findings: [
+          {
+            field: "shipper",
+            outcome: "unresolved",
+            si: {
+              field: "shipper",
+              document_id: "si",
+              text: "上海华远贸易有限公司",
+              confidence: 1,
+              provenance: "machine",
+              acceptance_basis: "probability",
+            },
+            bl: {
+              field: "shipper",
+              document_id: "bl",
+              text: "广州华盛物流有限公司",
+              confidence: 1,
+              provenance: "machine",
+              acceptance_basis: "probability",
+            },
+          },
+        ],
+      }}
+    />,
+  );
+  expect(screen.getByText("上海华远贸易有限公司")).toBeTruthy();
+  expect(screen.getByText("广州华盛物流有限公司")).toBeTruthy();
+  expect(screen.getAllByText("PAIR UNCONFIRMED")).toHaveLength(7);
+  expect(screen.getByText("0 of 7 fields checked")).toBeTruthy();
+  expect(screen.queryByText("MISMATCH")).toBeNull();
+  expect(screen.queryByText("MATCH")).toBeNull();
+});
+
 it("shows source-bound pairing separately from the field comparison", () => {
   render(
     <ComparisonPanel

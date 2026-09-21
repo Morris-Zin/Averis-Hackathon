@@ -292,13 +292,13 @@ def compare(
     )
     if not pair_valid:
         report.issues.append("pair_requires_review")
-        return report
     for name in _TYPED_FIELDS:
         si_reading = si[name]
         bl_reading = bl[name]
         outcome: Literal["match", "mismatch", "unresolved"]
         if (
-            si_reading.issue
+            not pair_valid
+            or si_reading.issue
             or bl_reading.issue
             or si_reading.normalized is None
             or bl_reading.normalized is None

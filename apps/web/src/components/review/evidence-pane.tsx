@@ -24,11 +24,13 @@ export function EvidencePane({
   selectedIds,
   title,
   onCorrect,
+  correctionDisabled = false,
 }: {
   attachment?: AttachmentView;
   selectedIds: string[];
   title: string;
   onCorrect: () => void;
+  correctionDisabled?: boolean;
 }) {
   const blocks = attachment?.evidence?.blocks ?? [];
   const previewBlock =
@@ -114,7 +116,7 @@ export function EvidencePane({
         <Button
           size="sm"
           onClick={onCorrect}
-          disabled={!attachment || attachment.superseded}
+          disabled={correctionDisabled || !attachment || attachment.superseded}
         >
           Correct our reading
         </Button>

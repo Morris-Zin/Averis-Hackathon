@@ -47,17 +47,29 @@ export function ComparisonPanel({
   const checkedFields =
     report?.findings?.filter((finding) => finding.outcome !== "unresolved")
       .length ?? 0;
+  const pairingUnconfirmed = report?.pair_valid === false;
   return (
     <>
       <section className="comparison-section">
         <div className="section-heading">
           <div>
             <h2>Shipment comparison</h2>
-            <p>Shipping instruction is the reference.</p>
+            <p>
+              {pairingUnconfirmed
+                ? "Extracted values — document pairing is not confirmed."
+                : "Shipping instruction is the reference."}
+            </p>
           </div>
           <span>{checkedFields} of 7 fields checked</span>
         </div>
         <div className="comparison-table-wrap">
+          {pairingUnconfirmed ? (
+            <p className="p-4" role="status">
+              Fields are shown as read, not confirmed comparison results. Open
+              Source documents and confirm these documents belong to the same
+              shipment before comparing them.
+            </p>
+          ) : null}
           {report?.pair_valid && report.pairing_evidence ? (
             <details className="pairing-evidence space-y-3 p-4 text-sm">
               <summary className="cursor-pointer font-medium">
@@ -163,9 +175,13 @@ export function ComparisonPanel({
                     </td>
                     <td>
                       <span
-                        className={`status-lozenge ${finding?.outcome === "match" ? "success" : finding?.outcome === "mismatch" ? "danger" : "warning"}`}
+                        className={`status-lozenge ${!pairingUnconfirmed && finding?.outcome === "match" ? "success" : !pairingUnconfirmed && finding?.outcome === "mismatch" ? "danger" : "warning"}`}
                       >
-                        {finding ? outcomeLabel(finding.outcome) : "NOT READ"}
+                        {pairingUnconfirmed
+                          ? "PAIR UNCONFIRMED"
+                          : finding
+                            ? outcomeLabel(finding.outcome)
+                            : "NOT READ"}
                       </span>
                     </td>
                   </tr>
@@ -190,12 +206,14 @@ export function ComparisonPanel({
             selectedIds={activeFinding?.si.evidence_ids ?? []}
             title="Shipping instruction"
             onCorrect={() => openCorrection("si")}
+            correctionDisabled={pairingUnconfirmed}
           />
           <EvidencePane
             attachment={blAttachment}
             selectedIds={activeFinding?.bl.evidence_ids ?? []}
             title="Draft bill of lading"
             onCorrect={() => openCorrection("bl")}
+            correctionDisabled={pairingUnconfirmed}
           />
         </div>
       </section>

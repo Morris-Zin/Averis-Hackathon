@@ -256,15 +256,34 @@ def test_organizer_example_flags_only_the_changed_container_count(
     assert weight.si.normalized == weight.bl.normalized == "22000"
 
 
-def test_invalid_pair_never_emits_partial_findings() -> None:
+def test_invalid_pair_preserves_readings_without_confirming_outcomes() -> None:
     readings = {
         field: reading(field, "doc", f"same-{field}") for field in _TYPED_FIELDS
     }
 
     report = compare(readings, readings, revision=1, pair_valid=False)
 
-    assert report.findings == []
+    assert len(report.findings) == 7
+    assert all(f.outcome == "unresolved" for f in report.findings)
+    assert all(
+        f.si == readings[f.field] and f.bl == readings[f.field] for f in report.findings
+    )
     assert report.issues == ["pair_requires_review"]
+
+
+def test_unconfirmed_different_values_do_not_become_confirmed_mismatches() -> None:
+    si = {
+        field: reading(field, "si", "上海华远贸易有限公司") for field in _TYPED_FIELDS
+    }
+    bl = {
+        field: reading(field, "bl", "广州华盛物流有限公司") for field in _TYPED_FIELDS
+    }
+    pending = compare(si, bl, revision=1, pair_valid=False)
+    assert pending.findings[0].si.text == "上海华远贸易有限公司"
+    assert pending.findings[0].bl.text == "广州华盛物流有限公司"
+    assert all(f.outcome == "unresolved" for f in pending.findings)
+    confirmed = compare(si, bl, revision=2, pair_valid=True)
+    assert all(f.outcome == "mismatch" for f in confirmed.findings)
 
 
 def test_human_selection_cannot_override_conflicting_shipment_references() -> None:
