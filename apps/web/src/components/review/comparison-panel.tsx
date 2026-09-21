@@ -58,13 +58,13 @@ export function ComparisonPanel({
             <h2>Shipment comparison</h2>
             <p>
               {pairingUnconfirmed
-                ? "Extracted values — document pairing is not confirmed."
+                ? "Provisional comparison — document pairing is not confirmed."
                 : "Shipping instruction is the reference."}
             </p>
           </div>
           <span>
             {pairingUnconfirmed
-              ? "Comparison paused: confirm document pair"
+              ? "Provisional results: human review required"
               : `${checkedFields} of 7 fields checked`}
           </span>
         </div>
@@ -73,8 +73,10 @@ export function ComparisonPanel({
             <p className="p-4" role="status">
               {PAIR_REVIEW_REASON} Field confidence describes how confidently a
               value was read; it does not confirm the documents belong together.
-              Open Source documents, check the originals, then confirm the pair.
-              Conflicting references require the correct documents.
+              Matches and differences below are provisional. This case stays in
+              Needs review until the pair is confirmed. Open Source documents,
+              check the originals, then confirm the pair. Conflicting references
+              require the correct documents.
             </p>
           ) : null}
           {report?.pair_valid && report.pairing_evidence ? (
@@ -188,7 +190,11 @@ export function ComparisonPanel({
                         className={`status-lozenge ${!pairingUnconfirmed && finding?.outcome === "match" ? "success" : !pairingUnconfirmed && finding?.outcome === "mismatch" ? "danger" : "warning"}`}
                       >
                         {pairingUnconfirmed
-                          ? "PAIR UNCONFIRMED"
+                          ? finding?.provisional_outcome === "match"
+                            ? "MATCH (PROVISIONAL)"
+                            : finding?.provisional_outcome === "mismatch"
+                              ? "DIFFERENT (PROVISIONAL)"
+                              : "UNRESOLVED (PROVISIONAL)"
                           : finding
                             ? outcomeLabel(finding.outcome)
                             : "NOT READ"}

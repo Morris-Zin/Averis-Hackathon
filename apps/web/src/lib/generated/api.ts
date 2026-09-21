@@ -648,6 +648,8 @@ export interface components {
              * @enum {string}
              */
             outcome: "match" | "mismatch" | "unresolved";
+            /** Provisional Outcome */
+            provisional_outcome?: ("match" | "mismatch" | "unresolved") | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

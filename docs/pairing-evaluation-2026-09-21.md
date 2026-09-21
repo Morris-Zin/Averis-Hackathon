@@ -46,3 +46,12 @@ No threshold or prompt was retuned against the reserved answers. An initial rese
 - Browser acceptance uses an isolated server and unchanged organizer files with recorded provider outputs. It verifies automatic mismatch routing and expandable reference evidence. Fresh deployed-provider checks are recorded with release evidence after rollout.
 
 Ignored local artifacts: `outputs/benchmarks/2026-09-21-pairing-candidate/`, `.local/pairing-research/production-v1/` and the frozen scenario manifest. They include per-case outcomes, raw responses, exact requests, source evidence, budgets and regression checks. Ground truth remains outside runtime imports, images and provider requests.
+
+
+## Provisional comparisons while pairing awaits review
+
+The seven fields are compared even when the document pair is unconfirmed. The report exposes these as separate `provisional_outcome` values, while confirmed outcomes remain unresolved. The UI labels matches and differences as provisional and explains why a human must confirm the pair. Missing or uncertain readings remain unresolved, including in the provisional comparison.
+
+Provisional results do not create confirmed mismatch counts, clear a case, or enter the official scorer export. The case stays in Needs review. After valid human confirmation, normal comparison publishes confirmed outcomes; conflicting shipment references still cannot be overridden.
+
+Validation: 456 backend tests and 21 frontend tests passed, including PostgreSQL acceptance and generated contract checks. Recomputed the 268 complete reports (automatic and simulated-confirmation paths) in the saved 720-email numeric checkpoint: no changes to confirmed outcomes, assessment, summaries or export decisions. Browser acceptance on the Chinese ZH24002 example showed one provisional shipper difference and six provisional matches; after pair confirmation these became one confirmed mismatch and six matches. No paid inference was used for this validation.

@@ -1655,6 +1655,22 @@
               "unresolved"
             ],
             "title": "Outcome"
+          },
+          "provisional_outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "match",
+                  "mismatch",
+                  "unresolved"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provisional Outcome"
           }
         },
         "additionalProperties": false,

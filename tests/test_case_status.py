@@ -87,3 +87,23 @@ def test_response_summary_does_not_leak_into_persisted_case():
     assert response.model_dump(mode="json")["summary"]["kind"] == "match"
     assert case.model_dump(mode="json") == saved
     assert CaseView.model_validate(saved) == case
+
+
+@pytest.mark.parametrize("provisional", ["match", "mismatch", "unresolved"])
+def test_provisional_results_never_clear_route_as_confirmed_or_export(provisional):
+    from averis.case_status import assess_case
+    from averis.exporting import adapt_case
+
+    case = complete_case()
+    case.report.pair_valid = False
+    for finding in case.report.findings:
+        finding.outcome = "unresolved"
+        finding.provisional_outcome = provisional
+    assessment = assess_case(case)
+    assert assessment.needs_review
+    assert not assessment.can_be_clear
+    assert not assessment.has_mismatch
+    assert summarize_case(case).kind == "needs_review"
+    exported = adapt_case(case)
+    assert exported.prediction is None
+    assert "pairing_unresolved" in exported.diagnostics.blockers

@@ -297,8 +297,7 @@ def compare(
         bl_reading = bl[name]
         outcome: Literal["match", "mismatch", "unresolved"]
         if (
-            not pair_valid
-            or si_reading.issue
+            si_reading.issue
             or bl_reading.issue
             or si_reading.normalized is None
             or bl_reading.normalized is None
@@ -309,7 +308,13 @@ def compare(
         else:
             outcome = "mismatch"
         report.findings.append(
-            Finding(field=name, si=si_reading, bl=bl_reading, outcome=outcome)
+            Finding(
+                field=name,
+                si=si_reading,
+                bl=bl_reading,
+                outcome=outcome if pair_valid else "unresolved",
+                provisional_outcome=outcome if not pair_valid else None,
+            )
         )
     return report
 

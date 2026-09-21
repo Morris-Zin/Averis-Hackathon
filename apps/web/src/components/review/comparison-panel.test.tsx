@@ -19,6 +19,7 @@ it("shows extracted Chinese values while withholding unconfirmed comparisons", (
           {
             field: "shipper",
             outcome: "unresolved",
+            provisional_outcome: "mismatch",
             si: {
               field: "shipper",
               document_id: "si",
@@ -42,9 +43,10 @@ it("shows extracted Chinese values while withholding unconfirmed comparisons", (
   );
   expect(screen.getByText("上海华远贸易有限公司")).toBeTruthy();
   expect(screen.getByText("广州华盛物流有限公司")).toBeTruthy();
-  expect(screen.getAllByText("PAIR UNCONFIRMED")).toHaveLength(7);
+  expect(screen.getByText("DIFFERENT (PROVISIONAL)")).toBeTruthy();
+  expect(screen.getAllByText("UNRESOLVED (PROVISIONAL)")).toHaveLength(6);
   expect(
-    screen.getByText("Comparison paused: confirm document pair"),
+    screen.getByText("Provisional results: human review required"),
   ).toBeTruthy();
   expect(screen.getByRole("status").textContent).toContain(
     "could not verify a shared shipment reference",

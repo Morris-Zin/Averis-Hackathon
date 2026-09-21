@@ -172,6 +172,8 @@ class Finding(Model):
     si: Reading
     bl: Reading
     outcome: Literal["match", "mismatch", "unresolved"]
+    # Informational comparison only; never used for routing or official export.
+    provisional_outcome: Literal["match", "mismatch", "unresolved"] | None = None
 
 
 class PairingEvidence(Model):

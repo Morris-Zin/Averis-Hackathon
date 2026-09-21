@@ -282,8 +282,10 @@ def test_unconfirmed_different_values_do_not_become_confirmed_mismatches() -> No
     assert pending.findings[0].si.text == "上海华远贸易有限公司"
     assert pending.findings[0].bl.text == "广州华盛物流有限公司"
     assert all(f.outcome == "unresolved" for f in pending.findings)
+    assert all(f.provisional_outcome == "mismatch" for f in pending.findings)
     confirmed = compare(si, bl, revision=2, pair_valid=True)
     assert all(f.outcome == "mismatch" for f in confirmed.findings)
+    assert all(f.provisional_outcome is None for f in confirmed.findings)
 
 
 def test_human_selection_cannot_override_conflicting_shipment_references() -> None:
@@ -458,3 +460,16 @@ def test_choice_validation_rejects_malformed_or_unknown_answers(
 ) -> None:
     with pytest.raises(ValueError):
         validate_choice_answer(answer, frozenset({"GENERAL", "SPAM"}))
+
+
+def test_provisional_comparison_preserves_missing_fields():
+    si = {field: reading(field, "si", "same") for field in _TYPED_FIELDS}
+    bl = {field: reading(field, "bl", "same") for field in _TYPED_FIELDS}
+    bl["container_count"] = reading("container_count", "bl", "different")
+    bl["gross_weight_kg"] = reading("gross_weight_kg", "bl", None, "missing_value")
+    report = compare(si, bl, revision=1, pair_valid=False)
+    outcomes = {f.field: f.provisional_outcome for f in report.findings}
+    assert outcomes["shipper"] == "match"
+    assert outcomes["container_count"] == "mismatch"
+    assert outcomes["gross_weight_kg"] == "unresolved"
+    assert all(f.outcome == "unresolved" for f in report.findings)
