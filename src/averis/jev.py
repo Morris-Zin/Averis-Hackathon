@@ -39,7 +39,11 @@ from averis.intelligence import (
     validate_choice_answer,
     validate_extraction_proposal,
 )
-from averis.jev_classification import CLASSIFICATION_QUESTION, prepare_email
+from averis.jev_classification import (
+    CLASSIFICATION_QUESTION,
+    FILENAME_CLASSIFICATION_QUESTION,
+    prepare_email,
+)
 from averis.numeric_evidence import (
     bind_numeric_selection,
     can_repair,
@@ -231,10 +235,33 @@ class Jev:
             request_id=request_id,
         )
 
-    def classify(self, subject: str, body: str) -> Classification:
+    def classify(
+        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification:
+        """Classify intent; consult names only for General or uncertain decisions.
+
+        Filenames are context, never document evidence. Accepted specific categories
+        bypass the supplement; an uncertain supplement preserves the first decision.
+        Provider failures remain visible through the ordinary processing retry path.
+        """
+        state = prepare_email(subject, body)
+        baseline = self._classify_state(state, CLASSIFICATION_QUESTION)
+        if not attachment_filenames or (
+            baseline.accepted is not None and baseline.suggested != "GENERAL"
+        ):
+            return baseline
+        supplemented = self._classify_state(
+            {**state, "attachment_filenames": list(attachment_filenames)},
+            FILENAME_CLASSIFICATION_QUESTION,
+        )
+        return supplemented if supplemented.accepted is not None else baseline
+
+    def _classify_state(
+        self, state: Mapping[str, object], question: Choice
+    ) -> Classification:
         response = self._ask(
-            prepare_email(subject, body),
-            {"category": CLASSIFICATION_QUESTION},
+            state,
+            {"category": question},
         )
         answer = response.choices.get("category")
         if answer is None:
@@ -428,8 +455,12 @@ class NumericAssistedIntelligence:
         self._primary = primary
         self._judge = judge
 
-    def classify(self, subject: str, body: str) -> Classification:
-        return self._primary.classify(subject, body)
+    def classify(
+        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification:
+        return self._primary.classify(
+            subject, body, attachment_filenames=attachment_filenames
+        )
 
     def extract(self, document: DocumentEvidence) -> ExtractionResult:
         original = self._primary.extract(document)

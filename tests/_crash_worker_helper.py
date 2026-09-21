@@ -25,7 +25,9 @@ class LoggedGeneralIntelligence:
     def __init__(self, call_log: Path):
         self.call_log = call_log
 
-    def classify(self, subject: str, body: str) -> Classification:
+    def classify(
+        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification:
         del subject, body
         with self.call_log.open("a", encoding="utf-8") as stream:
             stream.write(f"classify:{os.getpid()}\n")

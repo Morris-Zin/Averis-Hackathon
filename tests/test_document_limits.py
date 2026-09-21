@@ -247,7 +247,9 @@ class _ComparisonWithoutExtraction:
     def __init__(self) -> None:
         self.extract_calls = 0
 
-    def classify(self, _subject: str, _body: str) -> Classification:
+    def classify(
+        self, _subject: str, _body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification:
         return Classification(
             suggested="BL_COMPARISON",
             accepted="BL_COMPARISON",

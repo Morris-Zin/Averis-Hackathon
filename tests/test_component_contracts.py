@@ -108,7 +108,9 @@ def test_alternate_reader_works_without_pipeline_branches():
         return doc(document_id)
 
     class FakeIntelligence:
-        def classify(self, subject: str, body: str):
+        def classify(
+            self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+        ):
             from averis.domain import Classification
 
             return Classification(

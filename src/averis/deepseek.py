@@ -170,8 +170,12 @@ class AssistedIntelligence:
         self._run_id = run_id
         self._purpose = purpose
 
-    def classify(self, subject: str, body: str) -> Classification:
-        return self._primary.classify(subject, body)
+    def classify(
+        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification:
+        return self._primary.classify(
+            subject, body, attachment_filenames=attachment_filenames
+        )
 
     def extract(self, document: DocumentEvidence) -> ExtractionResult:
         primary = self._primary.extract(document)

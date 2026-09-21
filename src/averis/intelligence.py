@@ -31,7 +31,9 @@ class ExtractionResult:
 
 
 class Intelligence(Protocol):
-    def classify(self, subject: str, body: str) -> Classification: ...
+    def classify(
+        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification: ...
 
     def extract(self, document: DocumentEvidence) -> ExtractionResult: ...
 

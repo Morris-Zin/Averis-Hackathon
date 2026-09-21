@@ -17,7 +17,9 @@ from scripts.evaluate import prepare_evaluation, run_evaluation
 
 
 class DeterministicIntelligence:
-    def classify(self, _subject: str, _body: str) -> Classification:
+    def classify(
+        self, _subject: str, _body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification:
         return Classification(
             suggested="GENERAL",
             accepted="GENERAL",

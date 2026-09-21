@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 from test_case_status import complete_case
 
-from averis.domain import Classification
+from averis.domain import AttachmentView, Classification
 from averis.pipeline import Checkpoints, ProcessingInput, ShipmentPipeline
 
 
@@ -81,3 +81,30 @@ def test_human_category_takes_priority_over_saved_model_checkpoint() -> None:
     )
     assert pipeline.process(ProcessingInput(case, None, {})).classification == human
     inference.classify.assert_not_called()
+
+
+def test_classification_receives_only_current_attachment_names() -> None:
+    case = complete_case()
+    case.classification = None
+    case.attachments = [
+        AttachmentView(id="old", filename="old-draft.pdf", superseded=True),
+        AttachmentView(id="current", filename="提单草稿.pdf"),
+        AttachmentView(id="instruction", filename="shipping-instruction.pdf"),
+    ]
+    inference = Mock()
+    inference.classify.return_value = Classification(
+        suggested="GENERAL",
+        accepted="GENERAL",
+        confidence=1,
+        probabilities={"GENERAL": 1},
+        model="test",
+    )
+    pipeline = ShipmentPipeline(
+        inference, Checkpoints({}, Mock()), Mock(), Mock(), lambda: 400
+    )
+    pipeline.process(ProcessingInput(case, None, {}))
+    inference.classify.assert_called_once_with(
+        case.subject,
+        case.body,
+        attachment_filenames=("提单草稿.pdf", "shipping-instruction.pdf"),
+    )

@@ -126,7 +126,9 @@ class GeneralIntelligence:
         self.failures = failures
         self.calls = 0
 
-    def classify(self, _subject: str, _body: str) -> Classification:
+    def classify(
+        self, _subject: str, _body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification:
         self.calls += 1
         if self.barrier:
             self.barrier.wait(timeout=3)

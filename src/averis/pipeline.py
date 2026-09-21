@@ -217,7 +217,15 @@ class ShipmentPipeline:
             return saved
         # A changed provider profile invalidates only classification. Compatible
         # document checkpoints remain available, and human decisions take priority.
-        classification = self._intelligence.classify(case.subject, case.body)
+        classification = self._intelligence.classify(
+            case.subject,
+            case.body,
+            attachment_filenames=tuple(
+                attachment.filename
+                for attachment in case.attachments
+                if not attachment.superseded
+            ),
+        )
         self._checkpoints.save("classification", classification)
         return classification
 

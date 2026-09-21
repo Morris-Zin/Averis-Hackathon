@@ -166,7 +166,9 @@ class FlakyIntelligence:
         self.classify_calls = 0
         self.extract_calls = 0
 
-    def classify(self, _subject: str, _body: str) -> Classification:
+    def classify(
+        self, _subject: str, _body: str, *, attachment_filenames: tuple[str, ...] = ()
+    ) -> Classification:
         self.classify_calls += 1
         return Classification(
             suggested="BL_COMPARISON",
@@ -388,7 +390,9 @@ def test_replaced_run_with_same_inputs_cannot_publish_late_result(postgres_db):
     new_run_id = str(uuid4())
 
     class SupersededDuringProvider(FlakyIntelligence):
-        def classify(self, subject, body):
+        def classify(
+            self, subject, body, *, attachment_filenames: tuple[str, ...] = ()
+        ):
             with db.session() as session, session.begin():
                 row = session.get(Case, case_id)
                 session.add(
@@ -503,7 +507,9 @@ def test_application_deadline_never_publishes_a_late_success(
     monkeypatch.setattr(processing, "time", SimpleNamespace(monotonic=lambda: clock[0]))
 
     class LateClassification:
-        def classify(self, _subject, _body):
+        def classify(
+            self, _subject, _body, *, attachment_filenames: tuple[str, ...] = ()
+        ):
             clock[0] = elapsed
             return Classification(
                 suggested=category,
@@ -587,7 +593,9 @@ def test_parser_and_provider_callbacks_release_database_connections(
     monkeypatch.setattr(storage, "read", read_storage)
 
     class ObservedIntelligence:
-        def classify(self, _subject, _body):
+        def classify(
+            self, _subject, _body, *, attachment_filenames: tuple[str, ...] = ()
+        ):
             observe("classification")
             return Classification(
                 suggested="BL_COMPARISON",
