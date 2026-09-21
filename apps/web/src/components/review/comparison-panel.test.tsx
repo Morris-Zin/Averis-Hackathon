@@ -43,7 +43,12 @@ it("shows extracted Chinese values while withholding unconfirmed comparisons", (
   expect(screen.getByText("上海华远贸易有限公司")).toBeTruthy();
   expect(screen.getByText("广州华盛物流有限公司")).toBeTruthy();
   expect(screen.getAllByText("PAIR UNCONFIRMED")).toHaveLength(7);
-  expect(screen.getByText("0 of 7 fields checked")).toBeTruthy();
+  expect(
+    screen.getByText("Comparison paused: confirm document pair"),
+  ).toBeTruthy();
+  expect(screen.getByRole("status").textContent).toContain(
+    "could not verify a shared shipment reference",
+  );
   expect(screen.queryByText("MISMATCH")).toBeNull();
   expect(screen.queryByText("MATCH")).toBeNull();
 });

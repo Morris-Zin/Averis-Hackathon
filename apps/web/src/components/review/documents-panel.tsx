@@ -1,5 +1,6 @@
 import { Download, FileText, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { PAIR_REVIEW_REASON } from "./presentation";
 import type { ActionDraft, AttachmentView } from "@/lib/contracts";
 import { Button, Select, SelectItem } from "../ui";
 
@@ -67,9 +68,8 @@ export function DocumentsPanel({
       </section>
       {pairNeedsConfirmation ? (
         <p role="status">
-          We could not verify that these documents belong to the same shipment.
-          Check the originals, then confirm the SI and draft BL below.
-          Conflicting shipment references cannot be overridden.
+          {PAIR_REVIEW_REASON} Check the originals, then confirm the SI and
+          draft BL below. Conflicting shipment references cannot be overridden.
         </p>
       ) : null}
       <div className="pair-controls">

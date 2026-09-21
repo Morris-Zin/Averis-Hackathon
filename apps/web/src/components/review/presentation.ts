@@ -8,10 +8,16 @@ export function readingDisplayValue(reading?: Finding["si"]) {
   return reading?.text || "Not found";
 }
 
+export const PAIR_REVIEW_REASON =
+  "Human review requested: we could not verify a shared shipment reference between the SI and draft BL.";
+
 export function issueLabel(
   issue: NonNullable<NonNullable<CaseView["report"]>["issues"]>[number],
 ) {
-  if (typeof issue === "string") return issue.replaceAll("_", " ");
+  if (typeof issue === "string")
+    return issue === "pair_requires_review"
+      ? PAIR_REVIEW_REASON
+      : issue.replaceAll("_", " ");
   const scope =
     issue.scope === "unused_attachment" ? "Unused attachment: " : "";
   return `${scope}${issue.code.replaceAll("_", " ")}${issue.detail ? `: ${issue.detail}` : ""}`;
@@ -138,7 +144,7 @@ export function resultSummary(item: CaseView) {
         tone: "warning",
         detail:
           item.report?.pair_valid === false
-            ? "Document pairing needs confirmation. Open Source documents, check the selected SI and draft BL, then confirm the pair."
+            ? `${PAIR_REVIEW_REASON} Open Source documents to check whether they belong to the same shipment.`
             : item.review_reasons.join(" · ") ||
               item.report?.issues?.map(issueLabel).join(" · ") ||
               "The report is incomplete or contains uncertain evidence.",

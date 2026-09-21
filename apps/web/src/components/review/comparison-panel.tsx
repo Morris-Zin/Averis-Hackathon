@@ -3,6 +3,7 @@ import { FIELD_LABELS, FIELDS } from "@/lib/contracts";
 import { EvidencePane, locationLabel } from "./evidence-pane";
 import {
   issueLabel,
+  PAIR_REVIEW_REASON,
   outcomeLabel,
   readingDisplayValue,
   readingProvenanceLabel,
@@ -61,14 +62,19 @@ export function ComparisonPanel({
                 : "Shipping instruction is the reference."}
             </p>
           </div>
-          <span>{checkedFields} of 7 fields checked</span>
+          <span>
+            {pairingUnconfirmed
+              ? "Comparison paused: confirm document pair"
+              : `${checkedFields} of 7 fields checked`}
+          </span>
         </div>
         <div className="comparison-table-wrap">
           {pairingUnconfirmed ? (
             <p className="p-4" role="status">
-              Fields are shown as read, not confirmed comparison results. Open
-              Source documents and confirm these documents belong to the same
-              shipment before comparing them.
+              {PAIR_REVIEW_REASON} Field confidence describes how confidently a
+              value was read; it does not confirm the documents belong together.
+              Open Source documents, check the originals, then confirm the pair.
+              Conflicting references require the correct documents.
             </p>
           ) : null}
           {report?.pair_valid && report.pairing_evidence ? (
@@ -119,9 +125,12 @@ export function ComparisonPanel({
           ) : null}
           {report?.issues?.length ? (
             <ul aria-label="Document review reasons">
-              {report.issues.map((issue, index) => (
-                <li key={index}>{issueLabel(issue)}</li>
-              ))}
+              {report.issues.map((issue, index) =>
+                issue === "pair_requires_review" &&
+                pairingUnconfirmed ? null : (
+                  <li key={index}>{issueLabel(issue)}</li>
+                ),
+              )}
             </ul>
           ) : null}
           <table className="comparison-table">
