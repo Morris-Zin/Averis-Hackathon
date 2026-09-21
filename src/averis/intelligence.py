@@ -10,14 +10,14 @@ outcomes.
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Protocol, cast, get_args
 
 from typesafe_sdk import ChoiceAnswer
 
 from averis.contracts import FIELDS, Category, Field
-from averis.domain import Classification, DocumentEvidence, Reading
+from averis.domain import Classification, DocumentEvidence, Reading, issue_is_blocking
 
 _TYPED_FIELDS = cast(tuple[Field, ...], FIELDS)
 _CATEGORIES = cast(tuple[Category, ...], get_args(Category))
@@ -30,9 +30,49 @@ class ExtractionResult:
     fields: dict[str, Reading]
 
 
+MAX_CLASSIFICATION_DOCUMENTS = 4
+MAX_PREVIEW_CHARACTERS = 2_000
+
+
+@dataclass(frozen=True, slots=True)
+class AttachmentPreview:
+    """Partial source context for intent, never a document role or field reading."""
+
+    filename: str
+    text: str
+    truncated: bool
+
+    @classmethod
+    def from_evidence(
+        cls, filename: str, evidence: DocumentEvidence
+    ) -> AttachmentPreview:
+        if any(issue_is_blocking(issue) for issue in evidence.issues):
+            return cls(filename, "", True)
+        reliable = [
+            block
+            for block in evidence.blocks
+            if block.method != "ocr"
+            or (block.ocr_confidence is not None and block.ocr_confidence >= 0.8)
+        ]
+        text = "\n".join(block.text for block in reliable)
+        return cls(
+            filename,
+            text[:MAX_PREVIEW_CHARACTERS],
+            len(text) > MAX_PREVIEW_CHARACTERS or len(reliable) != len(evidence.blocks),
+        )
+
+
+AttachmentLoader = Callable[[], tuple[AttachmentPreview, ...]]
+
+
 class Intelligence(Protocol):
     def classify(
-        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+        self,
+        subject: str,
+        body: str,
+        *,
+        attachment_filenames: tuple[str, ...] = (),
+        load_attachment_previews: AttachmentLoader | None = None,
     ) -> Classification: ...
 
     def extract(self, document: DocumentEvidence) -> ExtractionResult: ...

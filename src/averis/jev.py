@@ -32,6 +32,8 @@ from averis.contracts import FIELDS, Category, Field
 from averis.domain import Classification, DocumentEvidence, Reading
 from averis.fields import FIELD_MEANINGS
 from averis.intelligence import (
+    MAX_CLASSIFICATION_DOCUMENTS,
+    AttachmentLoader,
     ExtractionResult,
     Intelligence,
     ProviderCapacityError,
@@ -41,6 +43,7 @@ from averis.intelligence import (
 )
 from averis.jev_classification import (
     CLASSIFICATION_QUESTION,
+    CONTENT_CLASSIFICATION_QUESTION,
     FILENAME_CLASSIFICATION_QUESTION,
     prepare_email,
 )
@@ -239,12 +242,18 @@ class Jev:
         )
 
     def classify(
-        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+        self,
+        subject: str,
+        body: str,
+        *,
+        attachment_filenames: tuple[str, ...] = (),
+        load_attachment_previews: AttachmentLoader | None = None,
     ) -> Classification:
         """Classify intent; consult names only for General or uncertain decisions.
 
         Filenames are context, never document evidence. Accepted specific categories
-        bypass the supplement; an uncertain supplement preserves the first decision.
+        bypass the supplement. Only an uncertain supplement requests document context;
+        callers without a document loader retain the filename-only behaviour.
         Provider failures remain visible through the ordinary processing retry path.
         """
         state = prepare_email(subject, body)
@@ -257,7 +266,27 @@ class Jev:
             {**state, "attachment_filenames": list(attachment_filenames)},
             FILENAME_CLASSIFICATION_QUESTION,
         )
-        return supplemented if supplemented.accepted is not None else baseline
+        if supplemented.accepted is not None:
+            return supplemented
+        if load_attachment_previews is None:
+            return baseline
+        # Uncertainty is now explicit: do not restore a confident General label
+        # after conflicting evidence. Unsupported preview scope needs human review.
+        if len(attachment_filenames) > MAX_CLASSIFICATION_DOCUMENTS:
+            return supplemented
+        previews = load_attachment_previews()
+        if not previews or any(not preview.text.strip() for preview in previews):
+            return supplemented
+        return self._classify_state(
+            {
+                **state,
+                "attachment_previews": [
+                    {"filename": p.filename, "text": p.text, "truncated": p.truncated}
+                    for p in previews
+                ],
+            },
+            CONTENT_CLASSIFICATION_QUESTION,
+        )
 
     def _classify_state(
         self, state: Mapping[str, object], question: Choice
@@ -459,10 +488,18 @@ class NumericAssistedIntelligence:
         self._judge = judge
 
     def classify(
-        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+        self,
+        subject: str,
+        body: str,
+        *,
+        attachment_filenames: tuple[str, ...] = (),
+        load_attachment_previews: AttachmentLoader | None = None,
     ) -> Classification:
         return self._primary.classify(
-            subject, body, attachment_filenames=attachment_filenames
+            subject,
+            body,
+            attachment_filenames=attachment_filenames,
+            load_attachment_previews=load_attachment_previews,
         )
 
     def extract(self, document: DocumentEvidence) -> ExtractionResult:

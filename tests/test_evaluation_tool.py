@@ -18,7 +18,12 @@ from scripts.evaluate import prepare_evaluation, run_evaluation
 
 class DeterministicIntelligence:
     def classify(
-        self, _subject: str, _body: str, *, attachment_filenames: tuple[str, ...] = ()
+        self,
+        _subject: str,
+        _body: str,
+        *,
+        attachment_filenames: tuple[str, ...] = (),
+        load_attachment_previews=None,
     ) -> Classification:
         return Classification(
             suggested="GENERAL",

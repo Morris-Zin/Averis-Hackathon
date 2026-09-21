@@ -18,7 +18,12 @@ from averis.budget import BudgetAuthority, BudgetUnavailable
 from averis.contracts import FIELDS
 from averis.contracts import Field as ShipmentField
 from averis.domain import Classification, DocumentEvidence, Reading, SourceSelection
-from averis.intelligence import ExtractionResult, Intelligence, ProviderPermanentError
+from averis.intelligence import (
+    AttachmentLoader,
+    ExtractionResult,
+    Intelligence,
+    ProviderPermanentError,
+)
 from averis.source_regions import complete_party_selection
 from averis.timing import measure, timed
 from averis.verification import reading_from_evidence
@@ -172,10 +177,18 @@ class AssistedIntelligence:
         self._purpose = purpose
 
     def classify(
-        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+        self,
+        subject: str,
+        body: str,
+        *,
+        attachment_filenames: tuple[str, ...] = (),
+        load_attachment_previews: AttachmentLoader | None = None,
     ) -> Classification:
         return self._primary.classify(
-            subject, body, attachment_filenames=attachment_filenames
+            subject,
+            body,
+            attachment_filenames=attachment_filenames,
+            load_attachment_previews=load_attachment_previews,
         )
 
     def extract(self, document: DocumentEvidence) -> ExtractionResult:

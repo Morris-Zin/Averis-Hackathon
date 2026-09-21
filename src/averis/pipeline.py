@@ -23,7 +23,11 @@ from averis.domain import (
     evidence_fingerprint,
     normalize_issue,
 )
-from averis.intelligence import Intelligence
+from averis.intelligence import (
+    MAX_CLASSIFICATION_DOCUMENTS,
+    AttachmentPreview,
+    Intelligence,
+)
 from averis.numeric_evidence import bind_numeric_selection
 from averis.pairing import (
     PairingJudge,
@@ -175,9 +179,20 @@ class ShipmentPipeline:
         secretly mutates caller-owned arguments.
         """
 
-        classification = self._classify(inputs.case)
         # Work on copies; inputs.case and its attachments are never mutated.
         attachments = [item.model_copy(deep=True) for item in inputs.case.attachments]
+        classification = self._classify(inputs.case, attachments)
+        # A resumed classification may already have prepared context before its
+        # checkpoint was published. Restore Sources without repeating parsing.
+        for attachment in attachments:
+            if (
+                attachment.evidence is None
+                and self._checkpoints.load(
+                    f"document:{attachment.id}", _DocumentCheckpoint
+                )
+                is not None
+            ):
+                attachment.evidence = self._read(attachment)
         if classification.accepted is None:
             count("document_processing_skipped")
             return ProcessingResult(
@@ -210,7 +225,9 @@ class ShipmentPipeline:
         )
 
     @timed("classify")
-    def _classify(self, case: CaseView) -> Classification:
+    def _classify(
+        self, case: CaseView, attachments: list[AttachmentView]
+    ) -> Classification:
         if case.classification is not None and case.classification.source == "human":
             count("classification_reused")
             return case.classification
@@ -231,9 +248,33 @@ class ShipmentPipeline:
                 for attachment in case.attachments
                 if not attachment.superseded
             ),
+            load_attachment_previews=lambda: self._classification_previews(attachments),
         )
         self._checkpoints.save("classification", classification)
         return classification
+
+    def _classification_previews(
+        self, attachments: list[AttachmentView]
+    ) -> tuple[AttachmentPreview, ...]:
+        """Prepare copied attachments once; extraction reuses these checkpoints.
+
+        Full format/resource limits still apply to reading. Only bounded reliable
+        text is exposed to classification, and prepared evidence stays in Sources
+        even when the resulting category is not a shipment comparison.
+        """
+        active = [attachment for attachment in attachments if not attachment.superseded]
+        if len(active) > MAX_CLASSIFICATION_DOCUMENTS:
+            return ()
+        previews: list[AttachmentPreview] = []
+        for attachment in active:
+            attachment.evidence = self._read(attachment)
+            previews.append(
+                AttachmentPreview.from_evidence(
+                    attachment.filename, attachment.evidence
+                )
+            )
+        count("classification_preview_documents", len(previews))
+        return tuple(previews)
 
     @staticmethod
     def _decode_overrides(saved: dict[str, object]) -> dict[str, Reading]:

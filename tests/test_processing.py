@@ -167,7 +167,12 @@ class FlakyIntelligence:
         self.extract_calls = 0
 
     def classify(
-        self, _subject: str, _body: str, *, attachment_filenames: tuple[str, ...] = ()
+        self,
+        _subject: str,
+        _body: str,
+        *,
+        attachment_filenames: tuple[str, ...] = (),
+        load_attachment_previews=None,
     ) -> Classification:
         self.classify_calls += 1
         return Classification(
@@ -391,7 +396,12 @@ def test_replaced_run_with_same_inputs_cannot_publish_late_result(postgres_db):
 
     class SupersededDuringProvider(FlakyIntelligence):
         def classify(
-            self, subject, body, *, attachment_filenames: tuple[str, ...] = ()
+            self,
+            subject,
+            body,
+            *,
+            attachment_filenames: tuple[str, ...] = (),
+            load_attachment_previews=None,
         ):
             with db.session() as session, session.begin():
                 row = session.get(Case, case_id)
@@ -508,7 +518,12 @@ def test_application_deadline_never_publishes_a_late_success(
 
     class LateClassification:
         def classify(
-            self, _subject, _body, *, attachment_filenames: tuple[str, ...] = ()
+            self,
+            _subject,
+            _body,
+            *,
+            attachment_filenames: tuple[str, ...] = (),
+            load_attachment_previews=None,
         ):
             clock[0] = elapsed
             return Classification(
@@ -594,7 +609,12 @@ def test_parser_and_provider_callbacks_release_database_connections(
 
     class ObservedIntelligence:
         def classify(
-            self, _subject, _body, *, attachment_filenames: tuple[str, ...] = ()
+            self,
+            _subject,
+            _body,
+            *,
+            attachment_filenames: tuple[str, ...] = (),
+            load_attachment_previews=None,
         ):
             observe("classification")
             return Classification(

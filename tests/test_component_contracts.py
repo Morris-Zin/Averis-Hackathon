@@ -109,7 +109,12 @@ def test_alternate_reader_works_without_pipeline_branches():
 
     class FakeIntelligence:
         def classify(
-            self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+            self,
+            subject: str,
+            body: str,
+            *,
+            attachment_filenames: tuple[str, ...] = (),
+            load_attachment_previews=None,
         ):
             from averis.domain import Classification
 

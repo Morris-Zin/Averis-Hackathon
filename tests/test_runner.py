@@ -127,7 +127,12 @@ class GeneralIntelligence:
         self.calls = 0
 
     def classify(
-        self, _subject: str, _body: str, *, attachment_filenames: tuple[str, ...] = ()
+        self,
+        _subject: str,
+        _body: str,
+        *,
+        attachment_filenames: tuple[str, ...] = (),
+        load_attachment_previews=None,
     ) -> Classification:
         self.calls += 1
         if self.barrier:

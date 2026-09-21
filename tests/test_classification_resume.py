@@ -1,6 +1,6 @@
 """A release cannot silently resume an incompatible classification."""
 
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 
 import pytest
 from test_case_status import complete_case
@@ -107,4 +107,5 @@ def test_classification_receives_only_current_attachment_names() -> None:
         case.subject,
         case.body,
         attachment_filenames=("提单草稿.pdf", "shipping-instruction.pdf"),
+        load_attachment_previews=ANY,
     )

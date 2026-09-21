@@ -26,7 +26,12 @@ class LoggedGeneralIntelligence:
         self.call_log = call_log
 
     def classify(
-        self, subject: str, body: str, *, attachment_filenames: tuple[str, ...] = ()
+        self,
+        subject: str,
+        body: str,
+        *,
+        attachment_filenames: tuple[str, ...] = (),
+        load_attachment_previews=None,
     ) -> Classification:
         del subject, body
         with self.call_log.open("a", encoding="utf-8") as stream:
