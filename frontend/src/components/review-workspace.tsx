@@ -253,6 +253,23 @@ export function ReviewWorkspace() {
                     ) : null}
                   </div>
                   <div className="classification-controls">
+                    {item.summary.kind === "spam" ||
+                    item.summary.kind === "suspected_spam" ? (
+                      <Button
+                        disabled={pending}
+                        onClick={() =>
+                          void act(
+                            {
+                              kind: "not_spam",
+                              reason: "Reviewer marked not spam",
+                            },
+                            "Returned to Needs review. Choose the appropriate email category.",
+                          )
+                        }
+                      >
+                        Not spam
+                      </Button>
+                    ) : null}
                     {classifying ? (
                       <span className="classifying-pill" role="status">
                         Classifying…
@@ -262,6 +279,7 @@ export function ReviewWorkspace() {
                         <Select
                           value={categoryDraft}
                           label="Email category"
+                          placeholder="Choose category"
                           onValueChange={(value) =>
                             setCategoryDraft(value as Category)
                           }
@@ -281,6 +299,7 @@ export function ReviewWorkspace() {
                         <Button
                           size="sm"
                           onClick={() =>
+                            categoryDraft &&
                             void act(
                               {
                                 kind: "category",
@@ -292,6 +311,7 @@ export function ReviewWorkspace() {
                           }
                           disabled={
                             pending ||
+                            !categoryDraft ||
                             !item.classification ||
                             categoryDraft === item.classification?.accepted
                           }

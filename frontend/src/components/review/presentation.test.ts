@@ -54,7 +54,10 @@ describe("confidenceDisplay", () => {
     expect(display?.detail).toContain("not measured accuracy");
   });
   it("labels human decisions as reviewer classified with the original suggestion", () => {
-    const display = confidenceDisplay(classification("human"));
+    const display = confidenceDisplay({
+      ...classification("human"),
+      accepted: "BL_COMPARISON",
+    });
     expect(display?.kind).toBe("reviewer");
     expect(display?.headline).toBe("Reviewer classified");
     expect(display?.detail).toContain("Shipping instruction check");
@@ -64,6 +67,14 @@ describe("confidenceDisplay", () => {
     const display = confidenceDisplay(classification("fixture"));
     expect(display?.kind).toBe("demo");
     expect(display?.detail).toContain("Illustrative demo value");
+  });
+  it("does not call a human spam rejection an accepted classification", () => {
+    const display = confidenceDisplay({
+      ...classification("human"),
+      suggested: "SPAM",
+    });
+    expect(display?.headline).toContain("category required");
+    expect(display?.detail).toContain("Spam");
   });
 });
 

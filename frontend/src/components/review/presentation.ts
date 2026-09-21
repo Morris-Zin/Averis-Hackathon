@@ -60,7 +60,9 @@ export function confidenceDisplay(classification: CaseView["classification"]) {
     return {
       kind: "reviewer" as const,
       percent,
-      headline: "Reviewer classified",
+      headline: classification.accepted
+        ? "Reviewer classified"
+        : "Reviewer marked not spam; category required",
       detail: `Original AI suggestion: ${CATEGORY_LABELS[classification.suggested]} (${percent}%)`,
     };
   if (classification.source === "fixture")
@@ -124,6 +126,20 @@ export function resultSummary(item: CaseView) {
   const mismatches = item.summary.mismatches;
   const accepted = item.classification?.accepted;
   switch (kind) {
+    case "suspected_spam":
+      return {
+        label: "Suspected spam",
+        tone: "warning",
+        detail:
+          "The AI suggested spam, but the classification was not accepted. Kept in Spam for optional inspection. Choose Not spam to return it to review.",
+      };
+    case "spam":
+      return {
+        label: "Spam",
+        tone: "neutral",
+        detail:
+          "This message is classified as spam and retained here. Choose Not spam to return it to classification review.",
+      };
     case "failed":
       return {
         label: "Processing failed",

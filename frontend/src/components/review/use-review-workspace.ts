@@ -254,10 +254,12 @@ export function useReviewWorkspace(id: string) {
   // "Classifying…" and never present the editable default as an AI result.
   const classifying = processingActive && !item?.classification;
   // Untouched controls follow worker updates; explicit reviewer drafts survive polling.
-  const categoryDraft =
+  const categoryDraft: Category | "" =
     categoryOverride ??
     item?.classification?.accepted ??
-    item?.classification?.suggested ??
+    (item?.classification?.source === "human"
+      ? ""
+      : item?.classification?.suggested) ??
     "GENERAL";
   const pairSi =
     pairSiOverride ?? currentAttachments.find((a) => a.role === "SI")?.id ?? "";

@@ -28,6 +28,7 @@ from averis.persistence import (
     Outbox,
     Run,
     Workspace,
+    outstanding_review_filter,
     uid,
     utcnow,
 )
@@ -296,7 +297,7 @@ class Processor:
                 session.scalar(
                     select(func.count())
                     .select_from(Case)
-                    .where(Case.needs_review.is_(True))
+                    .where(outstanding_review_filter())
                 )
                 or 0
             )

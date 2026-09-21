@@ -276,6 +276,11 @@ class CategoryAction(BaseAction):
     reason: str = PydanticField(default="", max_length=4_000)
 
 
+class NotSpamAction(BaseAction):
+    kind: Literal["not_spam"] = "not_spam"
+    reason: str = PydanticField(default="", max_length=4_000)
+
+
 class PairAction(BaseAction):
     kind: Literal["pair"] = "pair"
     si_id: str = PydanticField(min_length=1, max_length=256)
@@ -319,6 +324,7 @@ class RevisionAction(BaseAction):
 
 Action = (
     CategoryAction
+    | NotSpamAction
     | PairAction
     | CorrectAction
     | AssignAction

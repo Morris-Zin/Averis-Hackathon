@@ -9,6 +9,7 @@ import {
   CircleHelp,
   FileCheck2,
   Inbox,
+  ShieldAlert,
   Menu,
   SlidersHorizontal,
   X,
@@ -22,6 +23,7 @@ const queues: { value: QueueView; label: string; icon: typeof Inbox }[] = [
   { value: "all", label: "All cases", icon: Inbox },
   { value: "mismatches", label: "Mismatches", icon: SlidersHorizontal },
   { value: "review", label: "Needs review", icon: CircleHelp },
+  { value: "spam", label: "Spam", icon: ShieldAlert },
   { value: "waiting", label: "Waiting", icon: Bell },
   { value: "completed", label: "Completed", icon: FileCheck2 },
 ];
@@ -31,11 +33,13 @@ export function AppShell({
   activeView = "all",
   onViewChange,
   contentBusy = false,
+  queueCounts,
 }: {
   children: ReactNode;
   activeView?: QueueView;
   onViewChange?: (view: QueueView) => void;
   contentBusy?: boolean;
+  queueCounts?: Record<string, number>;
 }) {
   const {
     session,
@@ -156,7 +160,12 @@ export function AppShell({
                   }}
                 >
                   <Icon size={16} />
-                  <span>{label}</span>
+                  <span>
+                    {label}
+                    {queueCounts?.[value] !== undefined
+                      ? ` (${queueCounts[value]})`
+                      : ""}
+                  </span>
                 </button>
               ) : (
                 <Link
@@ -196,6 +205,7 @@ export function AppShell({
 }
 
 export const queueLabels: Record<QueueView, string> = {
+  spam: "Spam",
   all: "All cases",
   mismatches: "Mismatches",
   review: "Needs review",

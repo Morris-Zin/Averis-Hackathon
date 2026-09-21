@@ -15,6 +15,21 @@ from averis.contracts import FIELDS, Category, Field
 from averis.domain import AttachmentView, CaseView, Issue, normalize_issue
 
 
+def spam_status(case: CaseView) -> Literal["confirmed", "suspected"] | None:
+    classification = case.classification
+    if classification is None:
+        return None
+    if classification.accepted == "SPAM":
+        return "confirmed"
+    if (
+        classification.accepted is None
+        and classification.suggested == "SPAM"
+        and classification.source != "human"
+    ):
+        return "suspected"
+    return None
+
+
 class Assessment(BaseModel):
     """Authoritative facts about one case; no HTTP or persistence details."""
 
@@ -185,6 +200,8 @@ class CaseSummary(BaseModel):
         "failed",
         "unclassified",
         "categorized",
+        "spam",
+        "suspected_spam",
         "needs_review",
         "mismatch",
         "mismatch_review",
@@ -196,6 +213,9 @@ class CaseSummary(BaseModel):
 def summarize_case(case: CaseView) -> CaseSummary:
     """Screen summary derived from the shared assessment."""
 
+    spam = spam_status(case)
+    if spam:
+        return CaseSummary(kind="spam" if spam == "confirmed" else "suspected_spam")
     if case.processing != "completed":
         return CaseSummary(kind=case.processing)  # type: ignore[arg-type]
     if case.classification is None:

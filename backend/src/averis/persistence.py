@@ -13,10 +13,14 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    and_,
     create_engine,
     event,
+    func,
+    or_,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy.sql.elements import ColumnElement
 
 
 def utcnow() -> datetime:
@@ -69,6 +73,32 @@ class Case(Base):
         Index("case_workspace_import", "workspace_id", "import_digest", unique=True),
         Index("case_workspace_mismatch", "workspace_id", "has_mismatch"),
         Index("case_workspace_review", "workspace_id", "needs_review"),
+    )
+
+
+def spam_filter() -> ColumnElement[bool]:
+    """SQL counterpart of spam_status; reads legacy state without a backfill.
+
+    Human abstention is the persisted Not spam decision. Accepted categories
+    always take precedence over the original model suggestion.
+    """
+    classification = Case.state["classification"]
+    accepted = classification["accepted"].as_string()
+    return or_(
+        func.coalesce(accepted == "SPAM", False),
+        and_(
+            accepted.is_(None),
+            func.coalesce(classification["suggested"].as_string() == "SPAM", False),
+            func.coalesce(classification["source"].as_string(), "model") != "human",
+        ),
+    )
+
+
+def outstanding_review_filter() -> ColumnElement[bool]:
+    return and_(
+        ~spam_filter(),
+        or_(Case.needs_review.is_(True), Case.has_mismatch.is_(True)),
+        Case.workflow == "open",
     )
 
 

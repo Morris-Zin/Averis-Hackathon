@@ -40,6 +40,7 @@ class QueueCaseResponse(BaseModel):
 
 
 class CasePageResponse(BaseModel):
+    counts: dict[str, int]
     items: list[QueueCaseResponse]
     total: int
     page: int

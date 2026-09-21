@@ -95,6 +95,27 @@ async function deliverIntermediateClassification() {
   });
 }
 describe("review controls during worker updates", () => {
+  it("requires a deliberate category after Not spam without changing the saved suggestion", async () => {
+    mocks.api.case.mockResolvedValue({
+      ...completed,
+      classification: {
+        ...completed.classification,
+        suggested: "SPAM",
+        accepted: null,
+        source: "human",
+      },
+      summary: { kind: "needs_review", mismatches: 0 },
+    });
+    const { result } = renderHook(() => useReviewWorkspace("test-case"));
+    await waitFor(() =>
+      expect(result.current.item?.processing).toBe("completed"),
+    );
+    expect(result.current.category.categoryDraft).toBe("");
+    expect(result.current.item?.classification?.suggested).toBe("SPAM");
+    act(() => result.current.category.setCategoryDraft("BL_COMPARISON"));
+    expect(result.current.category.categoryDraft).toBe("BL_COMPARISON");
+    expect(result.current.item?.classification?.accepted).toBeNull();
+  });
   it("updates untouched category and pair controls when processing completes", async () => {
     const { result } = renderHook(() => useReviewWorkspace("test-case"));
     await waitFor(() => expect(result.current.item?.processing).toBe("queued"));

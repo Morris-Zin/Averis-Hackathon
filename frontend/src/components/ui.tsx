@@ -64,12 +64,14 @@ export function Select({
   label,
   children,
   disabled,
+  placeholder,
 }: {
   value: string;
   onValueChange: (value: string) => void;
   label: string;
   children: ReactNode;
   disabled?: boolean;
+  placeholder?: string;
 }) {
   return (
     <SelectPrimitive.Root
@@ -78,7 +80,7 @@ export function Select({
       disabled={disabled}
     >
       <SelectPrimitive.Trigger className="select-trigger" aria-label={label}>
-        <SelectPrimitive.Value />
+        <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon>
           <ChevronDown size={15} />
         </SelectPrimitive.Icon>

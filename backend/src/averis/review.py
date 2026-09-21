@@ -7,6 +7,7 @@ The workflow adapter owns transactions, versions and job scheduling.
 from dataclasses import dataclass
 from typing import Literal
 
+from averis.case_status import spam_status
 from averis.contracts import FIELDS
 from averis.domain import (
     REVIEWERS,
@@ -45,7 +46,7 @@ def review_case(
     original: CaseView, action: Action, *, controlled: bool
 ) -> ReviewDecision:
     # Determine the next input revision once; all branches use this value.
-    input_changed = action.kind in {"category", "pair", "correct"}
+    input_changed = action.kind in {"category", "pair", "correct", "not_spam"}
     next_input = original.input_revision + (1 if input_changed else 0)
     view = original.model_copy(deep=True)
     if input_changed:
@@ -66,6 +67,24 @@ def review_case(
         case "category":
             assert isinstance(action, CategoryAction)
             detail = _change_category(view, action, controlled, next_input)
+        case "not_spam":
+            if spam_status(view) is None or view.classification is None:
+                raise ValueError("Only spam or suspected spam can be restored")
+            # A human rejection is not acceptance of a replacement category.
+            # The pipeline preserves human classifications, including abstentions.
+            view.classification.accepted = None
+            view.classification.source = "human"
+            view.workflow = "open"
+            view.processing, view.stage = "completed", "classification_required"
+            view.review_reasons = list(
+                dict.fromkeys(
+                    [
+                        *view.review_reasons,
+                        "Not spam: choose the appropriate email category",
+                    ]
+                )
+            )
+            detail = "Marked not spam; returned to classification review"
         case "pair":
             assert isinstance(action, PairAction)
             pair = _select_pair(view, action, controlled, next_input)

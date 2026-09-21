@@ -431,6 +431,10 @@ export interface components {
         };
         /** CasePageResponse */
         CasePageResponse: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
             /** Items */
             items: components["schemas"]["QueueCaseResponse"][];
             /** Total */
@@ -495,7 +499,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "queued" | "running" | "failed" | "unclassified" | "categorized" | "needs_review" | "mismatch" | "mismatch_review" | "match";
+            kind: "queued" | "running" | "failed" | "unclassified" | "categorized" | "spam" | "suspected_spam" | "needs_review" | "mismatch" | "mismatch_review" | "match";
             /**
              * Mismatches
              * @default 0
@@ -715,6 +719,22 @@ export interface components {
                 number,
                 number
             ] | null;
+        };
+        /** NotSpamAction */
+        NotSpamAction: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Kind
+             * @default not_spam
+             * @constant
+             */
+            kind: "not_spam";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
         };
         /**
          * NumericSelection
@@ -1177,7 +1197,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CategoryAction"] | components["schemas"]["PairAction"] | components["schemas"]["CorrectAction"] | components["schemas"]["AssignAction"] | components["schemas"]["WorkflowAction"] | components["schemas"]["RetryAction"] | components["schemas"]["RevisionAction"];
+                "application/json": components["schemas"]["CategoryAction"] | components["schemas"]["NotSpamAction"] | components["schemas"]["PairAction"] | components["schemas"]["CorrectAction"] | components["schemas"]["AssignAction"] | components["schemas"]["WorkflowAction"] | components["schemas"]["RetryAction"] | components["schemas"]["RevisionAction"];
             };
         };
         responses: {

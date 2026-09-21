@@ -21,6 +21,7 @@ import { BulkImportDialog } from "./bulk-import-dialog";
 import { ImportEmailDialog } from "./import-email-dialog";
 
 const QUEUES: QueueView[] = [
+  "spam",
   "all",
   "mismatches",
   "review",
@@ -34,6 +35,9 @@ function isActiveProcessing(item: QueueCase) {
 }
 
 function classificationFor(item: QueueCase) {
+  if (item.summary.kind === "suspected_spam") return "Spam · Suspected";
+  if (item.classification?.source === "human" && !item.classification.accepted)
+    return "Not spam · Choose category";
   if (item.classification)
     return CATEGORY_LABELS[
       item.classification.accepted ?? item.classification.suggested
@@ -60,6 +64,8 @@ function confidenceTitle(item: QueueCase) {
 
 function resultFor(item: QueueCase) {
   const labels = {
+    spam: ["SPAM", "neutral"],
+    suspected_spam: ["SUSPECTED", "warning"],
     failed: ["FAILED", "danger"],
     queued: ["QUEUED", "neutral"],
     running: ["RUNNING", "neutral"],
@@ -188,6 +194,7 @@ export function InboxView() {
   return (
     <AppShell
       activeView={view}
+      queueCounts={data?.counts}
       contentBusy={importPending}
       onViewChange={(next) => {
         setView(next);
@@ -229,6 +236,13 @@ export function InboxView() {
           onClose={() => setImportOpen(false)}
           onPendingChange={setImportPending}
         />
+      ) : null}
+      {view === "spam" ? (
+        <p className="demo-banner">
+          Confirmed and suspected spam are kept here for optional inspection.
+          Suspected means the AI suggestion was not accepted. Open a message and
+          choose Not spam to return it to review.
+        </p>
       ) : null}
       {bulkOpen ? (
         <BulkImportDialog

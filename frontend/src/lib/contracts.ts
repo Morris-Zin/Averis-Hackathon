@@ -13,6 +13,7 @@ export type BulkPreviewResponse = components["schemas"]["BulkPreviewResponse"];
 export type BulkImportResponse = components["schemas"]["BulkImportResponse"];
 export type BulkItemResult = components["schemas"]["BulkItemResult"];
 export type Action =
+  | components["schemas"]["NotSpamAction"]
   | components["schemas"]["CategoryAction"]
   | components["schemas"]["PairAction"]
   | components["schemas"]["CorrectAction"]
@@ -24,6 +25,7 @@ export type Action =
 // Required payload fields fail at the HTTP boundary; ownership and source
 // validity remain domain checks.
 export type ActionDraft =
+  | Omit<components["schemas"]["NotSpamAction"], "expected_revision">
   | Omit<components["schemas"]["CategoryAction"], "expected_revision">
   | Omit<components["schemas"]["PairAction"], "expected_revision">
   | Omit<components["schemas"]["CorrectAction"], "expected_revision">
@@ -61,6 +63,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 };
 
 export type QueueView =
+  | "spam"
   | "all"
   | "mismatches"
   | "review"

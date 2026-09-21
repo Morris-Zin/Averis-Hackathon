@@ -30,6 +30,8 @@ uv run --project backend uvicorn averis.api:app --host 127.0.0.1 --port 8000
 
 Open **http://localhost:8000** and choose **Enter demo workspace**. The browser and API share one origin. Every session gets an isolated 24-hour workspace; reviewer names are simulated identities. No mailbox connection is required.
 
+The **Spam** queue keeps accepted spam and unaccepted AI spam suggestions, with an explicit **Suspected** label and a visible count. These messages are excluded from shipment work queues and the outstanding review count; **All cases** still includes them. **Not spam** restores a message to Needs review and asks the reviewer to choose its category. The original AI suggestion and history remain available, and an unresolved category still blocks evaluation export. See [spam workflow verification](docs/spam-workflow-2026-09-22.md).
+
 Choose **Add email** in the queue to paste a subject, sender and message and attach documents. **Bulk import** accepts an organizer-style ZIP of email JSON plus attachments, or several email JSON files, with a preview and per-email accepted/duplicate/failed results; see [bulk import](docs/bulk-import.md). Manual intake requires enabled live processing. Imports use the demonstration budget; there are no per-session or daily run quotas. Identical submissions in the same workspace reuse the existing case. Attachments support TXT, PDF, DOCX, XLSX, PNG and JPEG, up to eight files, 10 MB each and 20 MB combined. Arbitrary revised-document uploads remain operator-only.
 
 The backend also has a SQLite convenience default for quick UI development. PostgreSQL is required for concurrency tests and deployment. Settings load environment variables and an optional ignored `.env`; see [.env.example](.env.example).

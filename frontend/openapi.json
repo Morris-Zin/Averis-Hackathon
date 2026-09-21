@@ -275,6 +275,9 @@
                     "$ref": "#/components/schemas/CategoryAction"
                   },
                   {
+                    "$ref": "#/components/schemas/NotSpamAction"
+                  },
+                  {
                     "$ref": "#/components/schemas/PairAction"
                   },
                   {
@@ -1101,6 +1104,13 @@
       },
       "CasePageResponse": {
         "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/QueueCaseResponse"
@@ -1123,6 +1133,7 @@
         },
         "type": "object",
         "required": [
+          "counts",
           "items",
           "total",
           "page",
@@ -1293,6 +1304,8 @@
               "failed",
               "unclassified",
               "categorized",
+              "spam",
+              "suspected_spam",
               "needs_review",
               "mismatch",
               "mismatch_review",
@@ -1890,6 +1903,33 @@
           "kind"
         ],
         "title": "Location"
+      },
+      "NotSpamAction": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "kind": {
+            "type": "string",
+            "const": "not_spam",
+            "title": "Kind",
+            "default": "not_spam"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision"
+        ],
+        "title": "NotSpamAction"
       },
       "NumericSelection": {
         "properties": {
