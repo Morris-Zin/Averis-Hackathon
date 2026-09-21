@@ -195,7 +195,9 @@ def _adapt_comparison(
         for field in _TYPED_FIELDS
         if by_field[field].outcome == "unresolved"
     ]
-    reasons, unrepresentable = _review_reasons(case, unresolved)
+    reasons, unrepresentable = _review_reasons(
+        case, unresolved, has_mismatch=bool(mismatches)
+    )
     # Report issues may be legacy strings or typed Issue records; only the
     # benign pair marker is representable. Any other selected-pair issue makes
     # the row unrepresentable, and an unexplained blocking reason can never
@@ -405,7 +407,7 @@ def _selected_pair_ids(case: CaseView) -> set[str] | None:
 
 
 def _review_reasons(
-    case: CaseView, unresolved: list[Finding]
+    case: CaseView, unresolved: list[Finding], *, has_mismatch: bool = False
 ) -> tuple[set[ReviewReason], bool]:
     reasons: set[ReviewReason] = set()
     unrepresentable = False
@@ -429,6 +431,8 @@ def _review_reasons(
         for reading in (finding.si, finding.bl):
             if reading.issue in _MISSING_READING_ISSUES:
                 reasons.add("missing_value")
+            elif reading.issue == "low_ocr_confidence" and not has_mismatch:
+                reasons.add("unreadable")
             elif reading.issue is not None or reading.normalized is None:
                 unrepresentable = True
     return reasons, unrepresentable

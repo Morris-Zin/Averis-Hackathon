@@ -404,7 +404,46 @@ def validate_pair(
             if values != other:
                 return False
             shared = True
+    instruction = _worksheet_order_reference(si, "S.I.", "BL INSTRUCTION")
+    bill = _worksheet_order_reference(bl, "BL", "BILL OF LADING")
+    if instruction is not None and bill is not None:
+        if instruction != bill:
+            return False
+        shared = True
     return human_selected or shared
+
+
+def _worksheet_order_reference(
+    document: DocumentEvidence, sheet: str, heading: str
+) -> str | None:
+    """Recognize the two-column SI/BL template's order header, not a BL number.
+
+    This format stores the order reference in A3/B3 and a separate booking or
+    bill reference in A14/B14. Other layouts and text/OCR headings do not imply
+    that instruction and bill identifier namespaces are interchangeable.
+    """
+    if document.issues or not document.blocks:
+        return None
+    rows: dict[tuple[str | None, ...], str] = {}
+    for block in document.blocks:
+        if (
+            block.method != "native"
+            or not block.locations
+            or any(loc.kind != "xlsx" or loc.sheet != sheet for loc in block.locations)
+        ):
+            return None
+        cells = tuple(loc.cell for loc in block.locations)
+        if cells in rows:
+            return None
+        rows[cells] = block.text
+    if not all(
+        (f"A{row}", f"B{row}") in rows for row in range(3, 16)
+    ) or not re.fullmatch(r"HS CODE: \d+", rows[("A13", "B13")]):
+        return None
+    if rows[("A15", "B15")] != "FREIGHT: PREPAID":
+        return None
+    match = re.fullmatch(re.escape(heading) + r": ([0-9]{6,})", rows[("A3", "B3")])
+    return match[1] if match else None
 
 
 _ADDITIONAL_REFERENCE_LABELS = {

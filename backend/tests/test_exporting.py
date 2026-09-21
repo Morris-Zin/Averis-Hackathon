@@ -262,6 +262,43 @@ def test_unrecognized_field_problem_does_not_gain_mismatch_export(issue: str) ->
     assert decision.diagnostics.known_mismatches == ["container_count"]
 
 
+def test_ocr_only_uncertainty_exports_unreadable_without_changing_case() -> None:
+    case = case_view(
+        report=comparison_report(
+            unresolved={"shipper"}, unresolved_issue="low_ocr_confidence"
+        )
+    )
+    before = case.model_dump(mode="json")
+    decision = adapt_case(case)
+    assert decision.prediction is not None
+    assert decision.prediction.status == "NEEDS_REVIEW"
+    assert decision.prediction.review_reason == "unreadable"
+    assert decision.prediction.defect_fields == []
+    assert case.model_dump(mode="json") == before
+
+
+@pytest.mark.parametrize(
+    "issue", ["missing_value", "ambiguous_source_fields", "provider_disagreement"]
+)
+def test_ocr_with_other_uncertainty_stays_blocked(issue: str) -> None:
+    report = comparison_report(
+        unresolved={"shipper", "consignee"}, unresolved_issue="low_ocr_confidence"
+    )
+    report.findings[1].bl.issue = issue
+    assert adapt_case(case_view(report=report)).prediction is None
+
+
+def test_ocr_review_does_not_override_pairing_or_staleness() -> None:
+    report = comparison_report(
+        unresolved={"shipper"}, unresolved_issue="low_ocr_confidence"
+    )
+    report.pair_valid = False
+    assert adapt_case(case_view(report=report)).prediction is None
+    report.pair_valid = True
+    report.input_revision = 0
+    assert adapt_case(case_view(report=report)).prediction is None
+
+
 @pytest.mark.parametrize("location", ["document", "report", "case"])
 def test_document_wide_problem_still_blocks_mixed_mismatch_export(
     location: str,

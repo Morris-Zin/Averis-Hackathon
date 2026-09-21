@@ -132,5 +132,12 @@ The sample submission is a placeholder, not model output. Scoring invokes the
 unchanged official scorer. Report automatic coverage, abstentions and any human
 assistance separately; unsupported export states remain blocked.
 
+The two-column SI/BL spreadsheet template can establish a shared order from its
+native A3/B3 header when the worksheet structure matches. This does not equate
+arbitrary instruction and bill numbers; conflicting references still block
+pairing. Unitless weights remain unresolved. OCR-only field uncertainty without
+known mismatches can export `NEEDS_REVIEW / unreadable`; mixed unsupported issues
+remain blocked and existing known-mismatch exports retain their diagnostics.
+
 Port normalization uses a bundled, checksum-verified UN/LOCODE reference with
 conservative alias rules. See its [provenance and license](backend/src/averis/reference_data/README.md).
