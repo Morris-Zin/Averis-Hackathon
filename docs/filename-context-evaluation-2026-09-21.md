@@ -68,3 +68,25 @@ independent bilingual review. Their perfect candidate score is not a real-world
 accuracy guarantee. General emails with attachments incur an additional provider
 call; clear specific requests do not. Filename ambiguity remains possible, and the
 normal evidence, confidence, pairing and human-review safeguards still apply.
+
+## Application and live acceptance
+
+Checkpoint `3b3b420` passed CI: 465 backend tests, 21 frontend tests, strict typing,
+lint, generated contracts and production build; two optional backend tests skipped.
+Both Railway services deployed that commit successfully.
+
+Three synthetic emails were imported through browser control locally and live.
+The local vague request automatically compared seven fields and flagged only
+container count (SI 3 / BL 4), without manually refreshing. FYI stayed General;
+conflicting references stayed Needs review with provisional findings. All three
+local and all three live runs finished on their first attempt.
+
+**The vague request did not reproduce its improvement on the live site.** The
+deployed worker used the new policy and made both classification calls, but the
+case remained General. Three subsequent direct repeats with the exact imported
+filenames proposed BL Comparison at only 0.77–0.78, below the unchanged threshold;
+the policy therefore preserved the original General answer. The local run had
+accepted the category at 0.82. Three repeated FYI controls stayed General.
+These repeats are diagnostics, not additional independent test cases. No threshold
+or prompt was tuned against this failure. This is an unresolved limitation, not a
+passed live vague-email classification test or evidence of universal reliability.
