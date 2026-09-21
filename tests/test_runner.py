@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Barrier
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event, select, text
 
 from averis.config import Settings
 from averis.domain import AuditEntry, CaseView, Classification, DocumentEvidence
@@ -316,6 +317,66 @@ def test_runner_honors_two_delivery_concurrency_bound(postgres_db):
         run_two: "completed",
     }
     assert intelligence.calls == 2
+
+
+def test_two_independent_workers_process_distinct_runs_once(postgres_db):
+    db, settings, storage = postgres_db
+    _, first = add_run(db, "replica-one")
+    _, second = add_run(db, "replica-two")
+    intelligence = GeneralIntelligence(barrier=Barrier(2))
+    workers = [runner(db, settings, storage, intelligence) for _ in range(2)]
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda worker: worker.run_available(), workers))
+
+    assert all(len(result) == 1 for result in results)
+    assert {run_id for result in results for run_id in result} == {first, second}
+    assert all(
+        outcome == "completed" for result in results for outcome in result.values()
+    )
+    assert intelligence.calls == 2
+    with db.session() as session:
+        for run_id in (first, second):
+            run = session.get(Run, run_id)
+            assert run is not None and run.attempts == 1 and run.status == "completed"
+
+
+def test_recovery_does_not_lock_live_or_recently_dispatched_runs(
+    postgres_db, monkeypatch
+):
+    db, settings, storage = postgres_db
+    _, healthy = add_run(db, "healthy-lease", attempts=1)
+    _, recent = add_run(db, "recent-dispatch")
+    _, exhausted = add_run(db, "recovery-needed", attempts=3)
+    with db.session() as session, session.begin():
+        run = session.get(Run, healthy)
+        assert run is not None
+        run.status = "running"
+        run.lease_until = utcnow() + timedelta(seconds=90)
+        outbox = session.get(Outbox, recent)
+        assert outbox is not None
+        outbox.dispatched_at = utcnow()
+
+    processor = Processor(db, settings, storage)
+    original = processor._exhausted
+    checked = []
+
+    def exhaust_while_other_worker_checkpoints(session, run):
+        # Recovery's transaction is still holding its selected row locks here.
+        # Another connection must immediately be able to checkpoint either run.
+        with db.session() as other, other.begin():
+            unlocked = other.scalars(
+                select(Run)
+                .where(Run.id.in_([healthy, recent]))
+                .with_for_update(nowait=True)
+            ).all()
+            assert {row.id for row in unlocked} == {healthy, recent}
+        checked.append(run.id)
+        original(session, run)
+
+    monkeypatch.setattr(processor, "_exhausted", exhaust_while_other_worker_checkpoints)
+    processor.reconcile()
+    assert checked == [exhausted]
 
 
 def test_runner_rejects_cloud_tasks_and_more_than_two_workers(postgres_db):

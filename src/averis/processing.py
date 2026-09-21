@@ -12,7 +12,7 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud import tasks_v2
 from google.protobuf.duration_pb2 import Duration
 from pydantic import ValidationError
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from averis.budget import BudgetAuthority, BudgetUnavailable
@@ -596,30 +596,36 @@ class Processor:
                 type(exc).__name__,
             )
         pending: list[str] = []
+        now = utcnow()
         with self.db.session() as session, session.begin():
-            runs = session.scalars(
-                select(Run)
-                .where(Run.status.in_(["queued", "running"]))
-                .with_for_update(skip_locked=True)
+            # Filter before locking: healthy workers must remain free to renew
+            # their lease and save checkpoints while recovery scans the queue.
+            # Fetch the outbox together to avoid one database round trip per run.
+            rows = session.execute(
+                select(Run, Outbox)
+                .outerjoin(Outbox, Outbox.run_id == Run.id)
+                .where(
+                    Run.status.in_(["queued", "running"]),
+                    or_(
+                        Run.status == "queued",
+                        Run.lease_until.is_(None),
+                        Run.lease_until <= now,
+                    ),
+                    or_(
+                        Run.attempts >= MAX_ATTEMPTS,
+                        Outbox.dispatched_at.is_(None),
+                        Outbox.dispatched_at <= now - timedelta(minutes=15),
+                    ),
+                )
+                .with_for_update(of=Run, skip_locked=True)
             ).all()
-            for run in runs:
-                if (
-                    run.status == "running"
-                    and run.lease_until
-                    and aware(run.lease_until) > utcnow()
-                ):
-                    continue
+            for run, outbox in rows:
                 if run.attempts >= MAX_ATTEMPTS:
                     self._exhausted(session, run)
                     continue
-                outbox = session.get(Outbox, run.id)
                 if outbox is None:
                     outbox = Outbox(run_id=run.id)
                     session.add(outbox)
-                elif outbox.dispatched_at and aware(
-                    outbox.dispatched_at
-                ) > utcnow() - timedelta(minutes=15):
-                    continue
                 else:
                     outbox.generation += 1
                     outbox.dispatched_at = None
