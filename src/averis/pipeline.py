@@ -17,12 +17,19 @@ from averis.domain import (
     Classification,
     DocumentEvidence,
     Issue,
+    PairingEvidence,
     Reading,
     Report,
     evidence_fingerprint,
     normalize_issue,
 )
 from averis.intelligence import Intelligence
+from averis.pairing import (
+    PairingJudge,
+    PairingProposal,
+    accept_pairing,
+    prepare_pairing,
+)
 from averis.verification import compare, reading_from_evidence, validate_pair
 from averis.versions import (
     ACCEPTANCE_PROFILE,
@@ -70,6 +77,11 @@ class _ExtractionCheckpoint(BaseModel):
     acceptance_profile: str
     extraction_policy: str
     normalization_profile: str
+
+
+class _PairingCheckpoint(BaseModel):
+    fingerprint: str
+    proposal: PairingProposal
 
 
 class Checkpoints:
@@ -141,6 +153,7 @@ class ShipmentPipeline:
         classification_profile: tuple[str, str] | None = None,
         acceptance_profile: str = ACCEPTANCE_PROFILE,
         provider_time_reserve: float = PROVIDER_TIME_RESERVE_SECONDS,
+        pairing_judge: PairingJudge | None = None,
     ):
         self._intelligence = intelligence
         self._checkpoints = checkpoints
@@ -150,6 +163,7 @@ class ShipmentPipeline:
         self._classification_profile = classification_profile
         self._acceptance_profile = acceptance_profile
         self._provider_time_reserve = provider_time_reserve
+        self._pairing_judge = pairing_judge
 
     def process(self, inputs: ProcessingInput) -> ProcessingResult:
         """Run classification, preparation and comparison without mutating inputs.
@@ -394,12 +408,12 @@ class ShipmentPipeline:
             issues,
         )
 
-    @staticmethod
     def _compare(
+        self,
         documents: list[_PreparedDocument],
         inputs: ProcessingInput,
     ) -> tuple[Report | None, list[str]]:
-        """Pure comparison: return the report and additional issues."""
+        """Establish source-bound pairing, then compare independently read fields."""
 
         sis = [document for document in documents if document.attachment.role == "SI"]
         bls = [document for document in documents if document.attachment.role == "BL"]
@@ -413,9 +427,8 @@ class ShipmentPipeline:
             or bl.attachment.evidence is None
         ):
             return None, ["Unreadable comparison documents"]
-        manually_paired = inputs.accepted_pair == [si.attachment.id, bl.attachment.id]
-        valid = validate_pair(
-            si.attachment.evidence, bl.attachment.evidence, manually_paired
+        valid, pairing_evidence = self._pair(
+            si.attachment.evidence, bl.attachment.evidence, inputs
         )
         scoped_issues: list[str | Issue] = []
         for document in documents:
@@ -434,9 +447,40 @@ class ShipmentPipeline:
         report = compare(
             si.fields, bl.fields, inputs.case.input_revision, valid, scoped_issues
         )
+        report.pairing_evidence = pairing_evidence
         # Detailed issues stay typed in the report. Assessment decides whether
         # they block the selected comparison; do not duplicate them as strings.
         extra: list[str] = []
         if any(finding.outcome == "unresolved" for finding in report.findings):
             extra.append("Some fields need review")
         return report, extra
+
+    def _pair(
+        self, si: DocumentEvidence, bl: DocumentEvidence, inputs: ProcessingInput
+    ) -> tuple[bool, PairingEvidence | None]:
+        if not validate_pair(si, bl, human_selected=True):
+            return False, None
+        manually_paired = inputs.accepted_pair == [si.document_id, bl.document_id]
+        if validate_pair(si, bl, manually_paired):
+            return True, None
+        if self._pairing_judge is None:
+            return False, None
+        request = prepare_pairing(inputs.case.subject, inputs.case.body, si, bl)
+        if request is None:
+            return False, None
+        model = (
+            self._classification_profile[0] if self._classification_profile else None
+        )
+        fingerprint = request.fingerprint(model)
+        saved = self._checkpoints.load("pairing", _PairingCheckpoint)
+        if saved is None or saved.fingerprint != fingerprint:
+            if self._remaining() <= PROVIDER_TIME_RESERVE_SECONDS:
+                raise TimeoutError("application_deadline")
+            proposal = self._pairing_judge(request)
+            # Validate before saving. Malformed provider output must not become
+            # a durable accepted judgment or a silent abstention.
+            accept_pairing(request, proposal)
+            saved = _PairingCheckpoint(fingerprint=fingerprint, proposal=proposal)
+            self._checkpoints.save("pairing", saved)
+        evidence = accept_pairing(request, saved.proposal)
+        return evidence is not None, evidence

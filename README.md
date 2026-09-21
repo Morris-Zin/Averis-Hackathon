@@ -8,6 +8,8 @@ Word reading includes supported text boxes, content controls and merged-cell han
 
 Optional DeepSeek field assistance supplements unresolved Jev readings without replacing classification, document roles, or deterministic comparison. See the [measured comparison, safeguards and setup](docs/deepseek-evaluation-2026-09-21.md). Vision extraction remains experimental and is not enabled.
 
+Jev can also link SI/BL documents through a shared shipment reference with different labels. The review screen shows the supporting source passages; conflicting identifiers and uncertain pairs still require review. See the [pairing benchmark and limitations](docs/pairing-evaluation-2026-09-21.md).
+
 **Live demo:** https://averis-hackathon-production.up.railway.app/
 
 The app and private worker run on Railway with Neon PostgreSQL and private R2 storage. Live Jev processing is enabled under the shared budget guard; a deployed comparison completed with the expected two mismatches. Saved demo classifications are illustrative until a live check is run. Development evaluation and the disclosed reused-validation results are recorded; final submission materials remain in progress. See [measured validation and remaining work](docs/validation.md).

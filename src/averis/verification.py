@@ -354,7 +354,7 @@ def validate_pair(
 ) -> bool:
     """Reject same-document and known-conflicting pairs, even when human selected."""
 
-    if si.document_id == bl.document_id:
+    if si.document_id == bl.document_id or _additional_reference_conflict(si, bl):
         return False
     si_references = _references_by_kind(si)
     bl_references = _references_by_kind(bl)
@@ -366,3 +366,33 @@ def validate_pair(
                 return False
             shared = True
     return human_selected or shared
+
+
+_ADDITIONAL_REFERENCE_LABELS = {
+    "order": r"(?:order(?:[ \t]+(?:no\.?|number|ref(?:erence)?))?|订单(?:编号|号|参考号)|訂單(?:編號|號)|no\.?[ \t]+pesanan)",
+    "instruction": r"(?:bl[ \t]+instruction|提单补料编号|提單補料編號|arahan[ \t]+bl)",
+    "bill": r"(?:bill[ \t]+of[ \t]+lading(?:[ \t]+(?:no\.?|number))?|b/l[ \t]*(?:no\.?|number)|提单(?:编号|号|参考号)|提單(?:編號|號))",
+}
+
+
+def _additional_reference_conflict(si: DocumentEvidence, bl: DocumentEvidence) -> bool:
+    """Never let a matching identifier hide another explicit conflict."""
+    for label in _ADDITIONAL_REFERENCE_LABELS.values():
+        pattern = re.compile(
+            r"(?<!\w)(?>"
+            + label
+            + r")(?:[ \t]*[:#|=][ \t]*|[ \t]+)([A-Za-z0-9][A-Za-z0-9/-]{3,39})(?![\w/-])",
+            re.IGNORECASE,
+        )
+        left, right = [
+            {
+                m.group(1).upper()
+                for block in document.blocks
+                for m in pattern.finditer(block.text)
+                if any(c.isdigit() for c in m.group(1))
+            }
+            for document in (si, bl)
+        ]
+        if left and right and (left != right or len(left) > 1):
+            return True
+    return False

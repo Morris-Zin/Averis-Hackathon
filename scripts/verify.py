@@ -95,6 +95,7 @@ def check_boundaries() -> None:
         "fields",
         "versions",
         "ocr",
+        "pairing",
     ):
         prohibited[module] = {
             "fastapi",

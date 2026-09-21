@@ -733,6 +733,27 @@ export interface components {
              */
             reason: string;
         };
+        /** PairingEvidence */
+        PairingEvidence: {
+            /** Si Document Id */
+            si_document_id: string;
+            /** Bl Document Id */
+            bl_document_id: string;
+            /** Reference */
+            reference: string;
+            /** Si Evidence Ids */
+            si_evidence_ids: string[];
+            /** Bl Evidence Ids */
+            bl_evidence_ids: string[];
+            /** Confidence */
+            confidence: number;
+            /** Model */
+            model: string;
+            /** Request Id */
+            request_id?: string | null;
+            /** Policy Version */
+            policy_version: string;
+        };
         /** Reading */
         Reading: {
             /**
@@ -799,6 +820,7 @@ export interface components {
              * @default comparison-v1
              */
             policy_version: string;
+            pairing_evidence?: components["schemas"]["PairingEvidence"] | null;
         };
         /** RetryAction */
         RetryAction: {

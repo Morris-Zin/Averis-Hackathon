@@ -163,6 +163,18 @@ class Finding(Model):
     outcome: Literal["match", "mismatch", "unresolved"]
 
 
+class PairingEvidence(Model):
+    si_document_id: str
+    bl_document_id: str
+    reference: str
+    si_evidence_ids: list[str]
+    bl_evidence_ids: list[str]
+    confidence: float = PydanticField(ge=0, le=1)
+    model: str
+    request_id: str | None = None
+    policy_version: str
+
+
 class Report(Model):
     input_revision: int
     pair_valid: bool
@@ -171,6 +183,7 @@ class Report(Model):
         default_factory=lambda: list[str | Issue]()
     )
     policy_version: str = "comparison-v1"
+    pairing_evidence: PairingEvidence | None = None
 
 
 class AttachmentView(Model):

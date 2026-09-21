@@ -21,6 +21,7 @@ from averis.documents import read_document_bounded
 from averis.domain import AuditEntry, CaseView, Classification
 from averis.intelligence import Intelligence
 from averis.jev import Jev
+from averis.pairing import PairingJudge
 from averis.persistence import (
     BrowserSession,
     Case,
@@ -155,6 +156,14 @@ class Processor:
     def processing_enabled(self) -> bool:
         """Return whether a delivery may start paid processing work."""
         return self.settings.live_enabled and self.settings.budget_verified
+
+    def _pairing_judge(self, run_id: str, purpose: str) -> PairingJudge | None:
+        # Injected/offline intelligence never gains a hidden paid provider call.
+        if self.classification_profile is None:
+            return None
+        return Jev(
+            self.settings, BudgetAuthority(self.db, self.settings), run_id, purpose
+        ).judge_pair
 
     def _acceptance_profile(self) -> str:
         from averis.deepseek import PROFILE
@@ -419,6 +428,7 @@ class Processor:
                 provider_time_reserve=140
                 if self.settings.deepseek_fields_enabled
                 else 45,
+                pairing_judge=self._pairing_judge(run_id, claim.purpose),
             )
             result = pipeline.process(claim.inputs)
             if time.monotonic() >= deadline:

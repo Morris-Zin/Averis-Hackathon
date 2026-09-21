@@ -1906,6 +1906,74 @@
         ],
         "title": "PairAction"
       },
+      "PairingEvidence": {
+        "properties": {
+          "si_document_id": {
+            "type": "string",
+            "title": "Si Document Id"
+          },
+          "bl_document_id": {
+            "type": "string",
+            "title": "Bl Document Id"
+          },
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "si_evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Si Evidence Ids"
+          },
+          "bl_evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bl Evidence Ids"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "si_document_id",
+          "bl_document_id",
+          "reference",
+          "si_evidence_ids",
+          "bl_evidence_ids",
+          "confidence",
+          "model",
+          "policy_version"
+        ],
+        "title": "PairingEvidence"
+      },
       "Reading": {
         "properties": {
           "field": {
@@ -2120,6 +2188,16 @@
             "type": "string",
             "title": "Policy Version",
             "default": "comparison-v1"
+          },
+          "pairing_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PairingEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,

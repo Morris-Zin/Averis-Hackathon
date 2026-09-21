@@ -1,6 +1,6 @@
 import type { AttachmentView, CaseView, Field, Finding } from "@/lib/contracts";
 import { FIELD_LABELS, FIELDS } from "@/lib/contracts";
-import { EvidencePane } from "./evidence-pane";
+import { EvidencePane, locationLabel } from "./evidence-pane";
 import {
   issueLabel,
   outcomeLabel,
@@ -58,6 +58,52 @@ export function ComparisonPanel({
           <span>{checkedFields} of 7 fields checked</span>
         </div>
         <div className="comparison-table-wrap">
+          {report?.pair_valid && report.pairing_evidence ? (
+            <details className="pairing-evidence space-y-3 p-4 text-sm">
+              <summary className="cursor-pointer font-medium">
+                Documents linked by reference{" "}
+                {report.pairing_evidence.reference}
+              </summary>
+              <p>
+                Pairing confidence{" "}
+                {Math.round(report.pairing_evidence.confidence * 100)}%. This
+                identifies the shipment; the seven fields are checked separately
+                below.
+              </p>
+              {[
+                {
+                  label: "Shipping instruction",
+                  attachment: siAttachment,
+                  id: report.pairing_evidence.si_document_id,
+                  ids: report.pairing_evidence.si_evidence_ids,
+                },
+                {
+                  label: "Draft bill of lading",
+                  attachment: blAttachment,
+                  id: report.pairing_evidence.bl_document_id,
+                  ids: report.pairing_evidence.bl_evidence_ids,
+                },
+              ].map(({ label, attachment, id, ids }) => (
+                <div key={label} className="space-y-1">
+                  <strong>
+                    {label} · {attachment?.filename}
+                  </strong>
+                  {attachment?.id === id ? (
+                    attachment.evidence?.blocks
+                      ?.filter((block) => ids.includes(block.id))
+                      .map((block) => (
+                        <blockquote key={block.id}>
+                          <small>{locationLabel(block)}</small>
+                          <p className="whitespace-pre-wrap">{block.text}</p>
+                        </blockquote>
+                      ))
+                  ) : (
+                    <p>Source evidence unavailable.</p>
+                  )}
+                </div>
+              ))}
+            </details>
+          ) : null}
           {report?.issues?.length ? (
             <ul aria-label="Document review reasons">
               {report.issues.map((issue, index) => (

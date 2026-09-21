@@ -248,7 +248,10 @@ def _correct_reading(
     if target is None:
         raise ValueError("Document is not in the accepted pair")
     target[action.field] = replacement
+    pairing_evidence = view.report.pairing_evidence
     view.report = compare(si, bl, next_input, True, view.report.issues)
+    # Correcting a field changes our reading, not the document identity.
+    view.report.pairing_evidence = pairing_evidence
     unresolved = [
         finding for finding in view.report.findings if finding.outcome == "unresolved"
     ]
