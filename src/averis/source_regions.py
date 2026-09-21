@@ -50,6 +50,15 @@ _FIELD_START = re.compile(
 )
 _OTHER_LABEL = re.compile(r"^\s*[^\n:=]{1,80}[:=]")
 _CELL = re.compile(r"([A-Z]+)([1-9][0-9]*)$")
+# Extra vertical space is accepted only for a recognizable street-address line.
+# Ordinary nearby prose must not become part of a party just because it is close.
+_STREET_ADDRESS = re.compile(
+    r"^(?:\d+[A-Za-z/-]*\s+(?:jalan|lorong|persiaran|lebuh)\b.+"
+    r"|\d+[A-Za-z/-]*\s+(?:[\w.'-]+\s+){1,5}"
+    r"(?:street|road|avenue|lane|drive|boulevard|st\.?|rd\.?)\b.*"
+    r"|[\u3400-\u9fff]{2,}(?:路|街|道|巷)\s*\d+\s*[号號].*)$",
+    re.IGNORECASE,
+)
 
 
 def evidence_candidates(document: DocumentEvidence) -> dict[str, list[EvidenceBlock]]:
@@ -129,9 +138,16 @@ def _continues(region: Sequence[EvidenceBlock], following: EvidenceBlock) -> boo
     left, _, right, _ = anchor
     next_left, next_top, _, next_bottom = after.bbox
     line_height = max(bottom - top, next_bottom - next_top)
+    ordinary_gap = next_top - bottom <= 2 * line_height
+    spaced_address = (
+        next_top - bottom <= 3 * line_height
+        and abs(next_left - left) <= max(2, line_height / 2)
+        and bool(_STREET_ADDRESS.fullmatch(text.strip()))
+    )
     return (
         line_height > 0
-        and 0 <= next_top - bottom <= 2 * line_height
+        and next_top >= bottom
+        and (ordinary_gap or spaced_address)
         and left - 2 <= next_left <= right + 2
     )
 
