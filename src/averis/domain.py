@@ -137,6 +137,16 @@ class SourceSelection(Model):
     request_id: str | None = None
 
 
+class NumericSelection(Model):
+    """Exact character spans in an immutable native source block."""
+
+    block_id: str
+    start: int = PydanticField(ge=0)
+    end: int = PydanticField(gt=0)
+    unit_start: int | None = PydanticField(default=None, ge=0)
+    unit_end: int | None = PydanticField(default=None, gt=0)
+
+
 class Reading(Model):
     field: Field
     document_id: str
@@ -150,6 +160,7 @@ class Reading(Model):
     selection_model: str | None = None
     selection_request_id: str | None = None
     alternative_selection: SourceSelection | None = None
+    numeric_selection: NumericSelection | None = None
     assistance_error: str | None = None
     provenance: Literal["machine", "human_transcribed", "human_verified"] = "machine"
     issue: str | None = None

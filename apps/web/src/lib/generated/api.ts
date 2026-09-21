@@ -713,6 +713,22 @@ export interface components {
                 number
             ] | null;
         };
+        /**
+         * NumericSelection
+         * @description Exact character spans in an immutable native source block.
+         */
+        NumericSelection: {
+            /** Block Id */
+            block_id: string;
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+            /** Unit Start */
+            unit_start?: number | null;
+            /** Unit End */
+            unit_end?: number | null;
+        };
         /** PairAction */
         PairAction: {
             /** Expected Revision */
@@ -785,6 +801,7 @@ export interface components {
             /** Selection Request Id */
             selection_request_id?: string | null;
             alternative_selection?: components["schemas"]["SourceSelection"] | null;
+            numeric_selection?: components["schemas"]["NumericSelection"] | null;
             /** Assistance Error */
             assistance_error?: string | null;
             /**

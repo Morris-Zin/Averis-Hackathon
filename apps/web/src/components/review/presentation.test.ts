@@ -54,3 +54,31 @@ it("does not turn absent DeepSeek confidence into a percentage", () => {
     readingProvenanceLabel({ ...reading, assistance_error: "unavailable" }),
   ).toContain("unavailable");
 });
+
+describe("numeric source readings", () => {
+  it("shows the chosen number while retaining the original block in evidence", async () => {
+    const { readingDisplayValue } = await import("./presentation");
+    const reading = {
+      field: "gross_weight_kg" as const,
+      acceptance_basis: "probability" as const,
+      confidence: 0.9,
+      provenance: "machine" as const,
+      document_id: "pdf",
+      text: "Containers: 4\nGross Weightnn: 117770 kg",
+      normalized: "117770",
+      numeric_selection: { block_id: "b1", start: 30, end: 36 },
+    };
+    expect(readingDisplayValue(reading)).toBe("117770 kg");
+    expect(
+      readingDisplayValue({
+        ...reading,
+        field: "container_count",
+        normalized: "4",
+      }),
+    ).toBe("4");
+    expect(readingDisplayValue({ ...reading, numeric_selection: null })).toBe(
+      reading.text,
+    );
+    expect(readingDisplayValue()).toBe("Not found");
+  });
+});

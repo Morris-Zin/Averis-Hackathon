@@ -1865,6 +1865,57 @@
         ],
         "title": "Location"
       },
+      "NumericSelection": {
+        "properties": {
+          "block_id": {
+            "type": "string",
+            "title": "Block Id"
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "End"
+          },
+          "unit_start": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Start"
+          },
+          "unit_end": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit End"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "block_id",
+          "start",
+          "end"
+        ],
+        "title": "NumericSelection",
+        "description": "Exact character spans in an immutable native source block."
+      },
       "PairAction": {
         "properties": {
           "expected_revision": {
@@ -2073,6 +2124,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/SourceSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "numeric_selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NumericSelection"
               },
               {
                 "type": "null"

@@ -38,6 +38,13 @@ def check_boundaries() -> None:
             "averis.intelligence",
             "averis.jev",
         },
+        "numeric_evidence": {
+            "fastapi",
+            "sqlalchemy",
+            "averis.persistence",
+            "averis.jev",
+            "averis.intelligence",
+        },
         "verification": {
             "fastapi",
             "sqlalchemy",

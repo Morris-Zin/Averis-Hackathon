@@ -4,6 +4,7 @@ import { EvidencePane, locationLabel } from "./evidence-pane";
 import {
   issueLabel,
   outcomeLabel,
+  readingDisplayValue,
   readingProvenanceLabel,
 } from "./presentation";
 
@@ -153,7 +154,7 @@ export function ComparisonPanel({
                     </th>
                     <td>
                       <span className={!finding?.si.text ? "empty-value" : ""}>
-                        {finding?.si.text || "Not found"}
+                        {readingDisplayValue(finding?.si)}
                       </span>
                       <small>{readingProvenanceLabel(finding?.si)}</small>
                       {finding?.si.issue ? (
@@ -164,7 +165,7 @@ export function ComparisonPanel({
                     </td>
                     <td>
                       <span className={!finding?.bl.text ? "empty-value" : ""}>
-                        {finding?.bl.text || "Not found"}
+                        {readingDisplayValue(finding?.bl)}
                       </span>
                       <small>{readingProvenanceLabel(finding?.bl)}</small>
                       {finding?.bl.issue ? (

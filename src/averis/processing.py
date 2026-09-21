@@ -20,7 +20,7 @@ from averis.config import Settings
 from averis.documents import read_document_bounded
 from averis.domain import AuditEntry, CaseView, Classification
 from averis.intelligence import Intelligence
-from averis.jev import Jev
+from averis.jev import Jev, NumericAssistedIntelligence
 from averis.pairing import PairingJudge
 from averis.persistence import (
     BrowserSession,
@@ -142,16 +142,17 @@ class Processor:
         budget = BudgetAuthority(self.db, self.settings)
         primary = Jev(self.settings, budget, run_id, purpose)
         if not self.settings.deepseek_fields_enabled:
-            return primary
+            return NumericAssistedIntelligence(primary, primary)
         from averis.deepseek import AssistedIntelligence
 
-        return AssistedIntelligence(
+        assisted = AssistedIntelligence(
             primary,
             self.settings.deepseek_api_key.get_secret_value(),
             budget,
             run_id,
             purpose,
         )
+        return NumericAssistedIntelligence(assisted, primary)
 
     def processing_enabled(self) -> bool:
         """Return whether a delivery may start paid processing work."""

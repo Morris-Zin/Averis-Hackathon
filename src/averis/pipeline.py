@@ -24,6 +24,7 @@ from averis.domain import (
     normalize_issue,
 )
 from averis.intelligence import Intelligence
+from averis.numeric_evidence import bind_numeric_selection
 from averis.pairing import (
     PairingJudge,
     PairingProposal,
@@ -328,6 +329,14 @@ class ShipmentPipeline:
                 acceptance_basis=proposal.acceptance_basis,
                 selection_model=proposal.selection_model,
             )
+            if proposal.numeric_selection is not None:
+                reading = bind_numeric_selection(
+                    evidence,
+                    proposal.field,
+                    proposal.numeric_selection,
+                    proposal.confidence,
+                    proposal.selection_model,
+                )
             # A provider may apply a stricter confidence policy. Rebinding
             # evidence must not clear that uncertainty or its review reason.
             if reading.issue is None and proposal.issue is not None:
