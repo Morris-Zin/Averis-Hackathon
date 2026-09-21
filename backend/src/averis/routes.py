@@ -19,7 +19,7 @@ from fastapi import (
     UploadFile,
 )
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
 from averis.api_responses import CasePageResponse, CaseResponse, QueueCaseResponse
@@ -31,6 +31,7 @@ from averis.bulk_ingest import (
     parse_archive,
     parse_email_files,
 )
+from averis.case_queries import InvalidCaseQuery, list_cases
 from averis.demo import seed
 from averis.domain import REVIEWERS, Action, CaseView, SessionView
 from averis.email_intake import BulkEmailRequest, BulkOutcome, import_many
@@ -48,8 +49,6 @@ from averis.persistence import (
     Case,
     Document,
     Workspace,
-    outstanding_review_filter,
-    spam_filter,
     uid,
     utcnow,
 )
@@ -202,51 +201,25 @@ def cases(
     category: str = "",
     assignee: str = "",
 ) -> CasePageResponse:
-    if page < 1 or not 1 <= page_size <= 100 or len(q) > 200:
-        raise HTTPException(422, "Invalid pagination or search")
-    with services.db.session() as session:
-        query = select(Case).where(Case.workspace_id == actor.workspace_id)
-        if q:
-            query = query.where(Case.subject.ilike(f"%{q}%"))
-        if category:
-            query = query.where(
-                spam_filter() if category == "SPAM" else Case.category == category
-            )
-        if assignee:
-            query = query.where(Case.assignee == assignee)
-        if view == "mismatches":
-            query = query.where(Case.has_mismatch.is_(True), ~spam_filter())
-        elif view == "spam":
-            query = query.where(spam_filter())
-        elif view == "review":
-            query = query.where(outstanding_review_filter())
-        elif view in {"waiting", "completed"}:
-            query = query.where(Case.workflow == view, ~spam_filter())
-        elif view != "all":
-            raise HTTPException(422, "Unknown inbox view")
-        total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
-        items = [
-            QueueCaseResponse.from_case(view_of(row))
-            for row in session.scalars(
-                query.order_by(Case.received_at.desc())
-                .offset((page - 1) * page_size)
-                .limit(page_size)
-            )
-        ]
-        counts = {
-            name: session.scalar(
-                select(func.count())
-                .select_from(Case)
-                .where(Case.workspace_id == actor.workspace_id, predicate)
-            )
-            or 0
-            for name, predicate in {
-                "spam": spam_filter(),
-                "review": outstanding_review_filter(),
-            }.items()
-        }
+    try:
+        result = list_cases(
+            services.db,
+            actor.workspace_id,
+            view=view,
+            q=q,
+            page=page,
+            page_size=page_size,
+            category=category,
+            assignee=assignee,
+        )
+    except InvalidCaseQuery as exc:
+        raise HTTPException(422, str(exc)) from exc
     return CasePageResponse(
-        items=items, total=total, page=page, page_size=page_size, counts=counts
+        items=[QueueCaseResponse.from_case(item) for item in result.items],
+        total=result.total,
+        page=result.page,
+        page_size=result.page_size,
+        counts=result.counts,
     )
 
 

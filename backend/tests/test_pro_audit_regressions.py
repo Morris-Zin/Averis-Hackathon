@@ -9,6 +9,7 @@ from docx import Document
 from test_case_status import complete_case
 
 from averis.case_status import assess_case
+from averis.documents import pdf as doc_pdf
 from averis.documents import read_document
 from averis.domain import (
     AttachmentView,
@@ -145,8 +146,6 @@ def test_native_heading_does_not_hide_scanned_body(monkeypatch):
     from contextlib import nullcontext
     from types import SimpleNamespace
 
-    from averis import documents
-
     page = SimpleNamespace(
         width=600,
         height=800,
@@ -159,8 +158,8 @@ def test_native_heading_does_not_hide_scanned_body(monkeypatch):
         "pdfplumber.open", lambda _: nullcontext(SimpleNamespace(pages=[page]))
     )
     ocr = Mock(return_value=([], ["ocr_test_unreadable"]))
-    monkeypatch.setattr(documents, "_ocr_pdf_pages", ocr)
-    result = documents._read_pdf("scan", b"fixture")
+    monkeypatch.setattr(doc_pdf, "_ocr_pdf_pages", ocr)
+    result = doc_pdf.read_pdf("scan", b"fixture")
     assert ocr.call_args.args[2] == [1]
     assert "ocr_test_unreadable" in result.issues
     assert not result.blocks

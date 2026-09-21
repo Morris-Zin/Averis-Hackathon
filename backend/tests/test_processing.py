@@ -13,6 +13,7 @@ from averis.config import Settings
 from averis.demo import evidence
 from averis.domain import AttachmentView, AuditEntry, CaseView, Classification
 from averis.intelligence import ExtractionResult
+from averis.maintenance import maintain
 from averis.persistence import Base, Case, Database, Outbox, Run, utcnow
 from averis.processing import LostLease, Processor
 from averis.storage import Storage
@@ -237,12 +238,12 @@ def test_cleanup_failure_does_not_block_run_reconciliation(
     _case_id, run_id = add_case_and_run(db)
     processor = Processor(db, settings, storage)
 
-    def fail_cleanup() -> int:
+    def fail_cleanup(*_args) -> int:
         raise RuntimeError("sensitive-storage-detail")
 
-    monkeypatch.setattr(processor, "expire_workspaces", fail_cleanup)
-    with caplog.at_level("WARNING", logger="averis.processing"):
-        assert processor.reconcile() == 0
+    monkeypatch.setattr("averis.maintenance.expire_workspaces", fail_cleanup)
+    with caplog.at_level("WARNING", logger="averis.maintenance"):
+        assert maintain(processor) == 0
 
     with db.session() as session:
         assert session.get(Outbox, run_id) is not None

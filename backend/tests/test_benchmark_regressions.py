@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from averis.documents import _pdf_lines, read_document
+from averis.documents import read_document
+from averis.documents.pdf import _pdf_lines
 from averis.domain import DocumentEvidence, EvidenceBlock, Location
 from averis.source_regions import evidence_candidates
 from averis.verification import compare, normalize, reading_from_evidence

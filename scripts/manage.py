@@ -6,6 +6,7 @@ from decimal import ROUND_CEILING, Decimal
 from sqlalchemy import select
 
 from averis.config import Settings
+from averis.maintenance import maintain
 from averis.persistence import Budget, Database, Run
 from averis.processing import Processor
 from averis.storage import Storage
@@ -65,7 +66,7 @@ def main() -> None:
         if args.command == "metrics":
             print(processor.metrics())
         elif args.command == "reconcile":
-            print({"dispatched": processor.reconcile()})
+            print({"dispatched": maintain(processor)})
         else:
             if not 1 <= args.limit <= 50:
                 parser.error("Choose a batch limit between 1 and 50.")

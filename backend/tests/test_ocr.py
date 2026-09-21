@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
-from averis import ocr
+from averis.documents import ocr
 
 
 def line(text: str) -> ocr.OcrLine:

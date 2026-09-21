@@ -72,11 +72,13 @@ class DurableRunner:
         )
 
     def _reconcile_if_due(self) -> None:
+        from averis.maintenance import maintain
+
         current = monotonic()
         if current < self._next_reconcile:
             return
         try:
-            self.processor.reconcile()
+            maintain(self.processor)
         except Exception as exc:  # noqa: BLE001 - reconciliation retries from durable state
             log.warning(
                 "runner_reconcile_failed error_type=%s",

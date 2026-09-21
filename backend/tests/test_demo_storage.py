@@ -8,10 +8,11 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 
+from averis.case_queries import list_cases
 from averis.config import Settings
 from averis.demo import seed
-from averis.persistence import Base, Case, Database, Document, Workspace, utcnow
-from averis.processing import Processor
+from averis.maintenance import expire_workspaces
+from averis.persistence import Base, Budget, Case, Database, Document, Workspace, utcnow
 from averis.storage import Storage
 
 
@@ -90,12 +91,7 @@ def test_expired_workspace_cleanup_keeps_shared_seed_objects(demo_store):
         original = storage.read(before[0].object_key)
     seed_files = list((Path(storage.settings.storage_dir) / "seeds").glob("*"))
 
-    assert (
-        Processor(
-            db, Settings(storage_dir=storage.settings.storage_dir), storage
-        ).expire_workspaces()
-        == 1
-    )
+    assert expire_workspaces(db, storage) == 1
 
     with db.session() as session:
         assert not session.scalar(select(Workspace).where(Workspace.id == "expired"))
@@ -131,3 +127,60 @@ def test_malformed_seed_keys_are_rejected(demo_store):
             storage.read(key)
         with pytest.raises(ValueError, match="seed"):
             storage.delete(key)
+
+
+def test_case_queries_preserve_team_filters_pagination_and_workspace_scope(demo_store):
+    db, storage = demo_store
+    make_workspace(db, storage, "team-a")
+    make_workspace(db, storage, "team-b")
+    all_cases = list_cases(db, "team-a")
+    other_cases = list_cases(db, "team-b")
+    assert all_cases.total == 8
+    assert {item.assignee for item in all_cases.items} == {
+        "John Tan",
+        "Aisha Rahman",
+        "Mei Lin",
+    }
+    assert {item.id for item in all_cases.items}.isdisjoint(
+        item.id for item in other_cases.items
+    )
+    first = list_cases(db, "team-a", page_size=3)
+    second = list_cases(db, "team-a", page_size=3, page=2)
+    assert first.items + second.items == all_cases.items[:6]
+    filtered = list_cases(db, "team-a", assignee="Aisha Rahman", category="SI_REQUEST")
+    assert filtered.total == 1
+    assert filtered.items[0].assignee == "Aisha Rahman"
+    assert filtered.counts == all_cases.counts
+    assert list_cases(db, "team-a", q="invoice").total == 1
+    with pytest.raises(ValueError, match="Unknown inbox view"):
+        list_cases(db, "team-a", view="invalid")
+
+
+def test_cleanup_failure_retains_rows_for_retry_and_keeps_budget(
+    demo_store, monkeypatch
+):
+    db, storage = demo_store
+    make_workspace(db, storage, "expired", expired=True)
+    make_workspace(db, storage, "active")
+    with db.session() as session, session.begin():
+        session.add(Budget(id=1, prior_spend=123, development=456, demo=789))
+
+    def fail_delete(_key):
+        raise OSError("storage unavailable")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "delete", fail_delete)
+        with pytest.raises(OSError):
+            expire_workspaces(db, storage)
+    with db.session() as session:
+        assert session.get(Workspace, "expired") is not None
+        assert session.scalar(
+            select(Document).where(Document.workspace_id == "expired")
+        )
+    assert expire_workspaces(db, storage) == 1
+    assert expire_workspaces(db, storage) == 0
+    with db.session() as session:
+        assert session.get(Workspace, "expired") is None
+        assert session.get(Workspace, "active") is not None
+        budget = session.get(Budget, 1)
+        assert (budget.prior_spend, budget.development, budget.demo) == (123, 456, 789)

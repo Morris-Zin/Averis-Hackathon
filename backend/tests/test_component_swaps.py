@@ -7,6 +7,7 @@ import pytest
 from test_case_status import complete_case
 
 from averis.config import Settings
+from averis.documents import reading as doc_reading
 from averis.domain import AttachmentView, Classification
 from averis.intelligence import ExtractionResult
 from averis.jev_prompts import DEFAULT_PROMPTS
@@ -171,7 +172,7 @@ def test_registered_format_uses_common_reading_boundary(monkeypatch):
 
     handler = Mock(return_value=doc())
     monkeypatch.setitem(
-        documents.FORMAT_READERS, ".example", documents.FormatReader(handler)
+        doc_reading.FORMAT_READERS, ".example", doc_reading.FormatReader(handler)
     )
     result = documents.read_document("doc-1", "source.example", b"original")
     assert result.blocks[0].text == "Shipper: Test Co"
@@ -184,9 +185,9 @@ def test_office_archive_guard_cannot_be_skipped_by_handler(monkeypatch):
 
     handler = Mock()
     monkeypatch.setitem(
-        documents.FORMAT_READERS,
+        doc_reading.FORMAT_READERS,
         ".docx",
-        documents.FormatReader(handler, office_archive=True),
+        doc_reading.FormatReader(handler, office_archive=True),
     )
     result = documents.read_document("doc-1", "source.docx", b"invalid ZIP")
     assert result.issues

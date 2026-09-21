@@ -71,6 +71,8 @@ def check_boundaries() -> None:
         "email_intake": {"fastapi", "averis.api", "averis.worker"},
         "workflow": {"fastapi", "averis.api", "averis.worker", "averis.jev"},
         "processing": {"fastapi", "averis.api", "averis.worker"},
+        "case_queries": {"fastapi", "averis.api", "averis.routes", "averis.worker"},
+        "maintenance": {"fastapi", "averis.api", "averis.worker"},
         "runner": {"fastapi", "averis.api", "averis.worker", "averis.intelligence"},
         "jev": {
             "fastapi",
@@ -143,6 +145,21 @@ def check_boundaries() -> None:
     }
     for path in (ROOT / "backend/src/averis").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        document_module = path.parent.name == "documents"
+        forbidden_imports = prohibited.get(path.stem, set())
+        if document_module:
+            forbidden_imports = (
+                forbidden_imports
+                | prohibited["documents"]
+                | {
+                    "sqlalchemy",
+                    "averis.persistence",
+                    "averis.case_queries",
+                    "averis.maintenance",
+                    "averis.routes",
+                    "averis.http_context",
+                }
+            )
         for node in ast.walk(tree):
             imports = (
                 [node.module or ""]
@@ -155,11 +172,14 @@ def check_boundaries() -> None:
             )
             for name in imports:
                 if any(
-                    name == p or name.startswith(p + ".")
-                    for p in prohibited.get(path.stem, set())
+                    name == p or name.startswith(p + ".") for p in forbidden_imports
                 ):
                     raise SystemExit(
                         f"Module boundary violation: {path.name} imports {name}"
+                    )
+                if not document_module and name.startswith("averis.documents."):
+                    raise SystemExit(
+                        f"Use the public document interface: {path.name} imports {name}"
                     )
                 if path.stem in {"domain", "pipeline"} and (
                     name == "averis.jev"

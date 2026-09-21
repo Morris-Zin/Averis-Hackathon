@@ -63,6 +63,13 @@ worker processes durable jobs in PostgreSQL; private R2 stores original document
 The deployed services run on Railway with Neon PostgreSQL. Versioned reader and
 AI adapters can be replaced without moving comparison rules into HTTP or UI code.
 
+Document formats, OCR, previews and subprocess limits live inside
+`backend/src/averis/documents/`, behind the public evidence-reading interface.
+`case_queries.py` owns workspace-scoped queue filters, pagination and counts;
+HTTP routes translate its results into API responses. `maintenance.py` owns
+expired demo workspace cleanup and invokes run recovery even if cleanup fails.
+The processor owns job leases, checkpoints and publication of current results.
+
 Railway uses the root [Dockerfile](Dockerfile) for both services:
 
 - Public service: `AVERIS_ROLE=web`, `/health` health check, and

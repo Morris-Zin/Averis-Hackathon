@@ -16,15 +16,19 @@ from PIL import Image
 from pytest import MonkeyPatch
 
 from averis.documents import (
-    MAX_DOCUMENT_BYTES,
-    MAX_RENDER_DIMENSION,
-    MAX_RENDER_PIXELS,
     DocumentPreviewError,
-    _acquire_child_process_tree,
-    _stop_process_tree,
     read_document,
     read_document_bounded,
     render_preview_bounded,
+)
+from averis.documents.limits import (
+    MAX_DOCUMENT_BYTES,
+    MAX_RENDER_DIMENSION,
+    MAX_RENDER_PIXELS,
+)
+from averis.documents.process_limits import (
+    acquire_child_process_tree,
+    stop_process_tree,
 )
 from averis.domain import Location
 from averis.verification import normalize
@@ -287,7 +291,7 @@ def test_pdf_native_text_splits_adjacent_fields_and_retains_address_regions(
     def unnecessary_ocr(*args, **kwargs):
         raise AssertionError("Readable native PDF must not invoke OCR")
 
-    monkeypatch.setattr("averis.documents.read_page", unnecessary_ocr)
+    monkeypatch.setattr("averis.documents.pdf.read_page", unnecessary_ocr)
     evidence = read_document(
         "pdf-fields",
         "si.pdf",
@@ -476,7 +480,7 @@ def _text_pdf(lines: list[str], line_spacing: int = 18) -> bytes:
 
 
 def _descendant_worker(pipe: Connection, ignore_term: bool = False) -> None:
-    _acquire_child_process_tree()
+    acquire_child_process_tree()
     child_code = (
         "import signal,time;"
         "signal.signal(signal.SIGTERM, signal.SIG_IGN);"
@@ -535,7 +539,7 @@ def test_process_tree_cleanup_terminates_a_spawned_descendant() -> None:
         descendant_pid = receive.recv()
     finally:
         receive.close()
-        _stop_process_tree(process)
+        stop_process_tree(process)
 
     assert descendant_pid is not None
     deadline = time.monotonic() + 5
@@ -565,7 +569,7 @@ def test_process_tree_cleanup_kills_descendant_that_ignores_sigterm() -> None:
         descendant_pid = receive.recv()
     finally:
         receive.close()
-        _stop_process_tree(process)
+        stop_process_tree(process)
 
     assert descendant_pid is not None
     deadline = time.monotonic() + 5

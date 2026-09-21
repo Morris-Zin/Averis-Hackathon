@@ -7,8 +7,8 @@ import pytest
 from docx import Document
 
 from averis.documents import read_document
+from averis.documents.word_structure import MC, WPS, W
 from averis.verification import normalize, reading_from_evidence
-from averis.word_structure import MC, WPS, W
 
 
 def package(body: str, extra: dict[str, str] | None = None) -> bytes:

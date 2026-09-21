@@ -11,6 +11,9 @@ from PIL import Image
 
 from averis import documents
 from averis.config import Settings
+from averis.documents import limits as doc_limits
+from averis.documents import pdf as doc_pdf
+from averis.documents import spreadsheet as doc_spreadsheet
 from averis.domain import AttachmentView, AuditEntry, CaseView, Classification
 from averis.persistence import Base, Case, Database, Document, Run
 from averis.processing import Processor
@@ -18,16 +21,16 @@ from averis.storage import Storage
 
 
 def test_configured_document_limits_match_the_accepted_plan() -> None:
-    assert documents.MAX_DOCUMENT_BYTES == 10 * 1024 * 1024
-    assert documents.MAX_PDF_PAGES == 20
-    assert documents.MAX_OCR_PAGES == 3
-    assert documents.MAX_ARCHIVE_BYTES == 100 * 1024 * 1024
-    assert documents.MAX_ARCHIVE_ENTRY_BYTES == 50 * 1024 * 1024
-    assert documents.MAX_ARCHIVE_ENTRIES == 10_000
-    assert documents.MAX_XLSX_SHEETS == 50
-    assert documents.MAX_XLSX_ROWS_PER_SHEET == 20_000
-    assert documents.MAX_XLSX_COLUMNS == 256
-    assert documents.MAX_XLSX_CELLS == 200_000
+    assert doc_limits.MAX_DOCUMENT_BYTES == 10 * 1024 * 1024
+    assert doc_limits.MAX_PDF_PAGES == 20
+    assert doc_limits.MAX_OCR_PAGES == 3
+    assert doc_limits.MAX_ARCHIVE_BYTES == 100 * 1024 * 1024
+    assert doc_limits.MAX_ARCHIVE_ENTRY_BYTES == 50 * 1024 * 1024
+    assert doc_limits.MAX_ARCHIVE_ENTRIES == 10_000
+    assert doc_limits.MAX_XLSX_SHEETS == 50
+    assert doc_limits.MAX_XLSX_ROWS_PER_SHEET == 20_000
+    assert doc_limits.MAX_XLSX_COLUMNS == 256
+    assert doc_limits.MAX_XLSX_CELLS == 200_000
 
 
 def _blank_pdf(page_count: int) -> bytes:
@@ -83,22 +86,23 @@ def test_pdf_page_and_ocr_page_limits_are_explicit(
         calls.append(pages)
         return [], []
 
-    monkeypatch.setattr(documents, "_ocr_pdf_pages", no_ocr)
+    monkeypatch.setattr(doc_pdf, "_ocr_pdf_pages", no_ocr)
 
     page_limited = documents.read_document("pdf-pages", "scan.pdf", _blank_pdf(21))
     assert (
-        f"pdf_page_limit_exceeded:21>{documents.MAX_PDF_PAGES}" in page_limited.issues
+        f"pdf_page_limit_exceeded:21>{doc_limits.MAX_PDF_PAGES}" in page_limited.issues
     )
     assert (
-        f"pdf_ocr_page_limit_exceeded:{documents.MAX_PDF_PAGES}>"
-        f"{documents.MAX_OCR_PAGES}"
+        f"pdf_ocr_page_limit_exceeded:{doc_limits.MAX_PDF_PAGES}>"
+        f"{doc_limits.MAX_OCR_PAGES}"
     ) in page_limited.issues
-    assert calls == [list(range(1, documents.MAX_OCR_PAGES + 1))]
+    assert calls == [list(range(1, doc_limits.MAX_OCR_PAGES + 1))]
 
     calls.clear()
     ocr_limited = documents.read_document("ocr-pages", "scan.pdf", _blank_pdf(4))
     assert (
-        f"pdf_ocr_page_limit_exceeded:4>{documents.MAX_OCR_PAGES}" in ocr_limited.issues
+        f"pdf_ocr_page_limit_exceeded:4>{doc_limits.MAX_OCR_PAGES}"
+        in ocr_limited.issues
     )
     assert calls == [[1, 2, 3]]
 
@@ -133,7 +137,7 @@ def test_office_archive_limits_are_explicit(
     entries: list[tuple[str, bytes]],
     expected: str,
 ) -> None:
-    monkeypatch.setattr(documents, constant, limit)
+    monkeypatch.setattr(doc_limits, constant, limit)
     evidence = documents.read_document(
         "archive-limit", "shipment.docx", _archive(entries)
     )
@@ -143,7 +147,7 @@ def test_office_archive_limits_are_explicit(
 
 def test_xlsx_structure_limits_are_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
     with monkeypatch.context() as patch:
-        patch.setattr(documents, "MAX_XLSX_SHEETS", 1)
+        patch.setattr(doc_spreadsheet, "MAX_XLSX_SHEETS", 1)
         evidence = documents.read_document(
             "sheet-limit",
             "shipment.xlsx",
@@ -152,21 +156,21 @@ def test_xlsx_structure_limits_are_explicit(monkeypatch: pytest.MonkeyPatch) -> 
         assert "xlsx_sheet_limit_exceeded:2>1" in evidence.issues
 
     with monkeypatch.context() as patch:
-        patch.setattr(documents, "MAX_XLSX_ROWS_PER_SHEET", 2)
+        patch.setattr(doc_spreadsheet, "MAX_XLSX_ROWS_PER_SHEET", 2)
         evidence = documents.read_document(
             "row-limit", "shipment.xlsx", _workbook({"A3": "Consignee: Example"})
         )
         assert "xlsx_row_limit_exceeded:SI:3" in evidence.issues
 
     with monkeypatch.context() as patch:
-        patch.setattr(documents, "MAX_XLSX_COLUMNS", 2)
+        patch.setattr(doc_spreadsheet, "MAX_XLSX_COLUMNS", 2)
         evidence = documents.read_document(
             "column-limit", "shipment.xlsx", _workbook({"C1": "Port: Klang"})
         )
         assert "xlsx_column_limit_exceeded:SI:3" in evidence.issues
 
     with monkeypatch.context() as patch:
-        patch.setattr(documents, "MAX_XLSX_CELLS", 4)
+        patch.setattr(doc_spreadsheet, "MAX_XLSX_CELLS", 4)
         evidence = documents.read_document(
             "cell-limit",
             "shipment.xlsx",
@@ -219,7 +223,7 @@ def test_image_reader_and_preview_reject_format_mismatch_and_pixel_excess() -> N
     ):
         documents.render_preview_bounded("scan.jpg", png_payload.getvalue())
 
-    oversized = Image.new("RGB", (documents.MAX_RENDER_DIMENSION + 1, 1), "white")
+    oversized = Image.new("RGB", (doc_limits.MAX_RENDER_DIMENSION + 1, 1), "white")
     oversized_payload = BytesIO()
     oversized.save(oversized_payload, format="PNG")
     oversized.close()
@@ -227,8 +231,8 @@ def test_image_reader_and_preview_reject_format_mismatch_and_pixel_excess() -> N
         "oversized-image", "scan.png", oversized_payload.getvalue()
     )
     expected = (
-        f"image_pixel_limit_exceeded:{documents.MAX_RENDER_DIMENSION + 1}x1>"
-        f"{documents.MAX_RENDER_PIXELS}"
+        f"image_pixel_limit_exceeded:{doc_limits.MAX_RENDER_DIMENSION + 1}x1>"
+        f"{doc_limits.MAX_RENDER_PIXELS}"
     )
     assert evidence.blocks == []
     assert evidence.issues == [expected]
@@ -236,8 +240,8 @@ def test_image_reader_and_preview_reject_format_mismatch_and_pixel_excess() -> N
         documents.DocumentPreviewError,
         match=(
             f"preview_image_pixel_limit_exceeded:"
-            f"{documents.MAX_RENDER_DIMENSION + 1}x1>"
-            f"{documents.MAX_RENDER_PIXELS}"
+            f"{doc_limits.MAX_RENDER_DIMENSION + 1}x1>"
+            f"{doc_limits.MAX_RENDER_PIXELS}"
         ),
     ):
         documents.render_preview_bounded("scan.png", oversized_payload.getvalue())

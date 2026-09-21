@@ -5,6 +5,7 @@ import logging
 from fastapi import FastAPI, HTTPException
 
 from averis.config import Settings
+from averis.maintenance import maintain
 from averis.persistence import Database
 from averis.processing import Processor
 from averis.storage import Storage
@@ -29,7 +30,7 @@ def execute(run_id: str) -> dict[str, str]:
 
 @app.post("/internal/reconcile")
 def reconcile() -> dict[str, int]:
-    return {"dispatched": processor.reconcile()}
+    return {"dispatched": maintain(processor)}
 
 
 @app.get("/health")
