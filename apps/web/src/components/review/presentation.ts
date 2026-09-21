@@ -11,6 +11,36 @@ export function readingDisplayValue(reading?: Finding["si"]) {
 export const PAIR_REVIEW_REASON =
   "Human review requested: we could not verify a shared shipment reference between the SI and draft BL.";
 
+const READING_ISSUES: Record<string, string> = {
+  ambiguous_source_fields:
+    "Several fields appear together in the selected text. Select this field and check its source before correcting our reading.",
+  source_field_mismatch:
+    "The selected text appears to describe a different field. Check the source and select the correct evidence.",
+  incomplete_party_evidence:
+    "Part of the name or address may be missing. Check the source and include all relevant lines.",
+  missing_value:
+    "No value was found. Check whether the source contains this field or request a complete document.",
+  missing_or_ambiguous_value:
+    "We could not read one clear value or its required unit. Check the source before correcting our reading.",
+  low_field_confidence:
+    "The AI is unsure which text belongs to this field. Check the selected evidence.",
+  low_ocr_confidence:
+    "The scanned text was not read reliably. Check the image and verify the reading, or upload a clearer document.",
+  unknown_ocr_confidence:
+    "We could not verify the scanned text's reading quality. Check the image and verify the reading.",
+  unverified_transcription:
+    "This typed reading has not been verified against the image. Check it and attest that it matches the source.",
+  destination_port_requires_review:
+    "The document also lists a discharge port. Check that field; the final destination may be a different port.",
+};
+
+export function readingIssueLabel(issue: string) {
+  return (
+    READING_ISSUES[issue] ??
+    `Check the source before accepting this reading (${issue.replaceAll("_", " ")}).`
+  );
+}
+
 export function issueLabel(
   issue: NonNullable<NonNullable<CaseView["report"]>["issues"]>[number],
 ) {
@@ -60,11 +90,17 @@ export function readingProvenanceLabel(reading?: Finding["si"]) {
   if (reading.provenance === "human_transcribed") return "Human transcription";
   if (reading.assistance_error)
     return "Additional AI unavailable; review the source";
-  if (reading.acceptance_basis === "explicit_source")
+  if (reading.acceptance_basis === "explicit_source" && !reading.issue)
     return "Selected by DeepSeek · source checks passed";
+  if (reading.acceptance_basis === "explicit_source")
+    return "Selected by DeepSeek · source check requires review";
   if (reading.confidence == null)
     return "Machine reading · confidence unavailable";
-  return Math.round(reading.confidence * 100) + "% field confidence";
+  return (
+    Math.round(reading.confidence * 100) +
+    "% AI selection confidence" +
+    (reading.issue ? " · source check requires review" : "")
+  );
 }
 
 function processingFailureDetail(item: CaseView) {

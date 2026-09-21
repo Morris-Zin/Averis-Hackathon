@@ -7,6 +7,7 @@ import {
   outcomeLabel,
   readingDisplayValue,
   readingProvenanceLabel,
+  readingIssueLabel,
 } from "./presentation";
 
 type Props = {
@@ -69,6 +70,12 @@ export function ComparisonPanel({
           </span>
         </div>
         <div className="comparison-table-wrap">
+          <p className="p-4">
+            AI selection confidence describes how sure the AI is about its
+            chosen text. It does not mean the reading is verified or the
+            documents match. A source check can still require review, even at
+            100% confidence.
+          </p>
           {pairingUnconfirmed ? (
             <p className="p-4" role="status">
               {PAIR_REVIEW_REASON} Field confidence describes how confidently a
@@ -170,7 +177,7 @@ export function ComparisonPanel({
                       <small>{readingProvenanceLabel(finding?.si)}</small>
                       {finding?.si.issue ? (
                         <small>
-                          Needs review: {finding.si.issue.replaceAll("_", " ")}
+                          Needs review: {readingIssueLabel(finding.si.issue)}
                         </small>
                       ) : null}
                     </td>
@@ -181,7 +188,7 @@ export function ComparisonPanel({
                       <small>{readingProvenanceLabel(finding?.bl)}</small>
                       {finding?.bl.issue ? (
                         <small>
-                          Needs review: {finding.bl.issue.replaceAll("_", " ")}
+                          Needs review: {readingIssueLabel(finding.bl.issue)}
                         </small>
                       ) : null}
                     </td>

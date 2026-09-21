@@ -1,5 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { confidenceDisplay, readingProvenanceLabel } from "./presentation";
+import {
+  confidenceDisplay,
+  readingProvenanceLabel,
+  readingIssueLabel,
+} from "./presentation";
+
+it("keeps high AI certainty separate from failed source validation", () => {
+  const reading = {
+    field: "shipper" as const,
+    document_id: "si",
+    confidence: 1,
+    provenance: "machine" as const,
+    acceptance_basis: "probability" as const,
+    issue: "ambiguous_source_fields",
+  };
+  expect(readingProvenanceLabel(reading)).toContain(
+    "100% AI selection confidence",
+  );
+  expect(readingProvenanceLabel(reading)).toContain("requires review");
+  expect(readingIssueLabel(reading.issue)).toContain("Several fields");
+  expect(
+    readingProvenanceLabel({
+      ...reading,
+      confidence: null,
+      acceptance_basis: "explicit_source",
+    }),
+  ).not.toContain("passed");
+  expect(readingIssueLabel("future_reason")).toContain("Check the source");
+});
 
 function classification(source: "model" | "human" | "fixture") {
   return {
