@@ -172,6 +172,10 @@ and RapidOCR read scanned text. Jev receives prepared text instead of raw files.
 It suggests the email category and reads shipment fields. Optional DeepSeek
 help is used for fields that remain unclear.
 
+**Adapt the classifier with a prompt, without retraining a model.** Jev lets us
+refine how it interprets email intent by updating its natural-language
+instructions, then testing the results against our existing checks.
+
 Python code checks that the selected text supports each reading and that the SI
 and BL belong together. It then compares names, ports, numbers and units. AI
 does not decide whether two numbers are equal. The original text and its location
