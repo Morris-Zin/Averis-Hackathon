@@ -1,156 +1,225 @@
-# Averis — shipping document review
+# Averis
 
-Averis classifies incoming shipping emails, compares draft Bills of Lading against
-Shipping Instructions, and links findings to source evidence.
+**Check shipping documents. See the evidence.**
 
-**[Live demo](https://averis-hackathon-production.up.railway.app/)**
+Averis helps shipping teams sort emails and check draft Bills of Lading (BL)
+against Shipping Instructions (SI). The SI is the reference document. Averis
+shows differences, links them to the source, and sends unclear cases to a person.
 
-## Workflow
+Built by **Team GoodLord**: Aung Phone Khant, Pei En, Congye and Ella.
 
-- Classify messages as BL comparison, SI request, invoice query, general or spam.
-- Compare seven fields against the SI: shipper, consignee, notify party, loading
-  port, discharge port, container count and gross weight.
-- Route mismatches automatically to review. Missing, uncertain or unreadable
-  evidence cannot establish a match; known mismatches remain visible alongside it.
-- Inspect original documents and source passages. Correct a reading, recompute
-  the comparison and retain the original documents and revision history.
-- Keep confirmed and suspected spam in a separate queue. **Not spam** restores
-  a message to review for category selection without erasing its AI suggestion.
+- [Open the demo](https://averis-hackathon-production.up.railway.app/)
+- [Read the project document](PROJECT.md): architecture, implementation, challenges, results and roadmap.
+- [View the source code](https://github.com/Morris-Zin/Averis-Hackathon)
 
-The app accepts TXT, PDF, DOCX, XLSX, PNG and JPEG attachments. English is the
-primary language; readers also recognize supported Chinese and Malay labels.
-Scans use Tesseract for English/Malay and RapidOCR for Chinese. Ambiguous layouts,
-weak OCR and uncertain shipment pairing remain review work. Optional DeepSeek
-assistance supplements unresolved Jev field readings. Code owns source validation,
-unit conversion and comparison; provider confidence is not measured accuracy.
+## Try the demo
 
-Gross-weight policy: a complete numeric weight with no unit defaults to kilograms,
-independently for each document. The reading records `unit_source: default_kg`
-and the UI shows “kg (assumed—unit not supplied)”. Explicit kg, pounds, grams and
-metric tonnes are converted to kg; contradictory or unsupported units, missing
-values and uncertain readings still require review. This is a business default,
-not proof of the source unit: an unlabeled pounds value will be interpreted as kg.
-Isolated numeric fragments selected from complex PDF blocks still require a unit.
+1. Open the demo and choose **Enter demo workspace**.
+2. Open a saved case and view the SI and BL values side by side.
+3. Open the source evidence for a finding.
+4. Correct a reading. The app checks the fields again and keeps the history.
+5. Use **Add email** for one email or **Bulk import** for email JSON files or a ZIP with emails and attachments.
 
-## Run locally
+Saved demo cases are examples. Processing new emails needs enabled AI services
+and available budget. Each browser session gets its own workspace. Keep that
+browser session to return to your cases. Logging out or clearing its cookie can
+remove your access. Uploaded files are not deleted automatically.
 
-Requires Python 3.12+, uv, Node 24, pnpm 10.26.2 and PostgreSQL. Scans require
-Tesseract with `eng`, `msa`, `chi_sim` and `chi_tra` data; the Docker image includes
-these. RapidOCR models are bundled with the locked Python dependencies.
+## What Averis checks
+
+Emails go into five categories: **BL comparison**, **SI request**, **invoice query**,
+**general** and **spam**. Only BL comparison emails enter shipment checking.
+
+The seven fields are shipper, consignee, notify party, loading port, discharge
+port, container count and gross weight.
+
+```mermaid
+flowchart TD
+    A[Import email and attachments] --> B[Classify email]
+    B -->|Other categories| C[Show in the right queue]
+    B -->|Uncertain category| G[Human review]
+    B -->|BL comparison| D[Read documents and extract fields]
+    D --> E[Compare seven fields against the SI]
+    E -->|All seven match with valid evidence| F[No mismatch detected]
+    E -->|Difference or missing or unclear evidence| G
+    G --> H[Check source and correct the reading]
+    H --> E
+```
+
+- Differences go to review automatically.
+- Missing or unclear evidence cannot count as a match.
+- A known difference stays visible even when another field is unclear.
+- A correction changes the app's reading. It does not change the uploaded file.
+- Files can be TXT, PDF, DOCX, XLSX, PNG or JPEG. OCR reads text from scanned pages and images.
+- English is the main language. Readers also support Chinese and Malay text and labels, with limits on difficult layouts.
+
+For gross weight, a complete number with no unit is treated as kilograms. The
+app shows that this is an assumption. Explicit supported units are converted to
+kilograms. Missing values, conflicting units and unclear readings still need
+review. A number meant to be pounds but written with no unit can be read as
+kilograms, so this default needs care.
+
+## Run on your computer
+
+### Option 1: Docker
+
+Install Git and Docker Desktop. Start Docker Desktop, then run:
 
 ```powershell
+git clone https://github.com/Morris-Zin/Averis-Hackathon.git
+cd Averis-Hackathon
+docker compose up --build
+```
+
+Wait for the services to start, then open **http://localhost:8000**. The first
+build downloads dependencies and OCR tools. Docker starts PostgreSQL, the web
+app and a worker service. Files and database records use local volumes.
+
+This setup lets you explore the saved demo and review tools. New AI processing
+is off. You do not need an API key to show the saved demo.
+
+To stop the services and keep saved data:
+
+```powershell
+docker compose down
+```
+
+### Option 2: Local development
+
+Install Git, Python 3.12 or newer, uv, Node.js 24, pnpm 10.26.2 and PostgreSQL.
+The commands below use PowerShell and run from the repository root.
+
+1. Clone the repository and install dependencies:
+
+```powershell
+git clone https://github.com/Morris-Zin/Averis-Hackathon.git
+cd Averis-Hackathon
 uv sync --project backend --locked
 pnpm --dir frontend install --frozen-lockfile
 pnpm --dir frontend build
-$env:AVERIS_DATABASE_URL = 'postgresql+psycopg://averis:averis@localhost:5432/averis'
+Copy-Item .env.example .env
+```
+
+Do not overwrite an existing `.env` when repeating setup.
+
+2. Create a PostgreSQL database. With Docker Desktop, this command creates a
+   local development database on port 5432:
+
+```powershell
+docker run --name averis-dev-db -e POSTGRES_USER=averis -e POSTGRES_PASSWORD=averis -e POSTGRES_DB=averis -p 5432:5432 -v averis-dev-db-data:/var/lib/postgresql/data -d postgres:16-alpine
+```
+
+If PostgreSQL is already running, create an `averis` database there and set
+`AVERIS_DATABASE_URL` in `.env` to its connection URL instead. The example
+username and password above are only for local development.
+
+3. Wait for the database to be ready, then create its tables and start the API:
+
+```powershell
 uv run --project backend alembic -c backend/alembic.ini upgrade head
 uv run --project backend uvicorn averis.api:app --host 127.0.0.1 --port 8000
 ```
 
-Open **http://localhost:8000** and choose **Enter demo workspace**. Each session
-gets an isolated persistent workspace with illustrative saved cases and simulated
-reviewer identities. Uploaded documents and cases are not automatically deleted.
-The private browser cookie is renewed on authenticated requests for up to 400 days
-(subject to browser policies). Existing stored session tokens retain access past
-the old 24-hour cutoff. Logging out revokes that token; clearing cookies or prior
-deletion cannot be recovered automatically. New sessions remain separate workspaces.
-No mailbox connection is required. SQLite is also available
-for quick local UI development; deployment and concurrency tests use PostgreSQL.
-Configuration is documented in [.env.example](.env.example); keep secrets in
-server-side environment variables or an ignored `.env` file.
+4. Open **http://localhost:8000**. The API serves the built frontend too.
 
-Alternatively, `docker compose up --build` starts the local database, app and
-worker. The optional `object-storage` profile adds MinIO for S3 adapter testing.
-
-**Add email** accepts pasted email content and attachments. **Bulk import** accepts
-email JSON files or an organizer-style ZIP containing email JSON and attachments,
-with preview and per-email accepted/duplicate/failed results. Identical submissions
-in the same workspace reuse the existing case. Limits are eight attachments,
-10 MB per file and 20 MB combined. New processing requires live AI configuration
-and the verified spending guard. Arbitrary revised-document uploads are operator-only.
-
-## Architecture and deployment
-
-Next.js builds a static frontend served by a Python FastAPI API. A private Python
-worker processes durable jobs in PostgreSQL; private R2 stores original documents.
-The deployed services run on Railway with Neon PostgreSQL. Versioned reader and
-AI adapters can be replaced without moving comparison rules into HTTP or UI code.
-
-Document formats, OCR, previews and subprocess limits live inside
-`backend/src/averis/documents/`, behind the public evidence-reading interface.
-`case_queries.py` owns workspace-scoped queue filters, pagination and counts;
-HTTP routes translate its results into API responses. `maintenance.py` invokes
-run recovery without deleting workspace data or original documents.
-The processor owns job leases, checkpoints and publication of current results.
-
-Railway uses the root [Dockerfile](Dockerfile) for both services:
-
-- Public service: `AVERIS_ROLE=web`, `/health` health check, and
-  `alembic upgrade head` before deployment. Configure the public HTTPS origin,
-  production mode, PostgreSQL, private R2 and provider credentials server-side.
-- Private worker: start command `python -m averis.runner`, with no public domain.
-  The current configuration uses two Singapore replicas, one job per replica,
-  and a 500-second shutdown grace period. Place services near the database.
-- [Railway configuration](infra/railway) records intended settings; the current
-  deployment applies these through Railway service settings, not automatically
-  through those JSON files. Leave Google task settings empty for this deployment.
-
-Live inference defaults off. Verify provider spending and initialize the shared
-budget ledger before enabling it. Reservations are atomic; uncertain charged
-outcomes retain their reservations. Cloud budget alerts are not spending caps.
-The project's combined Jev allowance is $7, including earlier experiments.
-
-## Verification
+5. In a second terminal at the repository root, start the background worker:
 
 ```powershell
-$env:AVERIS_TEST_DATABASE_URL = $env:AVERIS_DATABASE_URL
+uv run --project backend python -m averis.runner
+```
+
+Leave `AVERIS_TASKS_QUEUE` empty with this worker. Both processes read the same
+root `.env`. They need the same database and storage settings.
+
+For scans, install Tesseract and make `tesseract` available on your PATH. Install
+its `eng`, `msa`, `chi_sim` and `chi_tra` language data. RapidOCR comes with the
+locked Python dependencies. The Docker image includes the Tesseract tools.
+
+### Enable new AI processing
+
+Saved cases work with AI off. To process new uploads, set these values in the
+root `.env` locally, or in both services' server settings for deployment:
+
+| Setting | What to enter |
+| --- | --- |
+| `TYPESAFE_API_KEY` | Your TypeSafe key for Jev |
+| `AVERIS_INPUT_USD_PER_MILLION` | The verified input price for your model |
+| `AVERIS_OUTPUT_USD_PER_MILLION` | The verified output price for your model |
+| `AVERIS_PRIOR_SPEND_USD` | Spending before this database's budget record was created |
+| `AVERIS_BUDGET_VERIFIED` | `true` after checking prices and prior spending |
+| `AVERIS_LIVE_ENABLED` | `true` when ready to allow paid processing |
+
+The budget code reserves spending before each call. The project has a shared
+$7 Jev allowance, including experiments. See [the budget code](backend/src/averis/budget.py)
+for the limits and saved budget rules. Restart the API and worker after changing settings.
+
+After creating the database tables and verifying prices and prior spending,
+initialize the budget record once:
+
+```powershell
+uv run --project backend python scripts/manage.py init-budget --confirm-starting-usage
+uv run --project backend python scripts/manage.py budget
+```
+
+The first command refuses to reset an existing budget. Keep the prior spending
+setting consistent with the saved record. These two commands do not call AI.
+
+DeepSeek field help is optional. Set `DEEPSEEK_API_KEY` and
+`AVERIS_DEEPSEEK_FIELDS_ENABLED=true` to use it. Keep keys on the server. Never
+commit `.env`. Docker Compose fixes AI processing to off. Enabling it there also
+needs both services' environment settings changed in your local Compose setup.
+
+Uploads allow up to eight attachments, 10 MB per file and 20 MB total. An identical
+submission in the same workspace reuses its existing case.
+
+## How it runs in the cloud
+
+Railway runs the FastAPI web service and private Python workers. FastAPI serves
+the static Next.js frontend. Neon PostgreSQL stores cases, jobs and history.
+Private Cloudflare R2 stores uploaded files. Workers read prepared document text
+with Jev and optional DeepSeek help, then Python code compares the fields.
+
+The Railway workers poll PostgreSQL for jobs. Google Cloud Tasks is an alternative
+supported in the code, but is not used in this deployment.
+
+See [the architecture diagram and code guide](PROJECT.md#technical-architecture).
+
+## Run the checks
+
+After local setup, use a development PostgreSQL database where tests can create
+temporary schemas. Set its URL in the terminal:
+
+```powershell
+$env:AVERIS_TEST_DATABASE_URL = 'postgresql+psycopg://averis:averis@localhost:5432/averis'
 uv run --project backend python scripts/verify.py
 ```
 
-Checks include Python formatting, lint, complexity, strict types, module boundaries,
-tests, API contract drift, frontend formatting, types, lint, Knip, tests and a
-production build. PostgreSQL tests use temporary schemas. No paid provider is
-called. `--backend-only` runs just the backend checks.
+This runs backend tests, type and style checks, API contract checks, frontend
+tests, and a production frontend build. It makes no paid AI calls. Add
+`--backend-only` for backend checks only.
 
-Run `pnpm --dir frontend knip` for unused frontend dependencies and exports.
-Generated API types remain generator-owned and are checked against OpenAPI.
+## Code guide
 
-## Repository layout
+| Folder | What it contains |
+| --- | --- |
+| `frontend/` | Pages, review tools, API types and frontend tests |
+| `backend/src/averis/` | Email intake, readers, AI adapters, comparison, API and workers |
+| `backend/migrations/` | Database changes |
+| `backend/tests/` | Automated backend checks |
+| `scripts/` | Verification, evaluation and support scripts |
+| `infra/railway/` | Reference settings for deployment |
 
-- `frontend/`: Next.js pages, review UI, generated API types and frontend tests.
-- `backend/src/averis/`: contracts, readers, providers, comparison, review,
-  persistence, API and workers.
-- `backend/migrations/`, `backend/tests/`: schema migrations and offline checks.
-- `scripts/`: verification, evaluation, operations and port-directory generation.
-- `infra/railway/`: intended public-service and worker settings.
+Organizer answer labels are used only for evaluation. They are not used by the
+app to decide results and are not included in its runtime image. Port names use
+a bundled UN/LOCODE reference. See its
+[source and license](backend/src/averis/reference_data/README.md).
 
-Research notes, historical reports, evaluation outputs and video-authoring assets
-are kept locally rather than versioned with the application.
+## Results and next steps
 
-## Evaluation and reference data
+The recorded organizer benchmark reached **99.63/100 across 520 emails**, with
+**46/46 planted defect cases caught** at checkpoint `68ffe2e`. This was a replay
+of saved AI/OCR results on reused development data. It is not a claim of 99.63%
+accuracy on new shipments or a hackathon judging score.
 
-Place organizer kits under ignored `resources/official/bundle` and
-`resources/official/docker` from the
-[organizer folder](https://drive.google.com/drive/folders/1ouOrFF6GMKvJDaX_asN8R6v467W7P8Df).
-Ground truth is evaluation-only and excluded from runtime images.
-
-```powershell
-uv run --project backend averis inspect
-uv run --project backend averis validate resources/official/bundle/sample_submission.json
-uv run --project backend averis score resources/official/bundle/sample_submission.json
-uv run --project backend averis export outputs/case-snapshot.json --output outputs/submission.json --diagnostics outputs/coverage.json
-```
-
-The sample submission is a placeholder, not model output. Scoring invokes the
-unchanged official scorer. Report automatic coverage, abstentions and any human
-assistance separately; unsupported export states remain blocked.
-
-The two-column SI/BL spreadsheet template can establish a shared order from its
-native A3/B3 header when the worksheet structure matches. This does not equate
-arbitrary instruction and bill numbers; conflicting references still block
-pairing. Unitless weights remain unresolved. OCR-only field uncertainty without
-known mismatches can export `NEEDS_REVIEW / unreadable`; mixed unsupported issues
-remain blocked and existing known-mismatch exports retain their diagnostics.
-
-Port normalization uses a bundled, checksum-verified UN/LOCODE reference with
-conservative alias rules. See its [provenance and license](backend/src/averis/reference_data/README.md).
+Read the [project document](PROJECT.md) for test limits, challenges, the roadmap
+and how Averis addresses each rubric item.
