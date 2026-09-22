@@ -240,6 +240,35 @@ development**. We ran those readings through the processing and export rules
 again. The score combines complete-case results, email categories and defect
 detection. See the [benchmark report](BENCHMARKS.md) for the scoring method and saved outputs.
 
+### What the score and false-alarm checks mean
+
+- **Score breakdown:** 50% planted-defect success (46/46), 30% email-category
+  macro-F1 (0.987507), and 20% defect-F1 (1.000000) produce **99.63/100**.
+  This is the dataset score, not the hackathon judging score.
+- **False defect alarms:** the [saved organizer scorer output](evidence/organizer-score.json)
+  reports defect precision and recall of **1.000**, with no false-positive
+  defect flags in its scored comparison set (`doc_total: 200`). This does not
+  mean every email was handled correctly or every review was necessary.
+- **Review workload:** 18 of 20 organizer-labelled review cases were escalated
+  correctly. The export contains 109 NEEDS_REVIEW rows; only 18 match those
+  labels (16.5% escalation precision). Review reliability is separate from the
+  combined score. The export covers 513/520 emails; scorer defaults for the
+  seven omitted rows are included in the result.
+- **Separate synthetic checks:** the [170-email team-made suite](evidence/synthetic-results.json)
+  recorded **162/170 complete results correct**, **61/62 defect cases caught**,
+  **zero incorrect all-clears** and **zero processing failures**. All eight
+  incomplete or incorrect results stayed in review; this is not perfect defect
+  detection. This suite used a different code checkpoint, as recorded in the
+  [benchmark report](BENCHMARKS.md#team-made-test-set).
+- **Regression checks:** replaying 720 saved cases after the port-alias change
+  removed three false port warnings without changing other measured results.
+  The later kg-default change improved nine cases and left the other 711
+  exports unchanged.
+
+These are saved-reading development replays, not independent unseen-data or
+customer-pilot results. False defect flags, unnecessary reviews and incorrect
+all-clears are different measures and are reported separately.
+
 ### Automated tests
 
 - [Comparison checks](backend/tests/test_verification.py) cover field rules.
