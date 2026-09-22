@@ -305,7 +305,8 @@ These are planned steps, not completed features.
 | --- | --- | --- |
 | Before a customer pilot | Test fresh, unseen documents and difficult scans | Report correct results, missed defects, false alarms and review rate separately |
 | Small shipping-team pilot | Add real user accounts, team roles and agreed data retention | Check access rules and observe reviewers completing real tasks |
-| Daily email use | Add mailbox connections and clear retry messages | Check that each email is handled once and failures can recover |
+| Combined team inbox | Connect the team's shared mailbox and bring emails from connected inboxes into one team workspace. Let teammates see the same emails, assign cases and share review progress | Test with two team members: both see the same incoming email, assignments and saved changes. Check that repeat imports do not create duplicate cases and access stays within the team |
+| Daily email use | Keep mailbox updates in sync and show clear retry messages | Check that new emails arrive automatically, each email is handled once and failed imports can recover |
 | Better document reading | Improve hard layouts and language coverage | Compare readers on the same fixed tests and a fresh test set |
 | More users and jobs | Load tests, monitoring and worker capacity planning | Measure queue time, completion time, failure rate and cost per email |
 | Product value | Measure manual work before and after the pilot | Track review time, corrections and missed issues with the shipping team |
