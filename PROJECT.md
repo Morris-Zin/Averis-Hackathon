@@ -16,9 +16,11 @@ A wrong party name, port, container count or weight can lead to more work and
 shipment problems. Checking each field by hand also takes time. Averis helps
 the reviewer find differences and see the evidence behind each result.
 
-The main users are shipping operations staff and document reviewers. A team
-lead can use the queue to see cases that need attention. The prototype uses
-demo workspaces and example reviewer identities.
+The intended product serves a shipping operations team working from a shared
+email inbox. Reviewers check flagged cases, and a team lead sees work that still
+needs attention. The prototype demonstrates this flow through manual imports,
+separate demo workspaces and example reviewer identities. A live shared-mailbox
+connection and real team accounts are planned next.
 
 ## Solution
 
@@ -44,9 +46,8 @@ and earlier review history stay available.
 
 ## Technical Architecture
 
-This diagram follows the stack in our demo slides and adds the data flow.
-It shows the Railway deployment. R2 means **Cloudflare R2**, our private file
-storage service.
+Railway runs the web service and background workers. Neon stores case records
+and jobs. Cloudflare R2 stores uploaded documents privately.
 
 ```mermaid
 flowchart TB
@@ -88,15 +89,11 @@ attachment processing. The API returns saved progress and results to the browser
 | Docker and Railway | Package and run the web service and workers |
 
 Workers poll PostgreSQL for jobs. The recorded deployment uses two workers in
-Singapore, with one job per worker, close to the database. The code supports
-Google Cloud Tasks too, but that is not the queue used on Railway. Railway
-service settings control deployment; `infra/railway/` holds reference settings.
+Singapore, with one job per worker, close to the database.
 
 ## Implementation Details
 
 ### Email and document flow
-
-The flow below is redrawn from slide 4 of our demo pitch.
 
 ```mermaid
 flowchart TD
@@ -158,16 +155,16 @@ flowchart TD
 | Records, files and spending | [persistence.py](backend/src/averis/persistence.py), [storage.py](backend/src/averis/storage.py), [budget.py](backend/src/averis/budget.py) |
 
 Readers and AI adapters can be changed through code while the comparison rules
-stay in place. Each change needs version updates and regression checks. This is
-not yet a user-facing plugin store.
+stay in place. Each change needs version updates and tests to check that earlier
+cases still work.
 
 ## Validation and Results
 
 ### Recorded checkpoint: 22 September 2026
 
-These results come from the saved verification report for code checkpoint
+Results below were measured at code version
 [`68ffe2e`](https://github.com/Morris-Zin/Averis-Hackathon/commit/68ffe2eaf52b762b90df8232ae897f1d5758c4e4).
-They describe that checkpoint, not a fresh test of every later commit.
+on 22 September 2026.
 
 | Check | Recorded result | What it proves and what it does not |
 | --- | --- | --- |
@@ -184,11 +181,10 @@ also passed after seven extra controls were added.
 
 The score uses **saved AI and OCR results on data already used during development**.
 It checks processing and export rules without fresh AI calls. It is not an
-independent test or the 100-point hackathon judging score. The official scorer
-combines end-to-end results, classification and defect scores. It must not be
-described as 99.63% real-world accuracy.
+independent test of new shipments. The official scorer combines complete-case
+results, classification and defect scores.
 
-### Checks a judge can inspect or run
+### Automated tests
 
 - [Comparison checks](backend/tests/test_verification.py) cover field rules.
 - [Review checks](backend/tests/test_domain_review.py) cover corrections.
@@ -198,27 +194,94 @@ described as 99.63% real-world accuracy.
 - [Export checks](backend/tests/test_exporting.py) cover evaluation output rules.
 
 Use the [README verification commands](README.md#run-the-checks) to run offline
-checks. They do not call paid AI services. The results above were read from the
-saved checkpoint report. This document update did not rerun the full benchmark
-or paid browser tests.
+checks. They do not call paid AI services.
 
 ## Challenges Faced
 
-| Challenge | What we built or changed | What still needs care |
-| --- | --- | --- |
-| Many document formats | Native readers plus OCR for scans | Complex layouts and poor scans can still need review |
-| Word tables and text boxes | Reading rules that keep structure and source text | Unsupported structures remain uncertain |
-| Chinese and Malay documents | Language support in readers and OCR | Broader real customer documents still need testing |
-| Similar shipment references | Pairing checks before comparing fields | Unclear pairs still need a reviewer |
-| Missing weight units | A visible kg default for complete numbers | An unlabeled pounds value can be read as kg |
-| A mismatch beside an unknown field | Keep both findings and send the case to review | A reviewer still needs to settle the unknown field |
-| Slow or interrupted jobs | Background workers, checkpoints and recovery | Larger load tests and monitoring are still needed |
-| AI cost and failed calls | Shared spending records and reservations | Paid usage needs correct prices and ongoing oversight |
+### Long waits during testing
 
-We moved workers closer to the database too. In a recorded test using the same
-three emails, total batch time fell from 293.3 seconds to 51.2 seconds after the
-combined recovery, location and worker changes. This was a small test, not a
-guarantee of speed under heavy load.
+During team testing, some emails appeared to take around 15 minutes to finish.
+We investigated the whole job flow and found delays from database locking,
+workers far from the database, and repeated loading of libraries that document
+readers did not need.
+
+We improved job recovery, moved workers from California to Singapore near the
+database, added a second worker, and removed unnecessary library loading. In a
+controlled test with the same three emails, completion time fell from 293.3
+seconds to 51.2 seconds with the same results. This was a small test; larger
+loads still need measurement.
+
+### Documents looked clear to us but were hard for the reader
+
+Teammates supplied Word files, PDFs and Chinese and Malay examples that exposed
+gaps in reading. One Word file placed important fields in a text box that the
+reader skipped. A PDF used labels such as "Party to Notify" that caused separate
+fields to be grouped together.
+
+We added support for those Word structures and field labels while keeping the
+source locations. The affected PDF went from five unclear fields to seven
+matching fields in a live browser test. We also improved Chinese and Malay
+reading. Difficult scans and unclear document roles still go to review.
+
+### A matching value did not always mean the case was ready
+
+Team testing raised a confusing question: why could a field look correct and
+show high AI confidence, yet still need review? We found that confidence in a
+selected value was different from proof that the source was complete or that
+the two documents belonged together.
+
+We made the messages explain that difference. We also added a shared color to
+each mismatched SI/BL field pair and its extracted evidence, so reviewers can
+follow the finding. Known mismatches stay visible beside unclear fields. The
+colors mark extracted text; they do not alter the uploaded documents.
+
+### Suspected spam was adding work to the shipment queue
+
+Our first flow sent uncertain spam into the same review queue as shipment
+problems. During testing, we saw that this made reviewers spend attention on
+messages unrelated to checking documents.
+
+We added a separate Spam view for confirmed and suspected spam, with a clear
+"Suspected" label. "Not spam" returns a message to category review and keeps its
+earlier suggestion and history. Browser tests confirmed that this choice stays
+saved after refresh. This improves the queue; it is not a claim of reliable
+phishing detection.
+
+### Different names for the same port
+
+We found false warnings when one document used a short port name and the other
+included a country or port code. We added a fixed UN/LOCODE directory and resolve
+each value against it before comparison. A replay of 720 saved emails removed
+three false port warnings without changing other measured results.
+
+We still leave unclear names for review. For example, our directory recognizes
+Goteborg and Göteborg, but does not yet have a verified Gothenburg alias. A
+similar spelling alone is not enough to prove that two ports are the same.
+
+### Deciding what a weight without a unit means
+
+Some supplied spreadsheets had a "GROSS WEIGHT" label and a number, but no unit.
+Our strict rule left these values unclear, including cases with other known
+differences. We chose an explicit business rule: a complete weight with no unit
+defaults to kilograms, independently in each document.
+
+The app records and shows this assumption. Explicit units are still converted,
+and conflicting units remain in review. The change improved nine saved cases
+while the other 711 exports stayed unchanged. An unlabeled pounds value can
+still be read as kilograms, so the assumption must remain visible.
+
+### Keeping access to earlier uploads
+
+During testing, earlier uploads appeared to disappear, and teammates expected
+to see each other's cases. We found that demo workspaces were separate and had
+a 24-hour expiry with automatic cleanup. This did not prove the cause of every
+reported refresh issue, but it made longer testing difficult.
+
+We removed automatic expiry and cleanup, and kept access through the existing
+browser session. Live testing confirmed that the same session retained 18
+earlier audit cases. Workspaces remain separate until shared team accounts are
+added. Clearing a browser cookie can still remove access, and previously deleted
+data cannot be recovered automatically.
 
 ## Practical Value and Difference
 
@@ -246,25 +309,3 @@ These are planned steps, not completed features.
 | Better document reading | Improve hard layouts and language coverage | Compare readers on the same fixed tests and a fresh test set |
 | More users and jobs | Load tests, monitoring and worker capacity planning | Measure queue time, completion time, failure rate and cost per email |
 | Product value | Measure manual work before and after the pilot | Track review time, corrections and missed issues with the shipping team |
-
-## Rubric Coverage
-
-This table points to evidence. It does not predict a judge's score.
-
-| Criterion | Points | Where to look |
-| --- | --- | --- |
-| System Design and Architecture | 15 | Architecture diagram, component reasons and code links |
-| Working Core Prototype | 25 | Live demo, import-to-review flow and recorded browser checks |
-| Technology Integration | 15 | Readers, AI adapters, Python rules, PostgreSQL jobs and private R2 files |
-| Technical Feasibility and Validation | 15 | Checkpoint results, executable tests, limits and roadmap |
-| Problem Statement Understanding | 10 | Shipping users, SI as reference and the seven required fields |
-| Innovation and Solution Approach | 10 | Evidence-linked findings, visible uncertainty and corrections with history |
-| Practical Value and Potential | 10 | Reviewer workflow and a pilot plan with measurable outcomes |
-
-## Submission links
-
-- **GitHub Repository Link:** [Averis source code and README](https://github.com/Morris-Zin/Averis-Hackathon)
-- **Slide Deck / Documentation Link:** [Averis project document](https://github.com/Morris-Zin/Averis-Hackathon/blob/main/PROJECT.md)
-
-The project document covers all four required topics: Technical Architecture,
-Implementation Details, Challenges Faced and Future Roadmap.

@@ -221,5 +221,5 @@ The recorded organizer benchmark reached **99.63/100 across 520 emails**, with
 of saved AI/OCR results on reused development data. It is not a claim of 99.63%
 accuracy on new shipments or a hackathon judging score.
 
-Read the [project document](PROJECT.md) for test limits, challenges, the roadmap
-and how Averis addresses each rubric item.
+Read the [project document](PROJECT.md) for the architecture, test results,
+challenges and next steps.
