@@ -297,6 +297,33 @@ The expected value is less routine checking and quicker investigation of errors.
 We have not yet measured staff time saved or financial savings with a shipping
 company. Those measurements are part of the next stage.
 
+## Scalability
+
+Averis separates the web app from document processing. The web app saves each
+job in PostgreSQL, and private workers process jobs in the background. This lets
+people keep using the review pages while documents are being checked.
+
+The recorded deployment uses two workers, with one job per worker. Saved job
+claims prevent workers from taking the same job at the same time. Checkpoints
+let interrupted work resume. Uploaded files stay in R2, so workers do not depend
+on files stored on one server.
+
+To support more emails and teams, we plan to:
+
+- Add workers as the queue grows, within database, AI service and budget limits.
+- Keep workers close to the database to reduce waiting between processing steps.
+- Keep case lists small with pagination, and load full documents and evidence
+  only when a reviewer opens a case.
+- Bring connected inboxes into shared team workspaces, with access rules that
+  keep each team's emails and documents separate.
+- Monitor queue length, waiting time, processing time, failed jobs and cost per email.
+
+Before increasing capacity, we will test larger email batches and several users
+working at once. We will check that jobs finish without duplicate results, review
+changes stay saved, and spending remains within limits. Automatic worker scaling
+and performance under heavy load have not yet been verified. Adding workers
+alone does not guarantee faster processing if the database or AI service is busy.
+
 ## Future Roadmap
 
 These are planned steps, not completed features.
