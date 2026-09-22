@@ -1,0 +1,158 @@
+{
+  "time_utc": "2026-09-22T00:47:13.176590+00:00",
+  "git_head": "b4522d8c9b8efe5cfe434f0397b39af03e8da231",
+  "method": "Current full ShipmentPipeline with saved classification, OCR evidence, AI selections and pairing responses; no new OCR or AI, no simulated human confirmations.",
+  "counts": {
+    "total": 170,
+    "complete_correct": 162,
+    "accepted_classification_correct": 166,
+    "suggested_classification_correct": 170,
+    "processing_failed": 0,
+    "comparison_cases": 110,
+    "review_required": 89,
+    "false_clear": 0,
+    "defect_cases": 62,
+    "defect_cases_caught": 61
+  },
+  "complete_correct_percent": 95.29411764705883,
+  "failures": [
+    {
+      "id": "synthetic:syn_en_SPAM_2",
+      "language": "en",
+      "format": "email-only",
+      "expected": {
+        "category": "SPAM",
+        "status": "OK",
+        "review_reason": null,
+        "has_defect": false,
+        "defect_fields": []
+      },
+      "actual": {
+        "category": null,
+        "status": "NEEDS_REVIEW",
+        "defect_fields": []
+      }
+    },
+    {
+      "id": "synthetic:syn_zh_jpg_match_053",
+      "language": "zh",
+      "format": "jpg",
+      "expected": {
+        "category": "BL_COMPARISON",
+        "status": "OK",
+        "review_reason": null,
+        "has_defect": false,
+        "defect_fields": []
+      },
+      "actual": {
+        "category": "BL_COMPARISON",
+        "status": "NEEDS_REVIEW",
+        "defect_fields": []
+      }
+    },
+    {
+      "id": "synthetic:syn_zh_scan-pdf_match_057",
+      "language": "zh",
+      "format": "scan-pdf",
+      "expected": {
+        "category": "BL_COMPARISON",
+        "status": "OK",
+        "review_reason": null,
+        "has_defect": false,
+        "defect_fields": []
+      },
+      "actual": {
+        "category": "BL_COMPARISON",
+        "status": "NEEDS_REVIEW",
+        "defect_fields": []
+      }
+    },
+    {
+      "id": "synthetic:syn_zh_mixed-pdf_match_061",
+      "language": "zh",
+      "format": "mixed-pdf",
+      "expected": {
+        "category": "BL_COMPARISON",
+        "status": "OK",
+        "review_reason": null,
+        "has_defect": false,
+        "defect_fields": []
+      },
+      "actual": {
+        "category": "BL_COMPARISON",
+        "status": "NEEDS_REVIEW",
+        "defect_fields": []
+      }
+    },
+    {
+      "id": "synthetic:syn_zh_mixed-pdf_container_count_062",
+      "language": "zh",
+      "format": "mixed-pdf",
+      "expected": {
+        "category": "BL_COMPARISON",
+        "status": "MISMATCH",
+        "review_reason": null,
+        "has_defect": true,
+        "defect_fields": [
+          "container_count"
+        ]
+      },
+      "actual": {
+        "category": "BL_COMPARISON",
+        "status": "NEEDS_REVIEW",
+        "defect_fields": []
+      }
+    },
+    {
+      "id": "synthetic:syn_zh_SPAM_2",
+      "language": "zh",
+      "format": "email-only",
+      "expected": {
+        "category": "SPAM",
+        "status": "OK",
+        "review_reason": null,
+        "has_defect": false,
+        "defect_fields": []
+      },
+      "actual": {
+        "category": null,
+        "status": "NEEDS_REVIEW",
+        "defect_fields": []
+      }
+    },
+    {
+      "id": "synthetic:syn_ms_SI_REQUEST_2",
+      "language": "ms",
+      "format": "email-only",
+      "expected": {
+        "category": "SI_REQUEST",
+        "status": "OK",
+        "review_reason": null,
+        "has_defect": false,
+        "defect_fields": []
+      },
+      "actual": {
+        "category": null,
+        "status": "NEEDS_REVIEW",
+        "defect_fields": []
+      }
+    },
+    {
+      "id": "synthetic:syn_ms_SPAM_2",
+      "language": "ms",
+      "format": "email-only",
+      "expected": {
+        "category": "SPAM",
+        "status": "OK",
+        "review_reason": null,
+        "has_defect": false,
+        "defect_fields": []
+      },
+      "actual": {
+        "category": null,
+        "status": "NEEDS_REVIEW",
+        "defect_fields": []
+      }
+    }
+  ]
+}

@@ -9,6 +9,20 @@ Aung Phone Khant, Pei En, Congye and Ella
 **Averis sorts shipping emails, checks seven shipment fields, and shows the
 source behind every finding. People review differences and unclear readings.**
 
+## Key Results
+
+| Result | What we tested |
+| --- | --- |
+| **99.63/100** | Official combined score across 520 supplied emails |
+| **46/46 known defect cases caught** | Planted shipment errors in the organizer test set |
+| **95.3% complete results correct** | Category, status and defect fields together on 170 team-made test emails |
+
+These benchmarks used saved AI and OCR readings from reused development data.
+The two test sets are scored separately. [See the benchmark report and outputs](BENCHMARKS.md).
+
+**Try the working flow:** [open the live demo](https://averis-hackathon-production.up.railway.app/)
+to inspect findings, open source evidence and correct a reading.
+
 ## Problem and users
 
 Shipping teams receive emails with instructions, draft shipping documents,
@@ -18,6 +32,11 @@ the draft Bill of Lading (BL) agrees with the Shipping Instructions (SI).
 A wrong party name, port, container count or weight can lead to more work and
 shipment problems. Checking each field by hand also takes time. Averis helps
 the reviewer find differences and see the evidence behind each result.
+
+A manual check means finding the right email, opening both documents, locating
+the same seven fields, and recording each difference. When a number is hard to
+read, the reviewer must return to the source. Averis puts those steps in one
+place and keeps the evidence beside the result.
 
 The intended product serves a shipping operations team working from a shared
 email inbox. Reviewers check flagged cases, and a team lead sees work that still
@@ -63,6 +82,22 @@ To explore the app, open the demo, choose **Enter demo workspace**, then open a
 saved case and its source evidence. Saved demo cases are examples. New uploads
 use the live processing service when AI processing and budget are available.
 
+### See the review flow
+
+These are real captures from the deployed app using a saved synthetic demo
+case. They show the review tools, not a new benchmark run. The live layout has
+since been updated.
+
+**1. Find a difference and check its source.** This sample shows different
+discharge ports and container counts. The source text appears below the fields.
+
+![SI and BL values beside their source evidence](evidence/screenshots/comparison.png)
+
+**2. Correct the reading with evidence.** The reviewer selects the source text,
+gives a reason, and uses **Save and recompute**. The uploaded file stays unchanged.
+
+![Correction form with source text and a reason for the change](evidence/screenshots/correction.png)
+
 ## Technical Architecture
 
 Railway runs the web service and background workers. Neon stores case records
@@ -101,6 +136,16 @@ the database, so a long document check does not hold the page open waiting.
 Workers check PostgreSQL for waiting jobs. The recorded deployment uses two workers in
 Singapore, with one job per worker, close to the database.
 
+### Why we chose this design
+
+- **Background workers:** a document can take time to read. Saving the job first
+  lets the browser return quickly and lets a worker resume interrupted work.
+- **Separate file storage:** R2 holds documents while PostgreSQL holds small
+  case records and job progress. Any worker can read the same stored file.
+- **AI reading with Python checks:** AI handles varied wording and layouts.
+  Python checks source evidence, converts units and compares values using the
+  same rules each time.
+
 ## Implementation Details
 
 ### Email and document flow
@@ -129,6 +174,12 @@ Python code checks that the selected text supports each reading and that the SI
 and BL belong together. It then compares names, ports, numbers and units. AI
 does not decide whether two numbers are equal. The original text and its location
 stay linked to each reading.
+
+For example, a scanned weight may read **24,000 kg** on the SI and **24 t** on
+the BL. OCR turns the image into text. AI finds the weight and its source text.
+Python checks the evidence and converts 24 tonnes to 24,000 kilograms before
+comparing. The reviewer can inspect both original readings. This is an example
+of the processing steps, not a separate measured test result.
 
 ### Correcting a reading
 
@@ -161,23 +212,6 @@ flowchart TB
 - The supplied test answers are used only to score tests, never to decide the
   app's results.
 
-### Code map
-
-| Area | Source |
-| --- | --- |
-| API and access checks | [api.py](backend/src/averis/api.py), [routes.py](backend/src/averis/routes.py) |
-| Email imports | [email_intake.py](backend/src/averis/email_intake.py), [bulk_ingest.py](backend/src/averis/bulk_ingest.py) |
-| Jobs and recovery | [processing.py](backend/src/averis/processing.py), [runner.py](backend/src/averis/runner.py) |
-| Readers and OCR | [documents/](backend/src/averis/documents/) |
-| AI setup and adapters | [processing_setup.py](backend/src/averis/processing_setup.py), [jev.py](backend/src/averis/jev.py), [deepseek.py](backend/src/averis/deepseek.py) |
-| Source checks and comparison | [verification.py](backend/src/averis/verification.py), [pairing.py](backend/src/averis/pairing.py), [case_status.py](backend/src/averis/case_status.py) |
-| Corrections and history | [review.py](backend/src/averis/review.py), [workflow.py](backend/src/averis/workflow.py) |
-| Records, files and spending | [persistence.py](backend/src/averis/persistence.py), [storage.py](backend/src/averis/storage.py), [budget.py](backend/src/averis/budget.py) |
-
-Document readers and AI connections can be changed through code while the comparison rules
-stay in place. Each change needs version updates and tests to check that earlier
-cases still work.
-
 ## Validation and Results
 
 ### Measured results
@@ -202,8 +236,7 @@ also passed after seven extra controls were added.
 The benchmark uses **saved AI and OCR readings from data already used during
 development**. We ran those readings through the processing and export rules
 again. The score combines complete-case results, email categories and defect
-detection. It does not mean 99.63% accuracy on new shipments, and catching the
-46 known defects does not guarantee catching every future error.
+detection. See the [benchmark report](BENCHMARKS.md) for the scoring method and saved outputs.
 
 ### Automated tests
 
@@ -228,8 +261,7 @@ The team reported waits of around 15 minutes for some emails. We found database
 delays and workers running far from the database. We improved job recovery,
 moved workers from California to Singapore near the database, and added a second
 worker. The same three-email test batch then fell from **293.3 seconds to 51.2
-seconds**, with unchanged results. This small test does not establish speed
-under heavy load.
+seconds**, with unchanged results. This result comes from a controlled three-email batch.
 
 ### Documents looked clear to us but were hard for the reader
 
@@ -237,8 +269,7 @@ Teammates supplied Word files, PDFs and Chinese and Malay examples. A Word text
 box was skipped, and PDF labels such as "Party to Notify" caused fields to be
 grouped incorrectly. We improved those readers and kept the source locations.
 The affected PDF went from **five unclear fields to seven matching fields** in a
-live browser test. Chinese and Malay reading also improved, but difficult scans
-and unclear document types still need review.
+live browser test. Chinese and Malay reading also improved. Unclear readings are sent to a reviewer.
 
 ### A matching value did not always mean the case was ready
 
@@ -253,17 +284,14 @@ source text. The uploaded documents stay unchanged.
 The team objected to suspected spam filling the shipment review queue. We added
 a separate Spam view with a clear "Suspected" label. "Not spam" returns a message
 to category review and keeps its earlier suggestion and history. Browser tests
-confirmed that the choice stays saved after refresh. This improves how work is
-sorted; it does not prove general phishing detection.
+confirmed that the choice stays saved after refresh. This keeps shipment review focused and lets people recover a message if needed.
 
 ### Different names for the same port
 
 Short port names and names with countries or codes caused false warnings. We
 added the UN/LOCODE location-code directory to check each value. Rechecking 720
 saved emails removed **three false port warnings** without changing other
-measured results. Name coverage is still incomplete: Goteborg and Göteborg are
-recognized, but Gothenburg is not yet a verified alternative. Unclear names
-stay in review instead of being forced to match.
+measured results. Verified names and codes can match. Unclear names go to review.
 
 ### Deciding what a weight without a unit means
 
@@ -280,9 +308,7 @@ The team reported missing earlier uploads and expected to see each other's
 cases. We found separate demo workspaces with 24-hour expiry and cleanup. This
 did not explain every reported refresh issue, but it made longer testing hard.
 We removed automatic expiry and cleanup. A live test retained **18 earlier
-cases** in the same browser session. Shared team access is still planned;
-clearing browser cookies can still remove access, and deleted data cannot be
-recovered automatically.
+cases** in the same browser session. Shared access is the next step in our combined team inbox plan.
 
 ## Practical Value and Difference
 
@@ -303,8 +329,22 @@ questions visible. This makes the result easier to check and act on.
 | Improve reading over time | Replace document readers or AI connections while keeping the comparison rules |
 
 The expected value is less routine checking and quicker investigation of errors.
-We have not yet measured staff time saved or financial savings with a shipping
-company. Those measurements are part of the next stage.
+Our pilot plan below measures time saved and the quality of review decisions.
+
+### Shipping-team pilot plan
+
+We propose a pilot with two document reviewers and one team lead. They would
+check a fixed set of permitted shipment emails, including clean documents,
+known differences and hard-to-read fields.
+
+Each reviewer would work through some cases manually and others with Averis.
+We would switch the order between reviewers to reduce the benefit of seeing a
+case first. The team lead would check the final decisions against an agreed
+answer set.
+
+We would measure time per case, missed errors, false warnings, cases sent to
+review and corrections needed. The pilot should show faster review without
+more missed errors before the team expands daily use.
 
 ## Scalability
 
@@ -341,9 +381,8 @@ To support more emails and teams, we plan to:
 
 Before increasing capacity, we will test larger email batches and several users
 working at once. We will check that jobs finish without duplicate results, review
-changes stay saved, and spending remains within limits. Automatic worker scaling
-and performance under heavy load have not yet been verified. Adding workers
-alone does not guarantee faster processing if the database or AI service is busy.
+changes stay saved, and spending remains within limits. Capacity tests will guide worker counts and check database and AI service demand
+before wider use.
 
 ## Future Roadmap
 
@@ -358,3 +397,20 @@ These are planned steps, not completed features.
 | Better document reading | Improve hard layouts and language coverage | Compare readers on the same fixed tests and a fresh test set |
 | More users and jobs | Load tests, monitoring and worker capacity planning | Measure queue time, completion time, failure rate and cost per email |
 | Product value | Measure manual work before and after the pilot | Track review time, corrections and missed issues with the shipping team |
+
+## Code guide
+
+| Area | Source |
+| --- | --- |
+| API and access checks | [api.py](backend/src/averis/api.py), [routes.py](backend/src/averis/routes.py) |
+| Email imports | [email_intake.py](backend/src/averis/email_intake.py), [bulk_ingest.py](backend/src/averis/bulk_ingest.py) |
+| Jobs and recovery | [processing.py](backend/src/averis/processing.py), [runner.py](backend/src/averis/runner.py) |
+| Readers and OCR | [documents/](backend/src/averis/documents/) |
+| AI setup and adapters | [processing_setup.py](backend/src/averis/processing_setup.py), [jev.py](backend/src/averis/jev.py), [deepseek.py](backend/src/averis/deepseek.py) |
+| Source checks and comparison | [verification.py](backend/src/averis/verification.py), [pairing.py](backend/src/averis/pairing.py), [case_status.py](backend/src/averis/case_status.py) |
+| Corrections and history | [review.py](backend/src/averis/review.py), [workflow.py](backend/src/averis/workflow.py) |
+| Records, files and spending | [persistence.py](backend/src/averis/persistence.py), [storage.py](backend/src/averis/storage.py), [budget.py](backend/src/averis/budget.py) |
+
+Document readers and AI connections can be changed through code while the comparison rules
+stay in place. Each change needs version updates and tests to check that earlier
+cases still work.

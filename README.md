@@ -10,6 +10,7 @@ Built by **Team GoodLord**: Aung Phone Khant, Pei En, Congye and Ella.
 
 - [Open the demo](https://averis-hackathon-production.up.railway.app/)
 - [Read the project document](PROJECT.md): architecture, implementation, challenges, results and roadmap.
+- [See the benchmark report](BENCHMARKS.md): scores, test methods and saved outputs.
 - [View the source code](https://github.com/Morris-Zin/Averis-Hackathon)
 
 ## Try the demo
