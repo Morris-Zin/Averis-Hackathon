@@ -6,6 +6,9 @@ Aung Phone Khant, Pei En, Congye and Ella
 
 [Source code and setup](README.md) | [Live demo](https://averis-hackathon-production.up.railway.app/)
 
+**Averis sorts shipping emails, checks seven shipment fields, and shows the
+source behind every finding. People review differences and unclear readings.**
+
 ## Problem and users
 
 Shipping teams receive emails with instructions, draft shipping documents,
@@ -44,6 +47,22 @@ automatically. Missing or unclear evidence also goes to review. A person can
 correct the app's reading and run the comparison again. The uploaded document
 and earlier review history stay available.
 
+### What works today
+
+The live app accepts emails and attachments, sorts them, reads documents, checks
+fields, and saves the results. Reviewers can open source evidence, correct a
+reading, assign a case and see its history. Confirmed and suspected spam have
+their own queue.
+
+For example, a tested PDF case showed **15 containers in the SI and 16 in the
+BL**, plus **359,415 kg in the SI and 360,415 kg in the BL**. The app highlighted
+both differences and sent the case to review. The reviewer could open the
+original files and the exact text behind each finding.
+
+To explore the app, open the demo, choose **Enter demo workspace**, then open a
+saved case and its source evidence. Saved demo cases are examples. New uploads
+use the live processing service when AI processing and budget are available.
+
 ## Technical Architecture
 
 Railway runs the web service and background workers. Neon stores case records
@@ -51,44 +70,35 @@ and jobs. Cloudflare R2 stores uploaded documents privately.
 
 ```mermaid
 flowchart TB
-    U[Reviewer in a browser]
-    subgraph Railway[Railway]
-        WEB[FastAPI web service<br/>serves the Next.js frontend]
-        WORKER[Private Python workers]
+    U[Reviewer in a browser] <-->|Upload and review| WEB
+    subgraph Railway[Railway hosting]
+        WEB[Web app<br/>Next.js pages and FastAPI]
+        WORKER[Python workers<br/>read files and compare fields]
     end
-    DB[(Neon PostgreSQL<br/>cases, jobs, results and history)]
-    R2[(Private Cloudflare R2<br/>uploaded documents)]
-    READ[Document readers<br/>native text and OCR]
-    AI[Jev<br/>optional DeepSeek field help]
-    RULES[Python rules<br/>validate evidence and compare fields]
-    U <-->|HTTPS requests and results| WEB
-    WEB <-->|Save and read cases| DB
-    WEB <-->|Upload and view files| R2
-    DB -->|Claim queued jobs| WORKER
+    WEB <-->|Cases and progress| DB[(Neon PostgreSQL<br/>jobs, results and history)]
+    WEB <-->|Uploaded files| R2[(Private Cloudflare R2)]
+    DB <-->|Get jobs and save results| WORKER
     R2 -->|Read files| WORKER
-    WORKER --> READ
-    READ -->|Prepared text| AI
-    AI -->|Field readings and source references| RULES
-    RULES -->|Save findings and review state| DB
+    WORKER <-->|Prepared text and AI readings| AI[Jev API<br/>optional DeepSeek help]
 ```
 
-The reading, AI and comparison steps run inside the worker process. They are
-shown separately to explain their jobs. Email classification happens before
-attachment processing. The API returns saved progress and results to the browser.
+Workers are background programs. They call the AI service and run the document
+readers and comparison code. The web app reads saved progress and results from
+the database, so a long document check does not hold the page open waiting.
 
 | Part | Why we use it |
 | --- | --- |
-| Next.js static frontend | Builds the review pages into files that FastAPI can serve |
-| FastAPI and Python | Handles uploads and API requests, and shares Python code with the worker |
-| Private workers | Process documents without holding a browser request open |
+| Next.js pages | Build the review screens as files served by FastAPI |
+| FastAPI and Python | Handle browser requests and uploads, and share code with the workers |
+| Private workers | Check documents in the background while people use the app |
 | Neon PostgreSQL | Keeps jobs, cases, results and history after a service restart |
 | Cloudflare R2 | Stores files privately, apart from case records |
-| Native parsers and OCR | Read editable documents and scanned pages |
+| Document readers and OCR | Read file text directly, or use OCR to read text from scanned images |
 | Jev through TypeSafe | Classifies emails and reads structured shipment fields from prepared text |
-| Optional DeepSeek adapter | Helps with fields that the main reading path could not resolve |
+| Optional DeepSeek help | Helps read fields that the main reading path could not resolve |
 | Docker and Railway | Package and run the web service and workers |
 
-Workers poll PostgreSQL for jobs. The recorded deployment uses two workers in
+Workers check PostgreSQL for waiting jobs. The recorded deployment uses two workers in
 Singapore, with one job per worker, close to the database.
 
 ## Implementation Details
@@ -100,46 +110,56 @@ flowchart TD
     A[Import email and attachments] --> B[Save case and queue a job]
     B --> C[Classify into five categories]
     C -->|Other category| D[Show in its queue]
-    C -->|Uncertain category| H[Human review]
+    C -->|Suspected spam| S[Separate Spam queue]
+    C -->|Other uncertain category| H[Human review]
     C -->|BL comparison| E[Read SI and draft BL]
     E --> F[Extract fields and check source evidence]
     F --> G[Compare seven fields against SI]
     G -->|All seven match with valid evidence| I[No mismatch detected]
     G -->|Any difference| H
     G -->|Missing or unclear evidence| H
-    H --> J[View source and correct a reading]
-    J --> F
 ```
 
-1. **Import.** A user adds an email and files, or imports a ZIP. The app checks
-   file limits and detects repeat submissions in the same workspace.
-2. **Classify.** Jev suggests one of five categories. The app keeps uncertain
-   choices for review. A suggestion is not always an accepted decision.
-3. **Read.** Native readers handle TXT, PDF, DOCX and XLSX. Scans and images use
-   Tesseract or RapidOCR. Jev receives prepared text, not raw PDF or image files.
-4. **Pair.** The app checks that the SI and BL belong together. Conflicting or
-   unclear shipment references stop the case from receiving an all-clear.
-5. **Extract.** AI readings retain source text and locations. The code checks
-   that the evidence supports the selected values.
-6. **Compare.** Python rules handle names, ports, numbers and units. AI does not
-   make the final numeric comparison. A complete weight with no unit defaults
-   to kilograms, and the app records and shows that assumption.
-7. **Review.** Differences and unclear fields remain visible together. Correcting
-   a reading creates history and updates the comparison without editing the file.
+The app reads TXT, PDF, DOCX and XLSX files, plus PNG and JPEG images. Tesseract
+and RapidOCR read scanned text. Jev receives prepared text instead of raw files.
+It suggests the email category and reads shipment fields. Optional DeepSeek
+help is used for fields that remain unclear.
+
+Python code checks that the selected text supports each reading and that the SI
+and BL belong together. It then compares names, ports, numbers and units. AI
+does not decide whether two numbers are equal. The original text and its location
+stay linked to each reading.
+
+### Correcting a reading
+
+A reviewer can fix what the app read without changing the uploaded document.
+For example, if OCR reads a digit incorrectly, the reviewer checks the source,
+corrects the reading and sees an updated comparison.
+
+```mermaid
+flowchart TB
+    A[Open source evidence] --> B[Correct the reading]
+    B --> C[Check the source and compare again]
+    C --> D[Save the new result and history]
+    O[Uploaded document stays unchanged] -.-> A
+    D --> E[Keep any remaining issues in review]
+```
 
 ### Keeping results safe to review
 
 - All seven fields need valid matching evidence for an all-clear.
 - High AI confidence alone is not enough to prove a match.
-- A source reference keeps the document identity, version, quoted text and a
-  useful location. Word documents are not given invented page numbers.
+- Each finding keeps the file name, version, quoted text and location. Word
+  documents use text locations instead of invented page numbers.
 - New results must belong to the current document version. Old work cannot
   silently replace a newer review result.
-- Jobs use saved checkpoints and timed claims so interrupted work can recover.
+- Workers save progress and take a job for a limited time. If a worker stops,
+  the job can be recovered from saved progress.
 - Spending is reserved before paid calls. An uncertain charge keeps its
   reservation until it can be resolved.
 - Files are private and access is checked against the user's workspace.
-- Organizer answer labels are kept outside runtime inference.
+- The supplied test answers are used only to score tests, never to decide the
+  app's results.
 
 ### Code map
 
@@ -154,24 +174,24 @@ flowchart TD
 | Corrections and history | [review.py](backend/src/averis/review.py), [workflow.py](backend/src/averis/workflow.py) |
 | Records, files and spending | [persistence.py](backend/src/averis/persistence.py), [storage.py](backend/src/averis/storage.py), [budget.py](backend/src/averis/budget.py) |
 
-Readers and AI adapters can be changed through code while the comparison rules
+Document readers and AI connections can be changed through code while the comparison rules
 stay in place. Each change needs version updates and tests to check that earlier
 cases still work.
 
 ## Validation and Results
 
-### Recorded checkpoint: 22 September 2026
+### Measured results
 
 Results below were measured at code version
-[`68ffe2e`](https://github.com/Morris-Zin/Averis-Hackathon/commit/68ffe2eaf52b762b90df8232ae897f1d5758c4e4).
+[`68ffe2e`](https://github.com/Morris-Zin/Averis-Hackathon/commit/68ffe2eaf52b762b90df8232ae897f1d5758c4e4)
 on 22 September 2026.
 
-| Check | Recorded result | What it proves and what it does not |
+| Check | Result | Scope |
 | --- | --- | --- |
-| Organizer benchmark | 99.63/100 on 520 supplied emails | The official weighted score on saved development outputs; not accuracy on new shipments |
-| Planted defect cases | 46/46 caught in the organizer evaluation | Coverage of known test defects; not a promise to catch every future error |
-| Replay after the kg default change | Nine cases improved; the other 711 exports stayed the same | A regression check across 720 saved cases |
-| Full automated verification | 589 backend tests and 27 frontend tests passed; three backend tests skipped | Recorded checks included PostgreSQL, types, lint, API contracts and build |
+| Organizer benchmark | 99.63/100 on 520 supplied emails | Official combined score using saved AI and OCR readings |
+| Planted defect cases | 46/46 caught in the organizer evaluation | Known defects in the supplied test set |
+| Check after the kg default change | Nine cases improved; the other 711 exported results stayed the same | 720 saved cases processed again to check for unwanted changes |
+| Automated tests | 589 backend tests and 27 frontend tests passed; three backend tests skipped | Included the real PostgreSQL database, code checks, API data formats and app build |
 | Live browser checks | Three imported cases completed on the first attempt | One matching case and two mismatch cases worked through the deployed flow |
 
 The live cases checked the assumed-kg label, retained source evidence, results
@@ -179,10 +199,11 @@ and automatic review routing. The recorded
 [CI run](https://github.com/Morris-Zin/Averis-Hackathon/actions/runs/35660169349)
 also passed after seven extra controls were added.
 
-The score uses **saved AI and OCR results on data already used during development**.
-It checks processing and export rules without fresh AI calls. It is not an
-independent test of new shipments. The official scorer combines complete-case
-results, classification and defect scores.
+The benchmark uses **saved AI and OCR readings from data already used during
+development**. We ran those readings through the processing and export rules
+again. The score combines complete-case results, email categories and defect
+detection. It does not mean 99.63% accuracy on new shipments, and catching the
+46 known defects does not guarantee catching every future error.
 
 ### Automated tests
 
@@ -198,90 +219,70 @@ checks. They do not call paid AI services.
 
 ## Challenges Faced
 
+These changes came from our own use of the app and teammate testing. We have
+not yet run a pilot with a shipping company.
+
 ### Long waits during testing
 
-During team testing, some emails appeared to take around 15 minutes to finish.
-We investigated the whole job flow and found delays from database locking,
-workers far from the database, and repeated loading of libraries that document
-readers did not need.
-
-We improved job recovery, moved workers from California to Singapore near the
-database, added a second worker, and removed unnecessary library loading. In a
-controlled test with the same three emails, completion time fell from 293.3
-seconds to 51.2 seconds with the same results. This was a small test; larger
-loads still need measurement.
+The team reported waits of around 15 minutes for some emails. We found database
+delays and workers running far from the database. We improved job recovery,
+moved workers from California to Singapore near the database, and added a second
+worker. The same three-email test batch then fell from **293.3 seconds to 51.2
+seconds**, with unchanged results. This small test does not establish speed
+under heavy load.
 
 ### Documents looked clear to us but were hard for the reader
 
-Teammates supplied Word files, PDFs and Chinese and Malay examples that exposed
-gaps in reading. One Word file placed important fields in a text box that the
-reader skipped. A PDF used labels such as "Party to Notify" that caused separate
-fields to be grouped together.
-
-We added support for those Word structures and field labels while keeping the
-source locations. The affected PDF went from five unclear fields to seven
-matching fields in a live browser test. We also improved Chinese and Malay
-reading. Difficult scans and unclear document roles still go to review.
+Teammates supplied Word files, PDFs and Chinese and Malay examples. A Word text
+box was skipped, and PDF labels such as "Party to Notify" caused fields to be
+grouped incorrectly. We improved those readers and kept the source locations.
+The affected PDF went from **five unclear fields to seven matching fields** in a
+live browser test. Chinese and Malay reading also improved, but difficult scans
+and unclear document types still need review.
 
 ### A matching value did not always mean the case was ready
 
-Team testing raised a confusing question: why could a field look correct and
-show high AI confidence, yet still need review? We found that confidence in a
-selected value was different from proof that the source was complete or that
-the two documents belonged together.
-
-We made the messages explain that difference. We also added a shared color to
-each mismatched SI/BL field pair and its extracted evidence, so reviewers can
-follow the finding. Known mismatches stay visible beside unclear fields. The
-colors mark extracted text; they do not alter the uploaded documents.
+The team asked why a field could show high AI confidence but still need review.
+A confident reading does not prove that the source is complete or that the SI
+and BL belong together. We changed the messages to explain what still needs
+checking. Matching colors now connect each mismatched SI/BL field pair to its
+source text. The uploaded documents stay unchanged.
 
 ### Suspected spam was adding work to the shipment queue
 
-Our first flow sent uncertain spam into the same review queue as shipment
-problems. During testing, we saw that this made reviewers spend attention on
-messages unrelated to checking documents.
-
-We added a separate Spam view for confirmed and suspected spam, with a clear
-"Suspected" label. "Not spam" returns a message to category review and keeps its
-earlier suggestion and history. Browser tests confirmed that this choice stays
-saved after refresh. This improves the queue; it is not a claim of reliable
-phishing detection.
+The team objected to suspected spam filling the shipment review queue. We added
+a separate Spam view with a clear "Suspected" label. "Not spam" returns a message
+to category review and keeps its earlier suggestion and history. Browser tests
+confirmed that the choice stays saved after refresh. This improves how work is
+sorted; it does not prove general phishing detection.
 
 ### Different names for the same port
 
-We found false warnings when one document used a short port name and the other
-included a country or port code. We added a fixed UN/LOCODE directory and resolve
-each value against it before comparison. A replay of 720 saved emails removed
-three false port warnings without changing other measured results.
-
-We still leave unclear names for review. For example, our directory recognizes
-Goteborg and Göteborg, but does not yet have a verified Gothenburg alias. A
-similar spelling alone is not enough to prove that two ports are the same.
+Short port names and names with countries or codes caused false warnings. We
+added the UN/LOCODE location-code directory to check each value. Rechecking 720
+saved emails removed **three false port warnings** without changing other
+measured results. Name coverage is still incomplete: Goteborg and Göteborg are
+recognized, but Gothenburg is not yet a verified alternative. Unclear names
+stay in review instead of being forced to match.
 
 ### Deciding what a weight without a unit means
 
-Some supplied spreadsheets had a "GROSS WEIGHT" label and a number, but no unit.
-Our strict rule left these values unclear, including cases with other known
-differences. We chose an explicit business rule: a complete weight with no unit
-defaults to kilograms, independently in each document.
-
-The app records and shows this assumption. Explicit units are still converted,
-and conflicting units remain in review. The change improved nine saved cases
-while the other 711 exports stayed unchanged. An unlabeled pounds value can
-still be read as kilograms, so the assumption must remain visible.
+Some spreadsheets had "GROSS WEIGHT" and a number without a unit. Our strict
+rule left them unclear. We chose a visible business rule: a complete weight
+without a unit defaults to kilograms in each document. Explicit units are still
+converted, and conflicting units need review. **Nine saved cases improved; the
+other 711 exported results stayed unchanged.** An unlabeled pounds value can
+still be read as kilograms, so the app shows the assumption.
 
 ### Keeping access to earlier uploads
 
-During testing, earlier uploads appeared to disappear, and teammates expected
-to see each other's cases. We found that demo workspaces were separate and had
-a 24-hour expiry with automatic cleanup. This did not prove the cause of every
-reported refresh issue, but it made longer testing difficult.
-
-We removed automatic expiry and cleanup, and kept access through the existing
-browser session. Live testing confirmed that the same session retained 18
-earlier audit cases. Workspaces remain separate until shared team accounts are
-added. Clearing a browser cookie can still remove access, and previously deleted
-data cannot be recovered automatically.
+The team reported missing earlier uploads and expected to see each other's
+cases. We found separate demo workspaces with 24-hour expiry and cleanup. This
+did not explain every reported refresh issue, but it made longer testing hard.
+We removed automatic expiry and cleanup. A live test retained **18 earlier
+cases** in the same browser session. Shared team access is still planned;
+clearing browser cookies can still remove access, and deleted data cannot be
+recovered automatically.
 
 ## Practical Value and Difference
 
@@ -289,9 +290,17 @@ Averis brings email sorting, document comparison and source evidence into the
 same review flow. The reviewer can see why a field was flagged and correct the
 reading without losing the uploaded file or earlier result.
 
-The useful difference is the link between AI readings, fixed comparison rules
-and human review. An unclear value stays unclear. A known difference stays
-visible. Better readers can be added without replacing the review process.
+The key design choice is to keep the evidence, comparison and correction steps
+together. A reviewer can follow a warning back to the document and fix a reading
+in the same screen. The system keeps both known differences and unanswered
+questions visible. This makes the result easier to check and act on.
+
+| User need | How Averis helps |
+| --- | --- |
+| Find the emails that need attention | Separate email categories, shipment review and spam queues |
+| Understand a warning | Show SI and BL values beside their source text |
+| Fix a wrong reading | Recheck the result and keep the earlier history |
+| Improve reading over time | Replace document readers or AI connections while keeping the comparison rules |
 
 The expected value is less routine checking and quicker investigation of errors.
 We have not yet measured staff time saved or financial savings with a shipping
@@ -303,17 +312,29 @@ Averis separates the web app from document processing. The web app saves each
 job in PostgreSQL, and private workers process jobs in the background. This lets
 people keep using the review pages while documents are being checked.
 
-The recorded deployment uses two workers, with one job per worker. Saved job
-claims prevent workers from taking the same job at the same time. Checkpoints
-let interrupted work resume. Uploaded files stay in R2, so workers do not depend
-on files stored on one server.
+The recorded deployment uses two workers, with one job per worker. A database
+record marks who is working on each job. Saved progress helps interrupted work
+resume. Uploaded files stay in R2, so workers do not depend on files stored on
+one server. Case lists use pages of short summaries; full evidence is loaded
+when a reviewer opens a case.
+
+The next step is to add workers when more emails arrive, within the database,
+AI service and spending limits:
+
+```mermaid
+flowchart TB
+    A[More incoming emails] --> Q[(Saved job queue)]
+    Q --> W1[Worker 1]
+    Q --> W2[Worker 2]
+    Q -.-> W3[More workers planned]
+    W1 --> R[(Saved results)]
+    W2 --> R
+    W3 -.-> R
+    R --> U[Team review screens]
+```
 
 To support more emails and teams, we plan to:
 
-- Add workers as the queue grows, within database, AI service and budget limits.
-- Keep workers close to the database to reduce waiting between processing steps.
-- Keep case lists small with pagination, and load full documents and evidence
-  only when a reviewer opens a case.
 - Bring connected inboxes into shared team workspaces, with access rules that
   keep each team's emails and documents separate.
 - Monitor queue length, waiting time, processing time, failed jobs and cost per email.
@@ -332,7 +353,7 @@ These are planned steps, not completed features.
 | --- | --- | --- |
 | Before a customer pilot | Test fresh, unseen documents and difficult scans | Report correct results, missed defects, false alarms and review rate separately |
 | Small shipping-team pilot | Add real user accounts, team roles and agreed data retention | Check access rules and observe reviewers completing real tasks |
-| Combined team inbox | Connect the team's shared mailbox and bring emails from connected inboxes into one team workspace. Let teammates see the same emails, assign cases and share review progress | Test with two team members: both see the same incoming email, assignments and saved changes. Check that repeat imports do not create duplicate cases and access stays within the team |
+| Combined team inbox | Bring connected mailboxes into one shared workspace with case assignment and shared progress | Two teammates see the same emails and saved changes; repeat imports create no duplicate cases; other teams cannot access them |
 | Daily email use | Keep mailbox updates in sync and show clear retry messages | Check that new emails arrive automatically, each email is handled once and failed imports can recover |
 | Better document reading | Improve hard layouts and language coverage | Compare readers on the same fixed tests and a fresh test set |
 | More users and jobs | Load tests, monitoring and worker capacity planning | Measure queue time, completion time, failure rate and cost per email |
