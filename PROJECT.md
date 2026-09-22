@@ -240,34 +240,30 @@ development**. We ran those readings through the processing and export rules
 again. The score combines complete-case results, email categories and defect
 detection. See the [benchmark report](BENCHMARKS.md) for the scoring method and saved outputs.
 
-### What the score and false-alarm checks mean
+### Benchmark results
 
-- **Score breakdown:** 50% planted-defect success (46/46), 30% email-category
-  macro-F1 (0.987507), and 20% defect-F1 (1.000000) produce **99.63/100**.
-  This is the dataset score, not the hackathon judging score.
-- **False defect alarms:** the [saved organizer scorer output](evidence/organizer-score.json)
-  reports defect precision and recall of **1.000**, with no false-positive
-  defect flags in its scored comparison set (`doc_total: 200`). This does not
-  mean every email was handled correctly or every review was necessary.
-- **Review workload:** 18 of 20 organizer-labelled review cases were escalated
-  correctly. The export contains 109 NEEDS_REVIEW rows; only 18 match those
-  labels (16.5% escalation precision). Review reliability is separate from the
-  combined score. The export covers 513/520 emails; scorer defaults for the
-  seven omitted rows are included in the result.
-- **Separate synthetic checks:** the [170-email team-made suite](evidence/synthetic-results.json)
-  recorded **162/170 complete results correct**, **61/62 defect cases caught**,
-  **zero incorrect all-clears** and **zero processing failures**. All eight
-  incomplete or incorrect results stayed in review; this is not perfect defect
-  detection. This suite used a different code checkpoint, as recorded in the
-  [benchmark report](BENCHMARKS.md#team-made-test-set).
-- **Regression checks:** replaying 720 saved cases after the port-alias change
-  removed three false port warnings without changing other measured results.
-  The later kg-default change improved nine cases and left the other 711
-  exports unchanged.
+| Organizer score component | Weight | Result | Points |
+| --- | --- | --- | --- |
+| Planted-defect success | 50% | 46/46 (100%) | 50.00/50 |
+| Email-category macro-F1 | 30% | 0.987507 | 29.63/30 |
+| Defect-F1 | 20% | 1.000000 | 20.00/20 |
+| **Combined dataset score** | **100%** | | **99.63/100** |
 
-These are saved-reading development replays, not independent unseen-data or
-customer-pilot results. False defect flags, unnecessary reviews and incorrect
-all-clears are different measures and are reported separately.
+| Additional measure | Result | Test set |
+| --- | --- | --- |
+| False defect flags among predicted defects | **0%** (100% defect precision) | Organizer scored comparisons |
+| Review-case recall | 18/20 (90%) | Organizer review labels |
+| Review escalation precision | 18/109 (16.5%) | Organizer review labels |
+| Export coverage | 513/520 emails | Organizer dataset; scorer defaults for seven omitted rows |
+| Complete results correct | 162/170 (95.3%) | Team-made synthetic suite |
+| Defect cases caught | 61/62 (98.4%) | Team-made synthetic suite |
+| Incorrect all-clears | 0 | Team-made synthetic suite |
+| Processing failures | 0/170 | Team-made synthetic suite |
+| False port warnings removed | 3 | 720-case regression replay |
+| Kg-default regression | 9 improved; 711 unchanged | 720-case regression replay |
+
+Sources: [organizer scores](evidence/organizer-score.json),
+[synthetic results](evidence/synthetic-results.json), [benchmark methods and checkpoints](BENCHMARKS.md).
 
 ### Automated tests
 
