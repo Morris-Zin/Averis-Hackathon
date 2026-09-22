@@ -14,10 +14,12 @@ source behind every finding. People review differences and unclear readings.**
 | Result | What we tested |
 | --- | --- |
 | **99.63/100** | Official combined score across 520 supplied emails |
+| **100% correct category suggestions** | All 520 AI suggestions matched the supplied email labels in the recorded classification test |
 | **46/46 known defect cases caught** | Planted shipment errors in the organizer test set |
 | **95.3% complete results correct** | Category, status and defect fields together on 170 team-made test emails |
 
 These benchmarks used saved AI and OCR readings from reused development data.
+Uncertain category suggestions still require review before they are accepted.
 The two test sets are scored separately. [See the benchmark report and outputs](BENCHMARKS.md).
 
 **Try the working flow:** [open the live demo](https://averis-hackathon-production.up.railway.app/)

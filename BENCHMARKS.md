@@ -7,6 +7,7 @@
 | Test set | Result |
 | --- | --- |
 | 520 organizer emails | **99.63/100** official combined score |
+| Recorded category suggestions on 520 organizer emails | **520/520 correct**, or **100%** |
 | Known shipment defects in that set | **46/46** cases caught |
 | 170 team-made test emails | **162/170**, or **95.3%**, complete results correct |
 
@@ -14,6 +15,17 @@ Both sets use saved AI and OCR readings from data used during development.
 We ran those readings through the app's processing rules again. These are
 development benchmarks, with no new AI calls during the replay. The two sets
 have different scoring methods and are reported separately.
+
+### Email category suggestions
+
+In the recorded organizer classification test, all **520 AI category suggestions**
+matched the supplied labels. Of these, 515 were accepted automatically and five
+remained for review. This classification check was recorded at code version
+`0ca0e00`, before the organizer-score version below.
+
+A suggestion and an accepted decision are different. The app keeps uncertain
+suggestions for review. The official category score also depends on which rows
+can be exported, so it is a different measure from suggestion correctness.
 
 ## Organizer test set
 
